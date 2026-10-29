@@ -17,8 +17,10 @@ object PathData {
      * the full list so adjacent chunks join without kinks.
      *
      * Two guards keep the curve on the route: at a sharp turn (more than [CORNER_DEGREES]) the tangent
-     * is zero, so the corner stays a corner; and every handle is at most a third of its segment, so a
-     * short segment next to a long one cannot throw a stub past the corner.
+     * is zero, so the corner stays a corner; and every handle is at most a third of the shorter of the two
+     * segments meeting at its point. The second guard matters where a long leg ends in a corner rounded
+     * by a few short GPS steps: the long leg's handle used to take the tangent's full sideways lean and
+     * bowed the line about 3 px outward just before the turn (small hooks at right-angle corners).
      */
     fun smooth(pts: List<XY>, from: Int = 0, to: Int = pts.size - 1): String = buildString {
         val n = pts.size
@@ -29,8 +31,10 @@ object PathData {
             val seg = hypot(p2.x - p1.x, p2.y - p1.y)
             val t1 = tangent(pts, i, n)
             val t2 = tangent(pts, i + 1, n)
-            val c1 = handle(p1, t1, seg, 1.0)
-            val c2 = handle(p2, t2, seg, -1.0)
+            val before = if (i > 0) dist(pts[i - 1], p1) else seg
+            val after = if (i + 2 < n) dist(p2, pts[i + 2]) else seg
+            val c1 = handle(p1, t1, min(seg, before), 1.0)
+            val c2 = handle(p2, t2, min(seg, after), -1.0)
             append(" C").append(c1.x.f()).append(' ').append(c1.y.f())
                 .append(' ').append(c2.x.f()).append(' ').append(c2.y.f())
                 .append(' ').append(p2.x.f()).append(' ').append(p2.y.f())
@@ -54,6 +58,8 @@ object PathData {
         }
         return XY((p2.x - p0.x) / 6, (p2.y - p0.y) / 6)
     }
+
+    private fun dist(a: XY, b: XY): Double = hypot(b.x - a.x, b.y - a.y)
 
     private fun handle(p: XY, t: XY, segment: Double, sign: Double): XY {
         val len = hypot(t.x, t.y)

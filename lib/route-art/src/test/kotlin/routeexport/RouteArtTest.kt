@@ -172,6 +172,18 @@ class PathSmoothingTest {
     }
 
     @Test
+    fun longLegIntoARoundedCornerDoesNotBulgeOutward() {
+        // Regression: up a long leg at x = 1000, then a corner rounded by two short GPS steps, then left.
+        // The long leg bowed about 3 px to the right (outside the turn) just before the corner.
+        val pts = listOf(XY(1000.0, 1000.0), XY(1000.0, 30.0), XY(992.0, 6.0), XY(976.0, 0.0), XY(0.0, 0.0))
+        val cps = controlPoints(PathData.smooth(pts))
+        for (c in cps) {
+            assertTrue(c.x <= 1000.0 + 0.5, "control point $c bulges outside the corner")
+            assertTrue(c.y >= -0.5, "control point $c bulges above the route")
+        }
+    }
+
+    @Test
     fun gentleCurvesStaySmooth() {
         val pts = (0..20).map { i -> XY(i * 10.0, kotlin.math.sin(i / 3.0) * 20) }
         val d = PathData.smooth(pts)
