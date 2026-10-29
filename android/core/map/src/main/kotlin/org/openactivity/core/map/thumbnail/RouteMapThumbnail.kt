@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.core.map.thumbnail
 
+import android.annotation.SuppressLint
 import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -70,6 +71,8 @@ fun RouteMapThumbnail(
         val request = remember(points, widthPx, heightPx, density, style, palette) {
             ThumbnailRequest(points, widthPx, heightPx, density, style, palette)
         }
+        // Lint false positive: the producer does assign `value` (ProduceStateDoesNotAssignValue).
+        @SuppressLint("ProduceStateDoesNotAssignValue")
         val thumbnail by produceState<RouteThumbnail?>(null, request, loader) {
             value = when {
                 // Previews cannot reach Hilt or the native renderer: show the offline drawing.

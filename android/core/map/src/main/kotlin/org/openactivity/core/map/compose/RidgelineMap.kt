@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.core.map.compose
 
+import android.annotation.SuppressLint
 import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.res.Configuration
@@ -155,6 +156,8 @@ private fun MapViewHost(
 
     // Overlays: plan off the main thread (GeoJSON for long tracks), apply on it.
     val renderer = remember(style) { style?.let(::OverlayRenderer) }
+    // Lint false positive: the producer does assign `value` (ProduceStateDoesNotAssignValue).
+    @SuppressLint("ProduceStateDoesNotAssignValue")
     val plan by produceState<OverlayPlan?>(null, overlays, palette) {
         value = withContext(Dispatchers.Default) { OverlayPlanner.plan(overlays, palette) }
     }
