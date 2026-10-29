@@ -70,6 +70,9 @@ class SaveEditViewModel internal constructor(
     val effects: Flow<SaveEditEffect> = effectChannel.receiveAsFlow()
 
     private var stored: SaveEditForm? = null
+
+    /** Set once Close was sent, so a double tap on Back cannot pop the screen below too. */
+    private var closing = false
     private var activity: SavedActivity? = null
 
     init {
@@ -215,8 +218,14 @@ class SaveEditViewModel internal constructor(
         if (state is SaveEditUiState.Editing && state.dirty) {
             editing { it.copy(dialog = SaveEditDialog.DISCARD_CHANGES) }
         } else {
-            effectChannel.trySend(SaveEditEffect.Close)
+            close()
         }
+    }
+
+    private fun close() {
+        if (closing) return
+        closing = true
+        effectChannel.trySend(SaveEditEffect.Close)
     }
 
     /** Closes the open confirmation. */
@@ -229,7 +238,7 @@ class SaveEditViewModel internal constructor(
             SaveEditDialog.DISCARD_ACTIVITY -> discardActivity()
             SaveEditDialog.DISCARD_CHANGES -> {
                 editing { it.copy(dialog = null) }
-                effectChannel.trySend(SaveEditEffect.Close)
+                close()
             }
             null -> Unit
         }

@@ -59,6 +59,10 @@ internal fun AnalysisSection(
             { r -> ChartMath.scaledTicks(r, DetailFormat.speedDisplayFactor(units)) }
         }
     }
+    // Elevation is stored in metres: label round feet in imperial rather than converted round metres.
+    val elevationTicks: (ClosedFloatingPointRange<Double>) -> List<Double> = remember(units) {
+        { r -> ChartMath.scaledTicks(r, DetailFormat.elevationDisplayFactor(units)) }
+    }
     val labelStyle = RidgelineTheme.text.caption
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
         Readout(data, sport, units, scrubIndex)
@@ -90,6 +94,7 @@ internal fun AnalysisSection(
                 scrubIndex = scrubIndex,
                 onScrub = onScrub,
                 height = 96.dp,
+                tickValues = elevationTicks,
             )
         }
         data.seriesFor(ChartMetric.HEART_RATE)?.let { s ->

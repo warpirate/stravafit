@@ -227,7 +227,8 @@ object ChartMath {
         } ?: PACE_STEPS_SECONDS.last()
         val ticks = ArrayList<Double>()
         var pace = ceil(fastPace / step) * step
-        while (pace <= slowPace + 1e-9) {
+        // The bound keeps a near-zero speed range (even the widest step overflows it) to the budget.
+        while (pace <= slowPace + 1e-9 && ticks.size < maxTicks) {
             if (pace > 0.0) ticks += unitMeters / pace
             pace += step
         }

@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
 import org.openactivity.core.designsystem.component.EmptyState
 import org.openactivity.core.designsystem.component.RidgelineTopAppBar
 import org.openactivity.core.export.file.ExportFormat
@@ -79,11 +80,13 @@ fun ActivityDetailScreen(
         }
     }
     val id = (state as? ActivityDetailUiState.Content)?.activity?.id
+    // A double tap on Up during the exit transition must not pop the screen below as well.
+    val onBack = dropUnlessResumed(block = navigation.onBack)
     ActivityDetailContent(
         state = state,
         snackbar = snackbar,
         actions = DetailActions(
-            onBack = navigation.onBack,
+            onBack = onBack,
             onEdit = { id?.let(navigation.onEdit) },
             onShare = { id?.let(navigation.onShare) },
             onExportFile = viewModel::openExportSheet,

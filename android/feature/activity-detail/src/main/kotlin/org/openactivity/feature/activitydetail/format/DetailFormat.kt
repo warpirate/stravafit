@@ -102,6 +102,10 @@ object DetailFormat {
     fun speedDisplayFactor(units: UnitSystem): Double =
         if (units == UnitSystem.METRIC) 3.6 else 3600.0 / UnitConstants.METERS_PER_MILE
 
+    /** Multiplier from metres to the shown elevation unit (metres or feet). */
+    fun elevationDisplayFactor(units: UnitSystem): Double =
+        if (units == UnitSystem.METRIC) 1.0 else 1.0 / UnitConstants.METERS_PER_FOOT
+
     /** "Pace" or "Speed" for [sport]. */
     fun speedLabel(sport: SportType): String = if (sport.displaysPace) "Pace" else "Speed"
 

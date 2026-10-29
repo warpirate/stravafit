@@ -133,4 +133,18 @@ class ChartMathTest {
         kmh.forEach { assertEquals(Math.round(it).toDouble(), it, 1e-9) }
         assertTrue(kmh.any { it in 19.8..30.6 })
     }
+
+    @Test
+    fun `pace ticks never exceed the budget for a crawl`() {
+        // 0.05 m/s at the top: even ten-minute steps would give dozens of ticks.
+        assertTrue(ChartMath.paceTicks(-0.01..0.05, unitMeters = 1000.0, maxTicks = 3).size <= 3)
+    }
+
+    @Test
+    fun `imperial elevation ticks are round feet`() {
+        val factor = org.openactivity.feature.activitydetail.format.DetailFormat.elevationDisplayFactor(org.openactivity.model.UnitSystem.IMPERIAL)
+        val feet = ChartMath.scaledTicks(100.0..160.0, factor).map { it * factor }
+        assertTrue(feet.isNotEmpty())
+        feet.forEach { assertEquals(Math.round(it / 50.0) * 50.0, it, 1e-6) }
+    }
 }

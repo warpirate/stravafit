@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
 import org.openactivity.core.designsystem.component.PrimaryButton
 import org.openactivity.core.designsystem.component.RidgelineTopAppBar
 import org.openactivity.core.designsystem.theme.RidgelineTheme
@@ -55,7 +56,7 @@ fun ImportScreen(onBack: () -> Unit, onOpenActivity: (Long) -> Unit, viewModel: 
     }
     ImportContent(
         state = state,
-        onBack = onBack,
+        onBack = dropUnlessResumed(block = onBack),
         onPick = { picker.launch(ImportDocumentsContract.MIME_TYPES) },
         onOpenActivity = onOpenActivity,
     )

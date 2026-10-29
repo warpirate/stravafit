@@ -156,14 +156,26 @@ class SaveEditViewModelTest {
         vm.onBack()
         assertEquals(SaveEditEffect.Close, withTimeout(10_000) { vm.effects.first() })
 
-        vm.setDescription("changed")
+        val changed = vm(stored(), isNew = false)
+        changed.editing()
+        changed.setDescription("changed")
+        changed.onBack()
+        assertEquals(SaveEditDialog.DISCARD_CHANGES, changed.editing().dialog)
+        changed.dismissDialog()
+        assertNull(changed.editing().dialog)
+        changed.onBack()
+        changed.confirmDialog()
+        assertEquals(SaveEditEffect.Close, withTimeout(10_000) { changed.effects.first() })
+    }
+
+    @Test
+    fun `a double tap on back closes the screen only once`(): Unit = runBlocking {
+        val vm = vm(stored(), isNew = false)
+        vm.editing()
         vm.onBack()
-        assertEquals(SaveEditDialog.DISCARD_CHANGES, vm.editing().dialog)
-        vm.dismissDialog()
-        assertNull(vm.editing().dialog)
         vm.onBack()
-        vm.confirmDialog()
         assertEquals(SaveEditEffect.Close, withTimeout(10_000) { vm.effects.first() })
+        assertNull(kotlinx.coroutines.withTimeoutOrNull(200) { vm.effects.first() })
     }
 
     @Test
