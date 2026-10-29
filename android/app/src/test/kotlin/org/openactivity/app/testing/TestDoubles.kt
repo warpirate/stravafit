@@ -12,8 +12,6 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
-import org.openactivity.app.data.GpsFix
-import org.openactivity.app.data.GpsStatusSource
 import org.openactivity.app.data.PreferencesRepository
 import org.openactivity.app.format.RelativeTimeFormatter
 import org.openactivity.app.model.Sport
@@ -60,10 +58,4 @@ class FakePreferencesRepository(initial: UserPreferences = UserPreferences()) : 
     override suspend fun setReduceMotion(enabled: Boolean) = state.update { it.copy(reduceMotion = enabled) }
 
     override suspend fun setLastSport(sport: Sport) = state.update { it.copy(lastSport = sport) }
-}
-
-/** [GpsStatusSource] driven by the test. */
-class FakeGpsStatusSource : GpsStatusSource {
-    val state = MutableStateFlow(GpsFix(null))
-    override val fixes: Flow<GpsFix> = state
 }

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<resources>
+    <!-- Pre-start -->
+    <string name="record_close">Close recorder</string>
+    <string name="record_settings">Record settings</string>
+    <string name="record_start">Start</string>
+    <string name="record_route">Route</string>
+    <string name="record_add_route">Add a route to follow</string>
+    <string name="record_change_route">Change the route</string>
+    <string name="record_remove_route">Remove route</string>
+    <string name="record_sport_change">Sport: %1$s. Change sport</string>
+    <string name="record_auto_pause">Auto-pause</string>
+    <string name="record_audio_cues">Audio cues</string>
+    <string name="record_countdown">Countdown</string>
+    <string name="record_on">On</string>
+    <string name="record_off">Off</string>
+    <string name="record_time">Time</string>
+    <string name="record_indoor">Indoor</string>
+    <string name="record_indoor_hint">Indoor sport: GPS stays off and only time is recorded.</string>
+    <string name="record_slow_fix_hint">Still searching. Stand still in the open. You can start now and the track fills in once GPS locks.</string>
+
+    <!-- GPS pill -->
+    <string name="record_gps_acquiring">Acquiring GPS…</string>
+    <string name="record_gps_weak">GPS signal weak</string>
+    <string name="record_gps_weak_accuracy">GPS signal weak · ±%1$d m</string>
+    <string name="record_gps_ready">GPS ready</string>
+    <string name="record_gps_ready_accuracy">GPS ready · ±%1$d m</string>
+    <string name="record_gps_indoor">Indoor · GPS off</string>
+    <string name="record_gps_no_permission">Allow location</string>
+    <string name="record_gps_approximate">Precise location is off</string>
+    <string name="record_gps_off">Location is off</string>
+    <string name="record_gps_fix">Fix</string>
+
+    <!-- Sheets -->
+    <string name="record_choose_sport">Choose a sport</string>
+    <string name="record_search_sports">Search sports</string>
+    <string name="record_recent">Recent</string>
+    <string name="record_choose_route">Follow a route</string>
+    <string name="record_no_routes_title">No saved routes yet</string>
+    <string name="record_no_routes_body">Routes you save or import appear here, and the one you pick is drawn on the map while you record.</string>
+    <string name="record_auto_pause_body">Stops the timer when you stop moving. Saved for %1$s.</string>
+    <string name="record_audio_cues_body">Spoken start, pause and split updates.</string>
+    <string name="record_countdown_title">Countdown timer (3 s)</string>
+    <string name="record_countdown_body">Count down from 3 before the timer starts.</string>
+    <string name="record_screen_on_title">Screen always on</string>
+    <string name="record_screen_on_body">Keep the screen awake while this screen shows a recording. Uses more battery.</string>
+    <string name="record_countdown_cancel">Tap to cancel</string>
+
+    <!-- Recording -->
+    <string name="record_status_recording">Rec</string>
+    <string name="record_status_paused">Paused</string>
+    <string name="record_status_auto_paused">Auto-paused</string>
+    <string name="record_minimise">Minimise. Recording continues</string>
+    <string name="record_lap">Lap</string>
+    <string name="record_pause">Pause</string>
+    <string name="record_resume">Resume</string>
+    <string name="record_finish">Finish</string>
+    <string name="record_hold_to_finish">Hold to finish</string>
+    <string name="record_map">Map</string>
+    <string name="record_stats">Stats</string>
+    <string name="record_splits">Splits</string>
+    <string name="record_split_partial">%1$d (partial)</string>
+    <string name="record_pace_cycle">Switch pace</string>
+    <string name="record_auto_paused_banner">Auto-paused. Recording resumes when you move.</string>
+    <string name="record_gps_lost_banner">GPS signal lost. Time is still recording.</string>
+    <string name="record_recovered_banner">Recovered after the app was closed. The gap adds no distance.</string>
+
+    <!-- Finish -->
+    <string name="record_finish_title">Finish activity?</string>
+    <string name="record_save">Save</string>
+    <string name="record_discard">Discard</string>
+    <string name="record_cancel">Cancel</string>
+    <string name="record_discard_title">Discard this activity?</string>
+    <string name="record_discard_body">The recording is deleted from this phone. This can\'t be undone.</string>
+    <string name="record_interrupted_title">Recover activity in progress?</string>
+    <string name="record_interrupted_body">A %1$s started %2$s stopped when the app was closed. Resume it, save it as it is, or discard it.</string>
+</resources>
