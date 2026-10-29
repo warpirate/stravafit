@@ -61,9 +61,12 @@ class RecordingService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         handledStart = true
-        val restartedBySystem = intent == null || intent.action == ACTION_RECOVER
+        // Anything but a fresh start from the app (a sticky restart, or a notification action reaching a
+        // process that died) is about a recording that may only live in the journal now.
+        val needsRecovery = intent?.action != ACTION_START
         if (!enterForeground()) {
-            if (restartedBySystem) notifications.showInterrupted()
+            // Tell the athlete instead of failing silently; the app offers recovery when opened.
+            if (needsRecovery && !controller.state.value.isActive) notifications.showInterrupted()
             stopSelf()
             return START_NOT_STICKY
         }

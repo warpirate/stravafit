@@ -87,6 +87,22 @@ class GpsStatusMonitorTest {
     }
 
     @Test
+    fun `location switched back on returns to searching`() = runTest {
+        val source = FakeSource()
+        val seen = mutableListOf<GpsStatus>()
+        val job = launch { GpsStatusMonitor(source, recheckInterval = 2.seconds).status().collect { seen += it } }
+        runCurrent()
+        source.availability = LocationAvailability.DISABLED
+        advanceTimeBy(2_001)
+        runCurrent()
+        source.availability = LocationAvailability.AVAILABLE
+        advanceTimeBy(2_001)
+        runCurrent()
+        job.cancel()
+        assertEquals(listOf(GpsStatus.SEARCHING, GpsStatus(GpsState.DISABLED), GpsStatus.SEARCHING), seen)
+    }
+
+    @Test
     fun `accuracy thresholds`() {
         assertEquals(GpsState.GOOD, GpsStatus.forAccuracy(20.0).state)
         assertEquals(GpsState.WEAK, GpsStatus.forAccuracy(20.1).state)

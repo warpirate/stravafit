@@ -48,9 +48,17 @@ class GpsStatusMonitor(
                         emit(GpsStatus.SEARCHING)
                     }
                     // Fixes stopped: watch for the permission being revoked or location switched off.
+                    var reportedUnavailable = false
                     while (true) {
                         val now = source.availability()
-                        if (now != LocationAvailability.AVAILABLE) emit(GpsStatus.unavailable(now))
+                        if (now != LocationAvailability.AVAILABLE) {
+                            emit(GpsStatus.unavailable(now))
+                            reportedUnavailable = true
+                        } else if (reportedUnavailable) {
+                            // Switched back on while the stream stayed open: wait for a fix again.
+                            emit(GpsStatus.SEARCHING)
+                            reportedUnavailable = false
+                        }
                         delay(recheckInterval)
                     }
                 }

@@ -41,9 +41,15 @@ class AndroidRecordingServiceLauncher @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : RecordingServiceLauncher {
     override fun start() {
-        ContextCompat.startForegroundService(
-            context,
-            Intent(context, RecordingService::class.java).setAction(RecordingService.ACTION_START),
-        )
+        try {
+            ContextCompat.startForegroundService(
+                context,
+                Intent(context, RecordingService::class.java).setAction(RecordingService.ACTION_START),
+            )
+        } catch (e: IllegalStateException) {
+            // ForegroundServiceStartNotAllowedException (Android 12+): called while the app is not visible,
+            // e.g. when the already-running service restores a recording after a sticky restart. The
+            // service is in the foreground then, so there is nothing to start.
+        }
     }
 }
