@@ -44,4 +44,7 @@ includeIfPresent(
     ":android:core:export", // WP export
     ":android:core:import", // WP export
     ":android:feature:share-export", // WP export
+    ":android:core:activity-extras", // WP detail
+    ":android:feature:save-edit", // WP detail
+    ":android:feature:activity-detail", // WP detail
 )
