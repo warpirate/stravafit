@@ -44,7 +44,7 @@ import kotlin.time.Duration.Companion.nanoseconds
  */
 object SnapshotCodec {
     /** Version of the layout written by [encode]. */
-    const val FORMAT: Int = 2
+    const val FORMAT: Int = 3
 
     private const val MAGIC = 0x4F415253 // "OARS"
 
@@ -133,6 +133,9 @@ object SnapshotCodec {
             o.writeDouble(s.baroMax)
             o.writeDouble(s.gpsAltMin)
             o.writeDouble(s.gpsAltMax)
+            o.writeLong(s.stillMovingNanos)
+            o.writeDouble(s.lastGpsAltitude)
+            o.writeLong(s.lastGpsAltitudeNanos)
             splitState(s.splits)
             list(s.laps, ::lap)
             o.writeLong(s.lapStartNanos)
@@ -339,6 +342,9 @@ object SnapshotCodec {
             baroMax = i.readDouble(),
             gpsAltMin = i.readDouble(),
             gpsAltMax = i.readDouble(),
+            stillMovingNanos = i.readLong(),
+            lastGpsAltitude = i.readDouble(),
+            lastGpsAltitudeNanos = i.readLong(),
             splits = splitState(),
             laps = list(::lap),
             lapStartNanos = i.readLong(),

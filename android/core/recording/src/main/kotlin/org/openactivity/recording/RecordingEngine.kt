@@ -86,6 +86,9 @@ public class RecordingEngine(public val config: RecordingConfig) {
     private var baroMax = Double.NaN
     private var gpsAltMin = Double.NaN
     private var gpsAltMax = Double.NaN
+    private var stillMovingNanos = 0L
+    private var lastGpsAltitude = Double.NaN
+    private var lastGpsAltitudeNanos = 0L
     private val splits = SplitAccumulator(config.unitSystem.splitLengthMeters)
     private val laps = ArrayList<Lap>()
     private var lapStartNanos = 0L
@@ -147,7 +150,10 @@ public class RecordingEngine(public val config: RecordingConfig) {
         val dt = t - c
         if (isRecording) {
             timerNanos += dt
-            if (countsAsMoving(t)) movingNanos += dt
+            if (countsAsMoving(t)) {
+                movingNanos += dt
+                stillMovingNanos += dt
+            }
             heartRate.accumulate(t, dt)
             power.accumulate(t, dt)
             cadence.accumulate(t, dt)
@@ -226,7 +232,7 @@ public class RecordingEngine(public val config: RecordingConfig) {
         if (isRecording && !motion.isStationary) {
             maxSpeed = maxOf(maxSpeed, motion.smoothedSpeed.coerceAtMost(profile.maxSpeedMps))
         }
-        loc.altitudeMeters?.takeIf { it.isFinite() }?.let { onGpsAltitude(it, loc.verticalAccuracyMeters) }
+        loc.altitudeMeters?.takeIf { it.isFinite() }?.let { onGpsAltitude(it, loc.verticalAccuracyMeters, t) }
 
         if (autoPauseActive && (status == RecordingStatus.RECORDING || status == RecordingStatus.AUTO_PAUSED)) {
             val resumeAllowed = (reported ?: 0.0) <= config.autoResumeMaxAccuracyMeters
@@ -311,6 +317,7 @@ public class RecordingEngine(public val config: RecordingConfig) {
             afterGap -> {
                 val step = Spherical.distance(a, position)
                 distance += step
+                stillMovingNanos = 0L
                 anchor = position
                 bridgePending = false
                 recordGap(requireNotNull(prev).nanos, t - prev.nanos, step)
@@ -328,7 +335,11 @@ public class RecordingEngine(public val config: RecordingConfig) {
             bridgePending || !velocityMode || !dopplerTrusted || prev == null -> {
                 val step = Spherical.distance(a, position)
                 if (step >= max(config.minStepMeters, STEP_ACCURACY_FACTOR * accuracy)) {
+                    // Movement resumed after standing still: the athlete covered this straight line over
+                    // the last few fixes, not in this one interval. Spread it back over them.
+                    if (bridgePending) backfillBridge(a, position, step, t)
                     distance += step
+                    stillMovingNanos = 0L
                     anchor = position
                     bridgePending = false
                     resetDopplerCheck(position, t)
@@ -337,6 +348,7 @@ public class RecordingEngine(public val config: RecordingConfig) {
             else -> {
                 val step = (previousFusedSpeed + fusedSpeed) / 2 * ((t - prev.nanos) / 1e9)
                 distance += step
+                if (step > 0.0) stillMovingNanos = 0L
                 anchor = position
                 dopplerCheckDistance += step
                 if ((t - dopplerCheckStart) / 1e9 >= DOPPLER_CHECK_SECONDS) {
@@ -349,6 +361,55 @@ public class RecordingEngine(public val config: RecordingConfig) {
                 }
             }
         }
+    }
+
+    /**
+     * Spreads a bridged [step] (from [from] to [to]) over the track points recorded since distance last
+     * grew, by each point's progress along the bridge, and credits the moving time those intervals now
+     * imply. Without this the whole stretch lands in the latest interval: it counts as distance but not as
+     * moving time, which makes the pace too fast (a run started from a standstill with a receiver reporting
+     * a Doppler speed of 0, for example). Points before the athlete set off keep their distance, so time
+     * spent standing still stays non-moving.
+     */
+    private fun backfillBridge(from: LatLng, to: LatLng, step: Double, t: Long) {
+        if (!isRecording || step <= 0.0) return
+        val base = distance
+        var s = points.size
+        while (s > 0) {
+            val p = points[s - 1]
+            if (p.paused || p.segment != segment || p.distanceMeters != base) break
+            s--
+        }
+        if (s >= points.size) return
+        val cosLat = kotlin.math.cos(Math.toRadians(from.latitude))
+        fun east(p: LatLng) = Math.toRadians(p.longitude - from.longitude) * cosLat * Spherical.EARTH_RADIUS_M
+        fun north(p: LatLng) = Math.toRadians(p.latitude - from.latitude) * Spherical.EARTH_RADIUS_M
+        val ux = east(to)
+        val uy = north(to)
+        val len = kotlin.math.hypot(ux, uy)
+        if (len <= 0.0) return
+        var progress = 0.0
+        val threshold = profile.movingRule.thresholdMps
+        var credit = 0L
+        var prevNanos = points[s].offsetNanos + startNanos
+        var prevDistance = base
+        for (i in s until points.size) {
+            val p = points[i]
+            val pos = LatLng(p.latitude, p.longitude)
+            progress = maxOf(progress, ((east(pos) * ux + north(pos) * uy) / len).coerceIn(0.0, len))
+            val d = base + step * progress / len
+            val at = p.offsetNanos + startNanos
+            val dt = at - prevNanos
+            val speed = if (dt > 0) (d - prevDistance) / (dt / 1e9) else 0.0
+            if (dt > 0 && speed >= threshold) credit += dt
+            points[i] = p.copy(distanceMeters = d, speedMps = if (dt > 0 && speed >= threshold) speed else p.speedMps)
+            prevNanos = at
+            prevDistance = d
+        }
+        val lastDt = t - prevNanos
+        if (lastDt > 0 && (base + step - prevDistance) / (lastDt / 1e9) >= threshold) credit += lastDt
+        val extra = credit - stillMovingNanos
+        if (extra > 0) movingNanos += extra
     }
 
     private fun resetDopplerCheck(position: LatLng, t: Long) {
@@ -381,12 +442,37 @@ public class RecordingEngine(public val config: RecordingConfig) {
      * vertical accuracy: [GPS_HYSTERESIS_PER_VACC] times its running average, never below the 10 m default.
      * On flat ground this keeps phantom climbing from GPS altitude drift under about 30 m per hour.
      */
-    private fun onGpsAltitude(altitude: Double, verticalAccuracy: Double?) {
+    private fun onGpsAltitude(altitude: Double, verticalAccuracy: Double?, t: Long) {
         if (verticalAccuracy != null && verticalAccuracy.isFinite() && verticalAccuracy > 0.0) {
             verticalAccuracyAvg = if (verticalAccuracyAvg.isNaN()) {
                 verticalAccuracy
             } else {
                 verticalAccuracyAvg + VACC_ALPHA * (verticalAccuracy - verticalAccuracyAvg)
+            }
+        }
+        // A jump far beyond what the athlete could climb since the last altitude is a discontinuity in the
+        // receiver's altitude (a stale value from before the first real fix, a reference change), never
+        // climbing: start a fresh baseline so it is not counted as gain or loss.
+        val previous = lastGpsAltitude
+        val jumped = previous.isFinite() && status.isActive &&
+            kotlin.math.abs(altitude - previous) > ALTITUDE_STEP_BASE_M + ALTITUDE_STEP_RATE_MPS * ((t - lastGpsAltitudeNanos) / 1e9)
+        lastGpsAltitude = altitude
+        lastGpsAltitudeNanos = t
+        if (jumped) {
+            gpsElevation.rebase()
+            // Until now the altitude never moved: it was a stale value, so the points recorded so far get the
+            // corrected altitude instead of a phantom step at the start.
+            val flatSoFar = gpsAltMin.isNaN() || gpsAltMax - gpsAltMin < STALE_ALTITUDE_FLAT_M
+            if (flatSoFar && !baroUsable) {
+                for (i in points.indices) {
+                    if (points[i].altitudeMeters != null) points[i] = points[i].copy(altitudeMeters = altitude)
+                }
+                val st = splits.snapshot()
+                if (st.completed.isEmpty() && st.hasSample) {
+                    splits.restore(st.copy(lastAltitude = altitude, splitStartAltitude = altitude))
+                }
+                gpsAltMin = Double.NaN
+                gpsAltMax = Double.NaN
             }
         }
         if (status.isActive) {
@@ -410,17 +496,19 @@ public class RecordingEngine(public val config: RecordingConfig) {
 
     private fun onPressure(hPa: Double) {
         if (!hPa.isFinite() || hPa <= 0.0) return
-        if (!hasBarometer) {
-            hasBarometer = true
-            carriedGain = gpsElevation.gain
-            carriedLoss = gpsElevation.loss
-        }
+        hasBarometer = true
         baroAltitude = ElevationMetrics.pressureToAltitude(hPa)
         if (!status.isActive) return
+        val wasUsable = baroUsable
         baroMin = if (baroMin.isNaN()) baroAltitude else minOf(baroMin, baroAltitude)
         baroMax = if (baroMax.isNaN()) baroAltitude else maxOf(baroMax, baroAltitude)
         if (status == RecordingStatus.PAUSED) baroElevation.rebase()
         baroElevation.add(baroAltitude)
+        if (!wasUsable && baroUsable) {
+            // Hand over from GPS without a jump in the totals.
+            carriedGain = gpsElevation.gain - baroElevation.gain
+            carriedLoss = gpsElevation.loss - baroElevation.loss
+        }
     }
 
     /** Starts fresh elevation baselines so altitude changed during a pause or interruption is not counted. */
@@ -437,9 +525,11 @@ public class RecordingEngine(public val config: RecordingConfig) {
     private val baroUsable: Boolean
         get() {
             if (!hasBarometer) return false
+            // A barometer reading that has never moved is not trusted: a stuck or simulated sensor would
+            // otherwise pin the altitude (and its calibration) to a stale value. Real sensors show noise
+            // and small changes within moments, and then take over from GPS.
             val baroRange = if (baroMin.isNaN()) 0.0 else baroMax - baroMin
-            val gpsRange = if (gpsAltMin.isNaN()) 0.0 else gpsAltMax - gpsAltMin
-            return !(baroRange < STUCK_BARO_RANGE_M && gpsRange >= STUCK_GPS_RANGE_M)
+            return baroRange >= STUCK_BARO_RANGE_M
         }
 
     private fun currentAltitude(): Double? = when {
@@ -609,7 +699,7 @@ public class RecordingEngine(public val config: RecordingConfig) {
             laps = fin?.laps ?: laps.toList(),
             currentLap = LapProgress(
                 index = laps.size,
-                elapsed = if (status.isActive) (now - lapStartNanos).nanoseconds else Duration.ZERO,
+                elapsed = if (status.isActive) lapTimerNanos(now).nanoseconds else Duration.ZERO,
                 distanceMeters = distance - lapStartDistance,
             ),
             elevation = ElevationState(currentAltitude(), elevationGain, elevationLoss, altitudeSource),
@@ -621,6 +711,21 @@ public class RecordingEngine(public val config: RecordingConfig) {
             autoPauseCount = autoPauseCount,
             isMockLocation = mockSeen,
         )
+    }
+
+    /** Timer time of the current lap at [now]: like the main timer it stands still while paused. */
+    private fun lapTimerNanos(now: Long): Long {
+        var paused = 0L
+        for (p in pauses) {
+            val from = maxOf(p.startOffsetNanos + startNanos, lapStartNanos)
+            val to = minOf(p.endOffsetNanos + startNanos, now)
+            if (to > from) paused += to - from
+        }
+        if (openPauseKind != null) {
+            val from = maxOf(openPauseStart, lapStartNanos)
+            if (now > from) paused += now - from
+        }
+        return (now - lapStartNanos - paused).coerceAtLeast(0L)
     }
 
     // ------------------------------------------------------ snapshot/restore
@@ -676,6 +781,9 @@ public class RecordingEngine(public val config: RecordingConfig) {
         baroMax = baroMax,
         gpsAltMin = gpsAltMin,
         gpsAltMax = gpsAltMax,
+        stillMovingNanos = stillMovingNanos,
+        lastGpsAltitude = lastGpsAltitude,
+        lastGpsAltitudeNanos = lastGpsAltitudeNanos,
         splits = splits.snapshot(),
         laps = laps.toList(),
         lapStartNanos = lapStartNanos,
@@ -738,6 +846,9 @@ public class RecordingEngine(public val config: RecordingConfig) {
         baroMax = s.baroMax
         gpsAltMin = s.gpsAltMin
         gpsAltMax = s.gpsAltMax
+        stillMovingNanos = s.stillMovingNanos
+        lastGpsAltitude = s.lastGpsAltitude
+        lastGpsAltitudeNanos = s.lastGpsAltitudeNanos
         splits.restore(s.splits)
         laps += s.laps
         lapStartNanos = s.lapStartNanos
@@ -806,7 +917,9 @@ public class RecordingEngine(public val config: RecordingConfig) {
         private const val STEP_SPEED_ALPHA = 0.5
         private const val STALE_FIX_NANOS = 10_000_000_000L
         private const val STUCK_BARO_RANGE_M = 0.3
-        private const val STUCK_GPS_RANGE_M = 5.0
+        private const val ALTITUDE_STEP_BASE_M = 5.0
+        private const val ALTITUDE_STEP_RATE_MPS = 1.0
+        private const val STALE_ALTITUDE_FLAT_M = 0.5
 
         /**
          * Rebuilds an engine from [snapshot].
