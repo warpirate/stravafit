@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # EditorConfig: https://editorconfig.org
-# Kotlin settings follow the Kotlin official code style and are read by ktlint.
+# Kotlin settings follow the Kotlin coding conventions (ktlint "intellij_idea" style,
+# which matches IntelliJ's KOTLIN_OFFICIAL defaults) and are read by ktlint and the IDE.
 
 root = true
 
@@ -14,7 +15,7 @@ trim_trailing_whitespace = true
 max_line_length = 120
 
 [*.{kt,kts}]
-ktlint_code_style = ktlint_official
+ktlint_code_style = intellij_idea
 ij_kotlin_code_style_defaults = KOTLIN_OFFICIAL
 ij_kotlin_allow_trailing_comma = true
 ij_kotlin_allow_trailing_comma_on_call_site = true
@@ -25,8 +26,11 @@ ij_kotlin_packages_to_use_import_on_demand = unset
 # Composable functions are PascalCase by convention.
 ktlint_function_naming_ignore_when_annotated_with = Composable
 
-[*.{xml,json,toml}]
+[*.{xml,toml}]
 indent_size = 4
+
+[*.json]
+indent_size = 2
 
 [*.{yml,yaml}]
 indent_size = 2

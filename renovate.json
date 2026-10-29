@@ -22,11 +22,11 @@
   },
   "packageRules": [
     {
-      "description": "Kotlin and KSP versions are coupled (ksp = <kotlin>-<ksp>), so update them together.",
+      "description": "Kotlin and KSP versions are coupled (ksp = <kotlin>-<ksp>), so update them together. The ([.:]|$) boundary keeps org.jetbrains.kotlinx libraries (coroutines, serialization), which have their own versions, out of this group.",
       "groupName": "Kotlin and KSP",
       "matchPackageNames": [
-        "/^org\\.jetbrains\\.kotlin/",
-        "/^com\\.google\\.devtools\\.ksp/"
+        "/^org\\.jetbrains\\.kotlin([.:]|$)/",
+        "/^com\\.google\\.devtools\\.ksp([.:]|$)/"
       ]
     },
     {
