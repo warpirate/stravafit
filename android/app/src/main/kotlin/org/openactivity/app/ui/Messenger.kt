@@ -5,7 +5,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 
 /**
  * Shows a short transient message (snackbar) anchored above the bottom bar.
- * Screens use it for actions whose destination screens are not built yet.
+ * Screens use it for confirmations and recoverable errors.
  */
 fun interface Messenger {
     fun show(message: String)
@@ -13,6 +13,3 @@ fun interface Messenger {
 
 /** The app-wide [Messenger]; a no-op outside the app scaffold (previews, screenshot tests). */
 val LocalMessenger = staticCompositionLocalOf { Messenger { } }
-
-/** Message for entry points whose screens arrive in a later milestone. */
-fun notInThisBuild(feature: String): String = "$feature isn't in this preview build yet"
