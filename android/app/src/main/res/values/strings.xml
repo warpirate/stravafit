@@ -2,5 +2,5 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <resources>
     <!-- Placeholder public name (ADR-004). Renaming the app is a one-line change here. -->
-    <string name="app_name">OpenActivity</string>
+    <string name="app_name">StravaFit</string>
 </resources>

@@ -2,5 +2,5 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <resources>
     <color name="canvas">#FFF1F4F5</color>
-    <color name="launcher_background">#FF0B6A75</color>
+    <color name="launcher_background">#FFFC5200</color>
 </resources>
