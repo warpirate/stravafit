@@ -65,3 +65,6 @@ go.work.sum
 *.log
 tmp/
 .cache/
+
+# Local Claude Code notes (personal, not shared)
+CLAUDE.local.md
