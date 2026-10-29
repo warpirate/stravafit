@@ -1,0 +1,20 @@
+{
+  "type": "Feature",
+  "id": "act-42",
+  "bbox": [13.405, 52.52, 13.407, 52.521],
+  "geometry": {
+    "type": "LineString",
+    "coordinates": [[13.405, 52.52, 34.2], [13.4052, 52.5201, 34.6, 99.0], [13.407, 52.521]]
+  },
+  "properties": {
+    "name": "Morning Ride é \"quoted\"",
+    "sport": "ride",
+    "distance_m": 1234.5,
+    "moving": true,
+    "hidden": null,
+    "splits": [300, 295.5],
+    "device": {"name": "Handcrafted", "battery": 87}
+  },
+  "crs": {"type": "name", "properties": {"name": "ignored"}},
+  "foreign": "ignored"
+}
