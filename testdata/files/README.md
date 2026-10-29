@@ -15,6 +15,9 @@ file. The "device style" names describe the dialect being imitated only.
 | `gpx/malformed-truncated.gpx` | file cut off mid-point (recorder crash) |
 | `gpx/malformed-xxe.gpx` | DOCTYPE with an external entity (must be rejected) |
 | `gpx/not-gpx.xml` | wrong root element |
+| `gpx/android-tracker-cdata-comments.gpx` | prefixed GPX namespace, single-quoted declaration, comments, PI, bare DOCTYPE, CDATA, entities and character references, self-closing point |
+| `gpx/utf16-bom-crlf.gpx` | UTF-16BE with BOM and CRLF line endings |
+| `gpx/latin1-declared.gpx` | ISO-8859-1 declared in the XML declaration |
 | `tcx/forerunner-run-2laps.tcx` | leading whitespace, 2 laps, `TPX` Speed/RunCadence/Watts, `LX` lap extensions, Creator |
 | `tcx/indoor-bike-no-gps.tcx` | no positions, default-namespace `TPX`, lap without StartTime/totals |
 | `geojson/*.geojson` | every geometry type, foreign members, `crs`, 4-value positions, malformed inputs |

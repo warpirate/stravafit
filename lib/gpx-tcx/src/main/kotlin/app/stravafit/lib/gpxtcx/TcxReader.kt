@@ -15,8 +15,8 @@ import app.stravafit.lib.gpxtcx.internal.toRoundedIntOrNull
 import java.io.InputStream
 import java.time.Duration
 import java.time.Instant
-import javax.xml.stream.XMLStreamException
-import javax.xml.stream.XMLStreamReader
+import app.stravafit.lib.gpxtcx.internal.XmlSyntaxException
+import app.stravafit.lib.gpxtcx.internal.XmlPullReader
 
 /**
  * Streaming reader for Garmin Training Center Database v2 (TCX) activity files.
@@ -51,7 +51,7 @@ public class TcxReader {
             xml.forEachChild { name ->
                 if (name == "Activities") readActivityContainer(xml, activities) else xml.skipElement()
             }
-        } catch (e: XMLStreamException) {
+        } catch (e: XmlSyntaxException) {
             throw e.toFormatException()
         } finally {
             xml.close()
@@ -60,7 +60,7 @@ public class TcxReader {
     }
 
     /** Collects `Activity` elements below `Activities` or a `MultiSportSession` subtree. */
-    private fun readActivityContainer(xml: XMLStreamReader, into: MutableList<TcxActivity>) {
+    private fun readActivityContainer(xml: XmlPullReader, into: MutableList<TcxActivity>) {
         xml.forEachChild { name ->
             when (name) {
                 "Activity" -> into += readActivity(xml)
@@ -70,8 +70,8 @@ public class TcxReader {
         }
     }
 
-    private fun readActivity(xml: XMLStreamReader): TcxActivity {
-        val line = xml.location.lineNumber
+    private fun readActivity(xml: XmlPullReader): TcxActivity {
+        val line = xml.eventLine
         val sport = xml.attribute("Sport")?.trim().orEmpty().ifEmpty { TcxSport.OTHER }
         var id: Instant? = null
         var notes: String? = null
@@ -98,13 +98,13 @@ public class TcxReader {
         return TcxActivity(sport, activityId, builtLaps, notes, creator)
     }
 
-    private fun readCreatorName(xml: XMLStreamReader): String? {
+    private fun readCreatorName(xml: XmlPullReader): String? {
         var name: String? = null
         xml.forEachChild { child -> if (child == "Name") name = xml.readText() else xml.skipElement() }
         return name
     }
 
-    private fun readLap(xml: XMLStreamReader): LapState {
+    private fun readLap(xml: XmlPullReader): LapState {
         val lap = LapState(startTime = xml.attribute("StartTime").toInstantOrNull())
         xml.forEachChild { name ->
             when (name) {
@@ -126,7 +126,7 @@ public class TcxReader {
         return lap
     }
 
-    private fun readLapExtensions(xml: XMLStreamReader, lap: LapState) {
+    private fun readLapExtensions(xml: XmlPullReader, lap: LapState) {
         xml.forEachChild { name ->
             when (name) {
                 "AvgSpeed" -> lap.averageSpeed = xml.readText().toFiniteDoubleOrNull()
@@ -138,13 +138,13 @@ public class TcxReader {
         }
     }
 
-    private fun readTrack(xml: XMLStreamReader): TrackSegment {
+    private fun readTrack(xml: XmlPullReader): TrackSegment {
         val points = mutableListOf<TrackPoint>()
         xml.forEachChild { name -> if (name == "Trackpoint") points += readTrackpoint(xml) else xml.skipElement() }
         return TrackSegment(points)
     }
 
-    private fun readTrackpoint(xml: XMLStreamReader): TrackPoint {
+    private fun readTrackpoint(xml: XmlPullReader): TrackPoint {
         val point = PointBuilder()
         xml.forEachChild { name ->
             when (name) {
@@ -167,7 +167,7 @@ public class TcxReader {
         return point.build()
     }
 
-    private fun readTrackpointExtensions(xml: XMLStreamReader, point: PointBuilder) {
+    private fun readTrackpointExtensions(xml: XmlPullReader, point: PointBuilder) {
         xml.forEachChild { name ->
             when (name) {
                 "Speed" -> point.speed = xml.readText().toFiniteDoubleOrNull()
@@ -179,7 +179,7 @@ public class TcxReader {
     }
 
     /** Reads `<X><Value>n</Value></X>` as used by the heart-rate elements. */
-    private fun readValueChild(xml: XMLStreamReader): Int? {
+    private fun readValueChild(xml: XmlPullReader): Int? {
         var value: Int? = null
         xml.forEachChild { name -> if (name == "Value") value = xml.readText().toRoundedIntOrNull() else xml.skipElement() }
         return value

@@ -1,7 +1,7 @@
 # lib/gpx-tcx
 
-Apache-2.0 GPX 1.1 / TCX v2 reader and writer in pure Kotlin/JVM (stdlib + JDK StAX, no other
-dependencies). Self-contained: it owns its model (`TrackPoint`, `GpxDocument`, `TcxDocument`) and does
+Apache-2.0 GPX 1.1 / TCX v2 reader and writer in pure Kotlin/JVM (stdlib only, with a built-in XML pull
+tokenizer, so it runs unchanged on Android, where `javax.xml.stream` is missing). Self-contained: it owns its model (`TrackPoint`, `GpxDocument`, `TcxDocument`) and does
 not depend on the app's AGPL modules.
 
 ## Reading
