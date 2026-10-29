@@ -16,6 +16,7 @@ import org.openactivity.core.datastore.PrivacySettings
 import org.openactivity.model.SportType
 import org.openactivity.model.UnitSystem
 import org.openactivity.model.Visibility
+import java.io.IOException
 import java.util.Locale
 import javax.inject.Inject
 
@@ -78,8 +79,14 @@ class OnboardingViewModel @Inject constructor(private val repository: Onboarding
         if (state.isSaving) return
         _uiState.update { it.copy(isSaving = true) }
         viewModelScope.launch {
-            repository.complete(OnboardingChoices(state.name, state.units, state.sport, state.visibility, state.hideRadiusMeters))
-            _uiState.update { it.copy(isSaving = false, finished = true) }
+            val saved = try {
+                repository.complete(OnboardingChoices(state.name, state.units, state.sport, state.visibility, state.hideRadiusMeters))
+                true
+            } catch (e: IOException) {
+                // Storage failed: stay on the last step so Next can be tried again.
+                false
+            }
+            _uiState.update { it.copy(isSaving = false, finished = saved) }
         }
     }
 

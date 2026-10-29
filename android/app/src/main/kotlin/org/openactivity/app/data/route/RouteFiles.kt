@@ -4,6 +4,7 @@ package org.openactivity.app.data.route
 import android.content.Context
 import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.openactivity.app.data.export.toExportActivity
@@ -58,7 +59,14 @@ class FileRouteImporter @Inject constructor(
                     if (input == null) {
                         failures += "${result.displayName}: no GPS track to follow"
                     } else {
-                        ids += routes.importRoute(input.name, input.points, sport = input.sport)
+                        try {
+                            ids += routes.importRoute(input.name, input.points, sport = input.sport)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: RuntimeException) {
+                            // A database failure on one file must not lose the routes already imported.
+                            failures += "${result.displayName}: could not be saved"
+                        }
                     }
                 }
             }

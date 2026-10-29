@@ -6,6 +6,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -96,8 +97,13 @@ class RouteDetailViewModel @Inject constructor(
             val message = try {
                 exporter.exportGpx(routeId, destination)
                 "Route exported as GPX"
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: IOException) {
                 "Export failed: ${e.message ?: "the file could not be written"}"
+            } catch (e: RuntimeException) {
+                // SecurityException / IllegalArgumentException from a revoked or invalid document.
+                "Export failed: the chosen file could not be written"
             }
             local.update { it.copy(exporting = false, message = message) }
         }

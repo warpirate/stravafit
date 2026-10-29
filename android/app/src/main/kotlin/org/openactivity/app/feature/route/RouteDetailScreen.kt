@@ -42,7 +42,9 @@ import androidx.compose.ui.draw.clip
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.openactivity.app.ui.LocalMessenger
+import org.openactivity.app.ui.common.NO_FILE_PICKER_MESSAGE
 import org.openactivity.app.ui.common.label
+import org.openactivity.app.ui.common.launchOrElse
 import org.openactivity.core.designsystem.component.ActivityCardSkeleton
 import org.openactivity.core.designsystem.component.EmptyState
 import org.openactivity.core.designsystem.component.PrimaryButton
@@ -86,7 +88,7 @@ fun RouteDetailScreen(
         actions = RouteDetailActions(
             onNavigateUp = onNavigateUp,
             onRecord = { onRecordRoute(state.routeId) },
-            onExportGpx = { saveGpx.launch(state.fileName) },
+            onExportGpx = { saveGpx.launchOrElse(state.fileName) { messenger.show(NO_FILE_PICKER_MESSAGE) } },
             onDelete = viewModel::delete,
         ),
     )

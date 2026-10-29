@@ -41,7 +41,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.openactivity.app.ui.LocalMessenger
+import org.openactivity.app.ui.common.NO_FILE_PICKER_MESSAGE
 import org.openactivity.app.ui.common.icon
+import org.openactivity.app.ui.common.launchOrElse
 import org.openactivity.core.designsystem.component.EmptyState
 import org.openactivity.core.designsystem.component.RidgelineCard
 import org.openactivity.core.designsystem.component.RidgelineTopAppBar
@@ -70,7 +72,7 @@ fun ExploreScreen(onOpenRoute: (Long) -> Unit, viewModel: ExploreViewModel = hil
     ExploreContent(
         state = state,
         actions = ExploreActions(
-            onImport = { picker.launch(ImportDocumentsContract.MIME_TYPES) },
+            onImport = { picker.launchOrElse(ImportDocumentsContract.MIME_TYPES) { messenger.show(NO_FILE_PICKER_MESSAGE) } },
             onOpenRoute = onOpenRoute,
             onShowOnMap = viewModel::selectRoute,
         ),

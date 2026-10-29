@@ -36,7 +36,9 @@ import org.openactivity.app.model.ThemeMode
 import org.openactivity.app.model.label
 import org.openactivity.app.model.toThemeMode
 import org.openactivity.app.ui.LocalMessenger
+import org.openactivity.app.ui.common.NO_FILE_PICKER_MESSAGE
 import org.openactivity.app.ui.common.label
+import org.openactivity.app.ui.common.launchOrElse
 import org.openactivity.core.designsystem.component.OverlineHeader
 import org.openactivity.core.designsystem.component.RidgelineTopAppBar
 import org.openactivity.core.designsystem.theme.RidgelineTheme
@@ -83,7 +85,7 @@ fun SettingsScreen(
             onVisibility = viewModel::setDefaultVisibility,
             onHideStart = viewModel::setHideStart,
             onHideEnd = viewModel::setHideEnd,
-            onExportAll = { createZip.launch(state.exportFileName) },
+            onExportAll = { createZip.launchOrElse(state.exportFileName) { messenger.show(NO_FILE_PICKER_MESSAGE) } },
             onOpenLicenses = onOpenLicenses,
             onOpenUrl = { runCatching { uriHandler.openUri(it) } },
         ),

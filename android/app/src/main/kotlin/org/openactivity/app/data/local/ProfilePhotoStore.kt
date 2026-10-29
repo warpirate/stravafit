@@ -4,6 +4,8 @@ package org.openactivity.app.data.local
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.media.ExifInterface
 import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -52,13 +54,14 @@ class FileProfilePhotoStore @Inject constructor(@ApplicationContext private val 
         }
         val decoded = resolver.openInputStream(source)?.use { BitmapFactory.decodeStream(it, null, options) }
             ?: throw IOException("The image could not be decoded")
-        val square = centreSquare(decoded, ProfilePhotoStore.MAX_SIZE_PX)
+        val orientation = resolver.openInputStream(source)?.use(::readOrientation) ?: ExifInterface.ORIENTATION_NORMAL
+        val square = oriented(centreSquare(decoded, ProfilePhotoStore.MAX_SIZE_PX), orientation)
         val file = File(directory, "avatar-${System.currentTimeMillis()}.jpg")
         file.outputStream().use { out ->
             if (!square.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)) throw IOException("Could not save the photo")
         }
-        if (square !== decoded) square.recycle()
-        decoded.recycle()
+        square.recycle()
+        if (!decoded.isRecycled) decoded.recycle()
         file.absolutePath
     }
 
@@ -79,6 +82,44 @@ class FileProfilePhotoStore @Inject constructor(@ApplicationContext private val 
             var sample = 1
             while (min(width, height) / (sample * 2) >= target) sample *= 2
             return sample
+        }
+
+        /**
+         * How to draw a photo stored with EXIF [orientation] upright: clockwise rotation in degrees,
+         * applied after an optional horizontal mirror.
+         */
+        fun orientationTransform(orientation: Int): Pair<Float, Boolean> = when (orientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> 90f to false
+            ExifInterface.ORIENTATION_ROTATE_180 -> 180f to false
+            ExifInterface.ORIENTATION_ROTATE_270 -> 270f to false
+            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> 0f to true
+            ExifInterface.ORIENTATION_FLIP_VERTICAL -> 180f to true
+            ExifInterface.ORIENTATION_TRANSPOSE -> 270f to true
+            ExifInterface.ORIENTATION_TRANSVERSE -> 90f to true
+            else -> 0f to false
+        }
+
+        /** EXIF orientation of the image in [stream]; normal when it has none or cannot be read. */
+        private fun readOrientation(stream: java.io.InputStream): Int = try {
+            ExifInterface(stream).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+        } catch (e: IOException) {
+            ExifInterface.ORIENTATION_NORMAL
+        } catch (e: RuntimeException) {
+            // Some formats make the platform parser throw instead of reporting no EXIF.
+            ExifInterface.ORIENTATION_NORMAL
+        }
+
+        /** [bitmap] turned upright for [orientation]; recycles [bitmap] when a new one is made. */
+        private fun oriented(bitmap: Bitmap, orientation: Int): Bitmap {
+            val (degrees, mirror) = orientationTransform(orientation)
+            if (degrees == 0f && !mirror) return bitmap
+            val matrix = Matrix().apply {
+                if (mirror) postScale(-1f, 1f)
+                postRotate(degrees)
+            }
+            val upright = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+            if (upright !== bitmap) bitmap.recycle()
+            return upright
         }
 
         private fun centreSquare(bitmap: Bitmap, maxSize: Int): Bitmap {

@@ -69,6 +69,8 @@ class EditProfileViewModel @Inject constructor(private val repository: ProfileRe
                 repository.setPhoto(uri)
             } catch (e: IOException) {
                 _uiState.update { it.copy(error = "That image could not be used. Try another one.") }
+            } catch (e: SecurityException) {
+                _uiState.update { it.copy(error = "That image could not be used. Try another one.") }
             }
         }
     }

@@ -110,6 +110,20 @@ class DataLayerTest {
         assertEquals(4, FileProfilePhotoStore.sampleSize(4000, 3000, 512))
     }
 
+    @Test
+    fun `photo orientation turns camera portraits upright`() {
+        // EXIF orientation values 1..8 (ExifInterface.ORIENTATION_*).
+        assertEquals(0f to false, FileProfilePhotoStore.orientationTransform(1))
+        assertEquals(0f to true, FileProfilePhotoStore.orientationTransform(2))
+        assertEquals(180f to false, FileProfilePhotoStore.orientationTransform(3))
+        assertEquals(180f to true, FileProfilePhotoStore.orientationTransform(4))
+        assertEquals(270f to true, FileProfilePhotoStore.orientationTransform(5))
+        assertEquals(90f to false, FileProfilePhotoStore.orientationTransform(6))
+        assertEquals(90f to true, FileProfilePhotoStore.orientationTransform(7))
+        assertEquals(270f to false, FileProfilePhotoStore.orientationTransform(8))
+        assertEquals(0f to false, FileProfilePhotoStore.orientationTransform(0))
+    }
+
     private fun imported(points: List<ImportedPoint>, title: String?, sport: SportType, declared: Boolean) = ImportedActivity(
         sourceName = "loop-export.gpx",
         format = ImportFormat.GPX,
