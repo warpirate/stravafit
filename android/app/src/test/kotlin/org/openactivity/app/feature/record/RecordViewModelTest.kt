@@ -2,6 +2,9 @@
 package org.openactivity.app.feature.record
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -11,6 +14,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.openactivity.app.data.GpsFix
+import org.openactivity.app.data.PreferencesRepository
 import org.openactivity.app.model.Sport
 import org.openactivity.app.model.UserPreferences
 import org.openactivity.app.testing.FakeGpsStatusSource
@@ -107,5 +111,25 @@ class RecordViewModelTest {
         val autoPause = vm.uiState.value.autoPause
         vm.toggleAutoPause()
         assertEquals(!autoPause, vm.uiState.value.autoPause)
+    }
+
+    @Test
+    fun `a sport picked before stored preferences load is not overwritten`() = runTest(main.dispatcher) {
+        val slowPreferences = object : PreferencesRepository by preferences {
+            override val preferences: Flow<UserPreferences> = flow {
+                delay(PREFERENCES_LOAD_MS)
+                emit(UserPreferences(lastSport = Sport.Ride))
+            }
+        }
+        val vm = RecordViewModel(slowPreferences, gps)
+        runCurrent()
+        vm.selectSport(Sport.Swim)
+        advanceTimeBy(PREFERENCES_LOAD_MS + 1)
+        runCurrent()
+        assertEquals(Sport.Swim, vm.uiState.value.sport)
+    }
+
+    private companion object {
+        const val PREFERENCES_LOAD_MS = 500L
     }
 }

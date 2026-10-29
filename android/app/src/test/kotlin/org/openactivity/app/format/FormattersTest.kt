@@ -24,6 +24,14 @@ class UnitFormatterTest {
     }
 
     @Test
+    fun `distance precision follows the rounded value at band edges`() {
+        assertEquals("99.99", metric.distance(99_994.0).value)
+        assertEquals("100.0", metric.distance(99_996.0).value)
+        assertEquals("999.9", metric.distance(999_940.0).value)
+        assertEquals("1,000", metric.distance(999_960.0).value)
+    }
+
+    @Test
     fun pace() {
         assertEquals(Measure("5:12", "/km", "per kilometre"), metric.pace(10_200.0, 3_184))
         assertEquals("8:22", imperial.pace(10_200.0, 3_184)?.value)

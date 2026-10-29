@@ -2,6 +2,8 @@
 package org.openactivity.app.format
 
 import org.openactivity.app.model.UnitSystem
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.text.NumberFormat
 import java.util.Locale
 import kotlin.math.roundToLong
@@ -22,9 +24,11 @@ class UnitFormatter(private val units: UnitSystem, private val locale: Locale = 
             UnitSystem.Metric -> Triple(meters / METERS_PER_KM, "km", "kilometres")
             UnitSystem.Imperial -> Triple(meters / METERS_PER_MILE, "mi", "miles")
         }
+        // Pick the precision from the value as it will be shown, so 99.996 km reads "100.0 km"
+        // rather than "100.00 km", and 999.96 km reads "1,000 km".
         val decimals = when {
-            amount < LARGE_DISTANCE -> 2
-            amount < HUGE_DISTANCE -> 1
+            roundTo(amount, 2) < LARGE_DISTANCE -> 2
+            roundTo(amount, 1) < HUGE_DISTANCE -> 1
             else -> 0
         }
         return Measure(decimal(amount, decimals), unit, spoken)
@@ -71,6 +75,9 @@ class UnitFormatter(private val units: UnitSystem, private val locale: Locale = 
         minimumFractionDigits = decimals
         maximumFractionDigits = decimals
     }.format(value)
+
+    private fun roundTo(value: Double, decimals: Int): Double =
+        BigDecimal.valueOf(value).setScale(decimals, RoundingMode.HALF_EVEN).toDouble()
 
     private fun integer(value: Double): String = NumberFormat.getIntegerInstance(locale).format(value.roundToLong())
 

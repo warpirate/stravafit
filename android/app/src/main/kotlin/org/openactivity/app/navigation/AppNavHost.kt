@@ -8,6 +8,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -31,14 +32,14 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
         exitTransition = { fadeOut(tween(motion.exit(motion.short))) },
     ) {
         composable<FeedRoute> {
-            FeedScreen(onRecord = { navController.navigate(RecordRoute) })
+            FeedScreen(onRecord = { navController.openRecorder() })
         }
         composable<ExploreRoute> { ExploreScreen() }
         composable<GroupsRoute> { GroupsScreen() }
         composable<MeRoute> {
             MeScreen(
-                onOpenSettings = { navController.navigate(SettingsRoute) },
-                onRecord = { navController.navigate(RecordRoute) },
+                onOpenSettings = { navController.navigate(SettingsRoute) { launchSingleTop = true } },
+                onRecord = { navController.openRecorder() },
             )
         }
         composable<RecordRoute>(
@@ -46,10 +47,16 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
             exitTransition = { fadeOut(tween(motion.exit(motion.short))) },
             popExitTransition = { slideOutVertically(tween(motion.exit(motion.long))) { it } },
         ) {
-            RecordScreen(onClose = { navController.popBackStack() })
+            // dropUnlessResumed: a double tap during the exit transition must not pop the tab root too.
+            RecordScreen(onClose = dropUnlessResumed { navController.popBackStack() })
         }
         composable<SettingsRoute> {
-            SettingsScreen(onNavigateUp = { navController.popBackStack() })
+            SettingsScreen(onNavigateUp = dropUnlessResumed { navController.popBackStack() })
         }
     }
+}
+
+/** Opens the full-screen recorder once, however many times the entry point is tapped. */
+private fun NavHostController.openRecorder() {
+    navigate(RecordRoute) { launchSingleTop = true }
 }

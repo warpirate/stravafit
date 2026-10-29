@@ -36,10 +36,13 @@ class RecordViewModel @Inject constructor(
     private var latestFix = GpsFix(null)
     private var slowFixJob: Job? = null
 
+    /** Set once the user picks a sport, so the late-arriving stored preference cannot override it. */
+    private var userChoseSport = false
+
     init {
         viewModelScope.launch {
             val lastSport = preferencesRepository.preferences.first().lastSport
-            applySport(lastSport)
+            if (!userChoseSport) applySport(lastSport)
             gpsStatusSource.fixes.collect { fix ->
                 latestFix = fix
                 refreshGps()
@@ -54,6 +57,7 @@ class RecordViewModel @Inject constructor(
 
     /** Selects [sport], closes the picker and remembers it for next time (record checklist 2.2). */
     fun selectSport(sport: Sport) {
+        userChoseSport = true
         applySport(sport)
         _uiState.update { it.copy(isSportPickerOpen = false) }
         viewModelScope.launch { preferencesRepository.setLastSport(sport) }

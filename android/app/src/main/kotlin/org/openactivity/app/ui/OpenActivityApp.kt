@@ -2,6 +2,8 @@
 package org.openactivity.app.ui
 
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -48,7 +50,12 @@ fun OpenActivityApp(navController: NavHostController = rememberNavController()) 
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
             contentWindowInsets = WindowInsets(0),
-            snackbarHost = { SnackbarHost(snackbar) },
+            snackbarHost = {
+                // With the bottom bar hidden (Record, Settings) nothing else keeps the snackbar
+                // clear of the gesture/navigation bar, because content insets are zero.
+                val insets = if (currentTab == null) Modifier.windowInsetsPadding(WindowInsets.navigationBars) else Modifier
+                SnackbarHost(snackbar, insets)
+            },
             bottomBar = {
                 if (currentTab != null) {
                     AppBottomBar(selected = currentTab, onSelect = { navController.navigateTo(it) })
