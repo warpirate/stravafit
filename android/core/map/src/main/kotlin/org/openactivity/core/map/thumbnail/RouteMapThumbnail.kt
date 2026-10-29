@@ -71,10 +71,12 @@ fun RouteMapThumbnail(
             ThumbnailRequest(points, widthPx, heightPx, density, style, palette)
         }
         val thumbnail by produceState<RouteThumbnail?>(null, request, loader) {
-            value = when {
+            if (inspection || loader == null) {
                 // Previews cannot reach Hilt or the native renderer: show the offline drawing.
-                inspection || loader == null -> OfflineRenderer.renderNow(request)?.let { RouteThumbnail(it, ThumbnailSource.Offline) }
-                else -> loader.load(request)
+                value = OfflineRenderer.renderNow(request)?.let { RouteThumbnail(it, ThumbnailSource.Offline) }
+            } else {
+                // The offline drawing stands in while a map snapshot renders, so the card is never blank.
+                loader.loadProgressively(request).collect { value = it }
             }
         }
         thumbnail?.let { t ->
@@ -87,7 +89,8 @@ fun RouteMapThumbnail(
             if (t.source == ThumbnailSource.MapSnapshot) {
                 Box(Modifier.align(Alignment.BottomEnd).padding(2.dp)) {
                     Text(
-                        stringResource(R.string.map_thumbnail_osm),
+                        // Short form of the style's credits; the topo tiles (CC-BY-SA) need their own.
+                        stringResource(if (style == MapStyleKind.Outdoor) R.string.map_thumbnail_osm_topo else R.string.map_thumbnail_osm),
                         style = MaterialTheme.typography.labelSmall,
                         color = RidgelineTheme.colors.textSecondary,
                         modifier = Modifier
