@@ -87,8 +87,11 @@ public data class RecordingConfig(
     val gapResetSeconds: Double = 10.0,
     val gpsLostSeconds: Double = 10.0,
     val significantGapMeters: Double = 100.0,
+    /** Distance auto-lap: a lap closes every this many metres; 0 turns it off. */
+    val autoLapMeters: Double = 0.0,
 ) {
     init {
+        require(autoLapMeters >= 0.0 && autoLapMeters.isFinite()) { "auto-lap distance must not be negative" }
         require(maxAccuracyMeters > 0.0) { "max accuracy must be positive" }
         require(minStepMeters >= 0.0) { "min step must not be negative" }
         require(gapResetSeconds > 0.0 && gpsLostSeconds > 0.0) { "timeouts must be positive" }

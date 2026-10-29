@@ -280,6 +280,31 @@ public class RecordingEngine(public val config: RecordingConfig) {
             powerWatts = power.current(t)?.toInt(),
         )
         splits.add((t - startNanos) / 1e9, distance, movingNanos / 1e9, altitude ?: Double.NaN)
+        if (isRecording) autoLap(t)
+    }
+
+    /**
+     * Distance auto-lap ([RecordingConfig.autoLapMeters]): closes a lap each time the lap reaches the set
+     * distance, at the moment it was crossed (interpolated between the last two points), so every auto lap
+     * is exactly that long and the overshoot counts towards the next one. A manual lap restarts the count.
+     */
+    private fun autoLap(t: Long) {
+        val every = config.autoLapMeters
+        if (every <= 0.0) return
+        while (distance - lapStartDistance >= every) {
+            val target = lapStartDistance + every
+            val prev = points.getOrNull(points.size - 2)
+            val prevT = prev?.let { it.offsetNanos + startNanos } ?: lapStartNanos
+            val prevD = prev?.distanceMeters ?: lapStartDistance
+            val at = if (prevD < target && distance > prevD) {
+                prevT + ((t - prevT) * ((target - prevD) / (distance - prevD))).toLong()
+            } else {
+                t
+            }
+            val crossing = at.coerceIn(minOf(maxOf(lapStartNanos, prevT), t), t)
+            val moving = (movingNanos - (t - crossing)).coerceIn(lapStartMovingNanos, movingNanos)
+            closeLap(crossing, LapTrigger.DISTANCE, endDistance = target, endMovingNanos = moving)
+        }
     }
 
     /**
@@ -617,19 +642,24 @@ public class RecordingEngine(public val config: RecordingConfig) {
         status = RecordingStatus.RECORDING
     }
 
-    private fun closeLap(t: Long, trigger: LapTrigger) {
+    private fun closeLap(
+        t: Long,
+        trigger: LapTrigger,
+        endDistance: Double = distance,
+        endMovingNanos: Long = movingNanos,
+    ) {
         laps += Lap(
             index = laps.size,
             startOffset = (lapStartNanos - startNanos).nanoseconds,
             elapsedTime = (t - lapStartNanos).nanoseconds,
-            movingTime = (movingNanos - lapStartMovingNanos).nanoseconds,
-            distance = Distance(distance - lapStartDistance),
+            movingTime = (endMovingNanos - lapStartMovingNanos).nanoseconds,
+            distance = Distance(endDistance - lapStartDistance),
             elevationGain = Distance(elevationGain - lapStartGain),
             trigger = trigger,
         )
         lapStartNanos = t
-        lapStartDistance = distance
-        lapStartMovingNanos = movingNanos
+        lapStartDistance = endDistance
+        lapStartMovingNanos = endMovingNanos
         lapStartGain = elevationGain
     }
 
