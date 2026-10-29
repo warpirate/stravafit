@@ -99,6 +99,9 @@ dependencies {
     implementation(project(":android:feature:save-edit")) // WP detail
     implementation(project(":android:feature:activity-detail")) // WP detail
     implementation(project(":android:feature:share-export")) // WP detail
+    implementation(project(":android:core:export")) // WP home
+    implementation(project(":android:core:import")) // WP home
+    implementation(project(":shared:polyline")) // WP home
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
@@ -130,5 +133,6 @@ dependencies {
     testImplementation(libs.roborazzi.junit.rule)
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.test.core) // WP home
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

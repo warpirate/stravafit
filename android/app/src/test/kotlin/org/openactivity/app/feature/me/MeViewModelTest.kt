@@ -3,25 +3,32 @@ package org.openactivity.app.feature.me
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
-import org.openactivity.app.data.SampleFeedRepository
-import org.openactivity.app.data.SampleProfileRepository
 import org.openactivity.app.format.UnitFormatter
-import org.openactivity.app.model.Sport
-import org.openactivity.app.model.UnitSystem
+import org.openactivity.app.model.UserProfile
+import org.openactivity.app.testing.FakeActivityRepository
 import org.openactivity.app.testing.FakePreferencesRepository
+import org.openactivity.app.testing.FakeProfileRepository
 import org.openactivity.app.testing.MainDispatcherRule
 import org.openactivity.app.testing.TEST_CLOCK
+import org.openactivity.app.testing.savedActivity
 import org.openactivity.app.testing.testTimeFormatter
+import org.openactivity.core.data.model.PersonalBest
+import org.openactivity.core.data.model.StatTotals
+import org.openactivity.core.data.model.YearTotals
+import org.openactivity.model.SportType
+import org.openactivity.model.UnitSystem
 import java.util.Locale
+import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MeViewModelTest {
@@ -29,72 +36,113 @@ class MeViewModelTest {
     @get:Rule
     val main = MainDispatcherRule()
 
-    private fun viewModel() = MeViewModel(
-        SampleProfileRepository(),
-        SampleFeedRepository(TEST_CLOCK),
-        FakePreferencesRepository(),
-        testTimeFormatter(),
-    )
+    private val activities = FakeActivityRepository()
+    private val profile = FakeProfileRepository(UserProfile(name = "Asha Rao", location = "Pune"))
 
-    @Test
-    fun `loads header and defaults to the first sport`() = runTest(main.dispatcher) {
-        val vm = viewModel()
+    private fun viewModel() = MeViewModel(activities, profile, FakePreferencesRepository(), testTimeFormatter(), TEST_CLOCK)
+
+    private fun TestScope.collect(vm: MeViewModel) {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} }
         advanceUntilIdle()
+    }
 
+    private fun totals(count: Int, km: Double, seconds: Long, gain: Double = 0.0) =
+        StatTotals(count, km * 1000, seconds.seconds, seconds.seconds, gain)
+
+    @Test
+    fun `empty device shows the header and no progress`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        collect(vm)
         val state = vm.uiState.value
         assertFalse(state.isLoading)
-        assertEquals("Kavya Rao", state.header?.name)
-        assertEquals("198", state.header?.followers)
-        assertEquals(Sport.Run, state.selectedSport)
-        assertEquals(listOf("Distance", "Time", "Elev gain"), state.thisWeek.map { it.label })
-        assertEquals("24.10", state.thisWeek.first().value)
-        assertEquals(12, state.weeklyChart?.fractions?.size)
+        assertFalse(state.hasAnyActivity)
+        assertEquals("Asha Rao", state.header?.name)
+        assertEquals("No activities yet", state.header?.summary)
     }
 
     @Test
-    fun `switching sport updates totals`() = runTest(main.dispatcher) {
+    fun `progress combines weekly, yearly and all-time totals per sport`() = runTest(main.dispatcher) {
+        activities.activities.value = listOf(savedActivity(1), savedActivity(2, "Ride", sport = SportType.RIDE))
+        activities.allTime.value = mapOf(SportType.RUN to totals(3, 24.0, 7_200, 120.0), SportType.RIDE to totals(1, 30.0, 3_600, 300.0))
+        activities.year.value = YearTotals(2026, totals(4, 54.0, 10_800), mapOf(SportType.RUN to totals(3, 24.0, 7_200)))
+        activities.weekly.value = activities.weekly.value.mapIndexed { i, w -> if (i == 11) w.copy(totals = totals(2, 16.0, 5_000)) else w }
         val vm = viewModel()
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} }
-        vm.selectSport(Sport.Ride)
-        advanceUntilIdle()
-
+        collect(vm)
         val state = vm.uiState.value
-        assertEquals(Sport.Ride, state.selectedSport)
-        assertEquals("38", state.yearToDate.first { it.label == "Activities" }.value)
+        assertEquals(listOf(SportType.RUN, SportType.RIDE), state.sports)
+        assertEquals("4 activities · 54.00 km all time", state.header?.summary)
+        assertEquals(2026, state.year)
+        assertEquals("4", state.yearToDate.first { it.label == "Activities" }.value)
+        assertEquals("16.00", state.thisWeek.first { it.label == "Distance" }.value)
+        assertEquals(1f, state.weeklyChart!!.fractions.last())
+        assertEquals("Distance", state.weeklyChart!!.metric)
+
+        vm.selectSport(SportType.RUN)
+        advanceUntilIdle()
+        assertEquals(SportType.RUN, vm.uiState.value.selectedSport)
+        assertEquals("3", vm.uiState.value.allTime.first { it.label == "Activities" }.value)
+        assertEquals(setOf(SportType.RUN), activities.weeklyRequests.last())
     }
 
     @Test
-    fun `activities tab lists own activities newest first`() = runTest(main.dispatcher) {
+    fun `indoor sports show time only`() = runTest(main.dispatcher) {
+        activities.activities.value = listOf(savedActivity(1, "Yoga", sport = SportType.YOGA, distanceMeters = 0.0, track = null))
+        activities.allTime.value = mapOf(SportType.YOGA to totals(1, 0.0, 3_600))
         val vm = viewModel()
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} }
-        vm.selectTab(MeTab.Activities)
+        collect(vm)
+        vm.selectSport(SportType.YOGA)
         advanceUntilIdle()
-
         val state = vm.uiState.value
-        assertEquals(MeTab.Activities, state.tab)
-        assertEquals(listOf("act-102", "act-106", "act-107"), state.activities.map { it.id })
-        assertEquals("10.20 km · 5:12/km · 53:04", state.activities.first().statsLine)
-        assertEquals("Only you", state.activities[1].visibilityLabel)
+        assertEquals(listOf("Activities", "Time"), state.allTime.map { it.label })
+        assertEquals("Time", state.weeklyChart?.metric)
+        assertNull(state.bestEffortsTitle)
     }
 
     @Test
-    fun `weekly chart normalises to the busiest week`() {
-        val chart = MeViewModel.weeklyChart(listOf(0.0, 5_000.0, 10_000.0), UnitFormatter(UnitSystem.Metric, Locale.UK))
-        assertEquals(listOf(0f, 0.5f, 1f), chart.fractions)
-        assertEquals("10.00 km", chart.maxLabel)
-        assertTrue(chart.summary.contains("This week 10.00 kilometres"))
-    }
-
-    @Test
-    fun `totals show a dash for unknown distance`() {
-        val stats = MeViewModel.totalsStats(
-            org.openactivity.app.data.SportTotals(count = 4, distanceMeters = null, movingTimeSeconds = 3_600, elevationMeters = null),
-            UnitFormatter(UnitSystem.Metric, Locale.UK),
-            includeCount = true,
+    fun `best efforts are labelled and open their activity`() = runTest(main.dispatcher) {
+        activities.activities.value = listOf(savedActivity(7))
+        activities.allTime.value = mapOf(SportType.RUN to totals(1, 8.0, 2_500))
+        activities.bests.value = listOf(
+            PersonalBest(5_000.0, 1_495.0, 7, "Morning Run", SportType.RUN, TEST_CLOCK.instant()),
+            PersonalBest(21_097.5, 6_300.4, 7, "Morning Run", SportType.RUN, TEST_CLOCK.instant()),
         )
-        assertEquals("4", stats.first().value)
-        assertEquals(null, stats.first { it.label == "Distance" }.value)
-        assertNotNull(stats.first { it.label == "Time" }.value)
+        val vm = viewModel()
+        collect(vm)
+        val state = vm.uiState.value
+        assertEquals("Running best efforts", state.bestEffortsTitle)
+        assertEquals(listOf("5K" to "24:55", "Half marathon" to "1:45:00"), state.bestEfforts.map { it.label to it.time })
+        assertEquals(7L, state.bestEfforts.first().activityId)
+        assertTrue(activities.bestRequests.last().contains(SportType.TRAIL_RUN))
+    }
+
+    @Test
+    fun `activities list filters by title and sport`() = runTest(main.dispatcher) {
+        activities.activities.value = listOf(
+            savedActivity(1, "Hill repeats"),
+            savedActivity(2, "Lake ride", sport = SportType.RIDE),
+            savedActivity(3, "Easy jog", description = "hills after work"),
+        )
+        val vm = viewModel()
+        collect(vm)
+        vm.selectTab(MeTab.Activities)
+        vm.search("hill")
+        advanceUntilIdle()
+        assertEquals(listOf(1L, 3L), vm.uiState.value.activities.map { it.id }.sorted())
+        vm.search("")
+        vm.filterActivities(SportType.RIDE)
+        advanceUntilIdle()
+        val ride = vm.uiState.value.activities.single()
+        assertEquals(2L, ride.id)
+        assertEquals("8.02 km · 45 m · 41:40", ride.statsLine)
+    }
+
+    @Test
+    fun `effort labels and times`() {
+        val f = UnitFormatter(UnitSystem.METRIC, Locale.UK)
+        assertEquals("1 mile", ProgressFormat.effortLabel(1609.344, f))
+        assertEquals("Marathon", ProgressFormat.effortLabel(42_195.0, f))
+        assertEquals("7.50 km", ProgressFormat.effortLabel(7_500.0, f))
+        assertEquals("3:05", ProgressFormat.effortTime(185.4))
+        assertEquals("2:00:01", ProgressFormat.effortTime(7_201.0))
     }
 }

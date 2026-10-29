@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.feature.me
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,14 +22,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import org.openactivity.app.ui.common.RouteThumbnail
+import org.openactivity.app.ui.common.SportTile
 import org.openactivity.app.ui.common.icon
+import org.openactivity.app.ui.common.label
 import org.openactivity.core.designsystem.theme.RidgelineTheme
 import org.openactivity.core.designsystem.theme.Spacing
+import org.openactivity.core.map.thumbnail.RouteMapThumbnail
 
 private val ThumbWidth = 88.dp
+private const val THUMB_RATIO = 1.4f
 
-/** Activities list row: route thumbnail (or sport tile), title, date, key stats, visibility. */
+/** Activities list row: route thumbnail (or sport tile), title, key stats, date and visibility. */
 @Composable
 fun ActivityRow(row: ActivityRowUi, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Row(
@@ -43,17 +45,9 @@ fun ActivityRow(row: ActivityRowUi, onClick: () -> Unit, modifier: Modifier = Mo
     ) {
         Box(Modifier.width(ThumbWidth)) {
             if (row.route != null) {
-                RouteThumbnail(row.route, aspectRatio = THUMB_RATIO, contentDescription = "Route of ${row.title}")
+                RouteMapThumbnail(row.route, contentDescription = "Route of ${row.title}", aspectRatio = THUMB_RATIO)
             } else {
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = ThumbWidth / THUMB_RATIO)
-                        .background(RidgelineTheme.colors.surfaceSunken, MaterialTheme.shapes.small),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(row.sport.icon, contentDescription = row.sport.label, tint = MaterialTheme.colorScheme.primary)
-                }
+                SportTile(row.sport, aspectRatio = THUMB_RATIO, showLabel = false, iconSize = 24.dp)
             }
         }
         Spacer(Modifier.width(Spacing.m))
@@ -83,5 +77,3 @@ fun ActivityRow(row: ActivityRowUi, onClick: () -> Unit, modifier: Modifier = Mo
         Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = RidgelineTheme.colors.textMuted)
     }
 }
-
-private const val THUMB_RATIO = 1.4f

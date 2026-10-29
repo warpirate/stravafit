@@ -13,13 +13,17 @@ import androidx.navigation.compose.composable
 import kotlinx.serialization.Serializable
 import org.openactivity.feature.record.ui.RecordRoute
 
-/** Full-screen recorder, outside the tab stacks; the app hides its bottom bar here. */
+/**
+ * Full-screen recorder, outside the tab stacks; the app hides its bottom bar here.
+ *
+ * @property routeId saved route to preselect ("Record this route"), or null.
+ */
 @Serializable
-data object RecordDestination
+data class RecordDestination(val routeId: Long? = null)
 
-/** Opens the recorder once, however many times the entry point is tapped. */
-fun NavController.navigateToRecord(builder: NavOptionsBuilder.() -> Unit = {}) {
-    navigate(RecordDestination) {
+/** Opens the recorder once, however many times the entry point is tapped; [routeId] preselects a saved route. */
+fun NavController.navigateToRecord(routeId: Long? = null, builder: NavOptionsBuilder.() -> Unit = {}) {
+    navigate(RecordDestination(routeId)) {
         launchSingleTop = true
         builder()
     }

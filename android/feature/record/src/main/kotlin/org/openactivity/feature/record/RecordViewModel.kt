@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.feature.record
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -52,6 +53,7 @@ class RecordViewModel @Inject constructor(
     private val routeRepository: RouteRepository,
     private val preferences: RecordPreferencesRepository,
     private val location: PreStartLocation,
+    savedStateHandle: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
 
     /** State owned by this screen rather than by a repository or the recording. */
@@ -62,7 +64,7 @@ class RecordViewModel @Inject constructor(
         val sheet: RecordSheet = RecordSheet.None,
     )
 
-    private val local = MutableStateFlow(Local())
+    private val local = MutableStateFlow(Local(chosenRouteId = savedStateHandle.get<Long>(ARG_ROUTE_ID)))
     private val eventChannel = Channel<RecordEvent>(Channel.BUFFERED)
     private var countdownJob: Job? = null
 
@@ -354,6 +356,8 @@ class RecordViewModel @Inject constructor(
         if (rec.isActive) rec.sport ?: s.defaultSport else l.chosenSport ?: s.defaultSport
 
     internal companion object {
+        /** Saved route preselected by "Record this route"; the name of [navigation.RecordDestination.routeId]. */
+        const val ARG_ROUTE_ID = "routeId"
         /** Record checklist 2.5: hint after 20 s without a fix. */
         const val SLOW_FIX_HINT_MS = 20_000L
         const val COUNTDOWN_SECONDS = 3

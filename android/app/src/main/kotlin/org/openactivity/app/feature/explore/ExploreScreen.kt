@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.feature.explore
 
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,142 +9,189 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.FileUpload
+import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.Route
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.openactivity.app.ui.LocalMessenger
-import org.openactivity.app.ui.common.RouteThumbnail
-import org.openactivity.app.ui.notInThisBuild
+import org.openactivity.app.ui.common.NO_FILE_PICKER_MESSAGE
+import org.openactivity.app.ui.common.icon
+import org.openactivity.app.ui.common.launchOrElse
+import org.openactivity.core.designsystem.component.EmptyState
 import org.openactivity.core.designsystem.component.RidgelineCard
-import org.openactivity.core.designsystem.component.RidgelineFilterChip
+import org.openactivity.core.designsystem.component.RidgelineTopAppBar
 import org.openactivity.core.designsystem.component.SectionHeader
-import org.openactivity.core.designsystem.theme.PillShape
+import org.openactivity.core.designsystem.component.TopBarAction
 import org.openactivity.core.designsystem.theme.RidgelineTheme
 import org.openactivity.core.designsystem.theme.Spacing
+import org.openactivity.core.fileimport.ImportDocumentsContract
+import org.openactivity.core.map.compose.RidgelineMap
+import org.openactivity.core.map.compose.rememberMapState
+import org.openactivity.core.map.overlay.MapOverlays
+import org.openactivity.core.map.thumbnail.RouteMapThumbnail
 
 /** Explore tab, connected to [ExploreViewModel]. */
 @Composable
-fun ExploreScreen(viewModel: ExploreViewModel = hiltViewModel()) {
+fun ExploreScreen(onOpenRoute: (Long) -> Unit, viewModel: ExploreViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val messenger = LocalMessenger.current
+    val picker = rememberLauncherForActivityResult(ImportDocumentsContract()) { uris -> viewModel.importRoutes(uris) }
+    LaunchedEffect(state.message) {
+        state.message?.let {
+            messenger.show(it)
+            viewModel.messageShown()
+        }
+    }
     ExploreContent(
         state = state,
-        onSelectFilter = viewModel::selectFilter,
-        onSearch = { messenger.show(notInThisBuild("Place search")) },
-        onOpenRoute = { messenger.show(notInThisBuild("Route details")) },
+        actions = ExploreActions(
+            onImport = { picker.launchOrElse(ImportDocumentsContract.MIME_TYPES) { messenger.show(NO_FILE_PICKER_MESSAGE) } },
+            onOpenRoute = onOpenRoute,
+            onShowOnMap = viewModel::selectRoute,
+        ),
     )
 }
 
+/** Callbacks for [ExploreContent]. */
+data class ExploreActions(
+    val onImport: () -> Unit = {},
+    val onOpenRoute: (Long) -> Unit = {},
+    val onShowOnMap: (Long) -> Unit = {},
+)
+
 /**
- * Stateless Explore placeholder (secondary-screens 1.1): search field, sport filters, a preview
- * of the highlighted route and nearby route cards. The live map arrives with MapLibre.
+ * Stateless Explore tab: the MapLibre map with the highlighted saved route, the import action
+ * and the list of saved routes.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExploreContent(
-    state: ExploreUiState,
-    onSelectFilter: (ExploreFilter) -> Unit,
-    onSearch: () -> Unit,
-    onOpenRoute: (String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.statusBars),
-        contentAlignment = Alignment.TopCenter,
-    ) {
-        LazyColumn(
-            Modifier.widthIn(max = Spacing.feedMaxWidth).fillMaxWidth(),
-            contentPadding = PaddingValues(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.m, bottom = Spacing.xxl),
-            verticalArrangement = Arrangement.spacedBy(Spacing.m),
-        ) {
-            item(key = "search") { SearchField(onSearch) }
-            item(key = "filters") {
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                    ExploreFilter.entries.forEach { filter ->
-                        RidgelineFilterChip(filter.label, selected = filter == state.filter, onClick = { onSelectFilter(filter) })
-                    }
+fun ExploreContent(state: ExploreUiState, actions: ExploreActions, modifier: Modifier = Modifier) {
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+    Scaffold(
+        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0),
+        topBar = {
+            RidgelineTopAppBar(title = "Explore", scrollBehavior = scrollBehavior) {
+                TopBarAction(Icons.Rounded.FileUpload, "Import GPX route", actions.onImport)
+            }
+        },
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+            LazyColumn(
+                Modifier.widthIn(max = Spacing.feedMaxWidth).fillMaxWidth(),
+                contentPadding = PaddingValues(start = Spacing.gutter, end = Spacing.gutter, bottom = Spacing.xxl),
+                verticalArrangement = Arrangement.spacedBy(Spacing.m),
+            ) {
+                item(key = "map") { ExploreMap(state.selectedRoute) }
+                item(key = "header") {
+                    SectionHeader(
+                        "Saved routes",
+                        actionLabel = if (state.routes.isEmpty()) null else "Import GPX",
+                        onAction = actions.onImport,
+                    )
+                }
+                if (!state.isLoading && state.routes.isEmpty()) {
+                    item(key = "empty") { NoRoutes(state.isImporting, actions.onImport) }
+                }
+                items(state.routes, key = { it.id }) { route ->
+                    RouteCard(
+                        route,
+                        onShownOnMap = route.id == state.selectedRoute?.id,
+                        onClick = { actions.onOpenRoute(route.id) },
+                        onShowOnMap = { actions.onShowOnMap(route.id) },
+                    )
                 }
             }
-            state.routes.firstOrNull()?.let { featured ->
-                item(key = "map") {
-                    RouteThumbnail(featured.path, aspectRatio = 1.5f, contentDescription = "Map preview of ${featured.name}")
-                }
-            }
-            item(key = "notice") { MapNotice() }
-            item(key = "header") { SectionHeader("Routes near you") }
-            items(state.routes, key = { it.id }) { route -> RouteCard(route, onClick = { onOpenRoute(route.id) }) }
         }
     }
 }
 
 @Composable
-private fun SearchField(onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        shape = PillShape,
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 1.dp,
-        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-    ) {
-        Row(Modifier.padding(horizontal = Spacing.l), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.Search, contentDescription = null, tint = RidgelineTheme.colors.textSecondary)
-            Spacer(Modifier.width(Spacing.m))
-            Text("Search a place or route", style = MaterialTheme.typography.bodyLarge, color = RidgelineTheme.colors.textMuted)
-        }
+private fun ExploreMap(selected: RouteCardUi?) {
+    val mapState = rememberMapState()
+    LaunchedEffect(selected?.id) {
+        val points = selected?.points.orEmpty()
+        if (points.size >= 2) mapState.fitTo(points)
+    }
+    RidgelineMap(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(MAP_RATIO)
+            .clip(MaterialTheme.shapes.large),
+        state = mapState,
+        overlays = MapOverlays(plannedRoute = selected?.points.orEmpty()),
+        textureMode = true,
+    )
+}
+
+private const val MAP_RATIO = 1.25f
+
+@Composable
+private fun NoRoutes(importing: Boolean, onImport: () -> Unit) {
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        EmptyState(
+            icon = Icons.Rounded.Route,
+            title = if (importing) "Importing…" else "No saved routes yet",
+            body = "Import a GPX file from another app or website. Saved routes show on the map, and you can record while following one.",
+            primaryActionLabel = "Import GPX route",
+            onPrimaryAction = onImport,
+        )
     }
 }
 
 @Composable
-private fun MapNotice() {
-    Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.primaryContainer) {
-        Row(Modifier.padding(Spacing.m), verticalAlignment = Alignment.Top) {
-            Icon(Icons.Rounded.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(Spacing.s))
-            Text(
-                "Interactive maps, offline regions and the route builder are on the way. All free, built on OpenStreetMap.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-        }
-    }
-}
-
-@Composable
-private fun RouteCard(route: RouteCardUi, onClick: () -> Unit) {
+private fun RouteCard(route: RouteCardUi, onShownOnMap: Boolean, onClick: () -> Unit, onShowOnMap: () -> Unit) {
     RidgelineCard(onClick = onClick, contentPadding = Spacing.m) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.width(112.dp)) {
-                RouteThumbnail(route.path, aspectRatio = 1.4f, contentDescription = "Route shape of ${route.name}")
+                RouteMapThumbnail(route.points, contentDescription = "Route shape of ${route.name}", aspectRatio = 1.4f)
             }
             Spacer(Modifier.width(Spacing.m))
             Column(Modifier.weight(1f)) {
-                Text(route.name, style = MaterialTheme.typography.titleSmall)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    route.sport?.let {
+                        Icon(it.icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = RidgelineTheme.colors.textMuted)
+                        Spacer(Modifier.width(Spacing.xs))
+                    }
+                    Text(route.name, style = MaterialTheme.typography.titleSmall, maxLines = 2)
+                }
                 Spacer(Modifier.height(Spacing.xxs))
                 Text(route.details, style = MaterialTheme.typography.bodySmall, color = RidgelineTheme.colors.textSecondary)
+            }
+            IconButton(onClick = onShowOnMap) {
+                Icon(
+                    Icons.Rounded.Map,
+                    contentDescription = if (onShownOnMap) "Shown on the map" else "Show on the map",
+                    tint = if (onShownOnMap) MaterialTheme.colorScheme.primary else RidgelineTheme.colors.textMuted,
+                )
             }
         }
     }

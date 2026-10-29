@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.model
 
-/** Measurement system for distances, paces and elevation. */
-enum class UnitSystem(val label: String) {
-    Metric("Metric (km, m)"),
-    Imperial("Imperial (mi, ft)"),
-}
+import org.openactivity.model.UnitSystem
 
 /** Appearance preference. */
 enum class ThemeMode(val label: String) {
@@ -16,9 +12,16 @@ enum class ThemeMode(val label: String) {
 
 /** User preferences that shape how every screen renders. */
 data class UserPreferences(
-    val unitSystem: UnitSystem = UnitSystem.Metric,
+    val unitSystem: UnitSystem = UnitSystem.METRIC,
     val themeMode: ThemeMode = ThemeMode.System,
     val reduceMotion: Boolean = false,
     /** Sport preselected on the Record screen (record checklist 2.2). */
     val lastSport: Sport = Sport.Run,
 )
+
+/** Display label of a unit system, e.g. "Metric (km, m)". */
+val UnitSystem.label: String
+    get() = when (this) {
+        UnitSystem.METRIC -> "Metric (km, m)"
+        UnitSystem.IMPERIAL -> "Imperial (mi, ft)"
+    }

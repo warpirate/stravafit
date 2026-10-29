@@ -4,7 +4,7 @@ package org.openactivity.app.format
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
-import org.openactivity.app.model.UnitSystem
+import org.openactivity.model.UnitSystem
 import org.openactivity.app.testing.TEST_CLOCK
 import java.time.Duration
 import java.time.Instant
@@ -12,8 +12,8 @@ import java.time.ZonedDateTime
 import java.util.Locale
 
 class UnitFormatterTest {
-    private val metric = UnitFormatter(UnitSystem.Metric, Locale.UK)
-    private val imperial = UnitFormatter(UnitSystem.Imperial, Locale.UK)
+    private val metric = UnitFormatter(UnitSystem.METRIC, Locale.UK)
+    private val imperial = UnitFormatter(UnitSystem.IMPERIAL, Locale.UK)
 
     @Test
     fun distance() {
@@ -43,7 +43,7 @@ class UnitFormatterTest {
     fun elevationAndGrouping() {
         assertEquals(Measure("1,102", "m", "metres"), metric.elevation(1_102.0))
         assertEquals(Measure("2,664", "ft", "feet"), imperial.elevation(812.0))
-        assertEquals("1.204", UnitFormatter(UnitSystem.Metric, Locale.GERMANY).count(1_204))
+        assertEquals("1.204", UnitFormatter(UnitSystem.METRIC, Locale.GERMANY).count(1_204))
     }
 
     @Test
