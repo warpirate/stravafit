@@ -13,8 +13,9 @@ import kotlin.time.Duration.Companion.seconds
 
 class ModelTest {
     @Test
-    fun `sport list matches the documented 56 types with unique api names`() {
-        assertEquals(56, SportType.entries.size)
+    fun `sport list matches the documented 56 types plus Other with unique api names`() {
+        assertEquals(57, SportType.entries.size)
+        assertEquals(SportType.OTHER, SportType.fromApiName("Other"))
         assertEquals(SportType.entries.size, SportType.entries.map { it.apiName }.toSet().size)
     }
 
@@ -42,6 +43,8 @@ class ModelTest {
     fun `visibility defaults to followers and round trips`() {
         assertEquals(Visibility.FOLLOWERS, Visibility.DEFAULT)
         Visibility.entries.forEach { assertEquals(it, Visibility.fromApiName(it.apiName)) }
+        assertEquals(listOf("everyone", "followers", "only_me"), Visibility.entries.map { it.apiName })
+        assertEquals(Visibility.FOLLOWERS, Visibility.fromApiName("followers_only"))
     }
 
     @Test

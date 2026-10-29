@@ -139,6 +139,9 @@ public enum class SportType(
 
     // Other
     ROCK_CLIMBING("RockClimbing", SportCategory.OTHER, SpeedDisplay.SPEED, usesGps = false),
+
+    /** Forward-compatibility bucket for imported activities whose sport is unknown to this version. */
+    OTHER("Other", SportCategory.OTHER, SpeedDisplay.SPEED, usesGps = false),
     ;
 
     /** True when the sport shows a pace (time per distance) rather than a speed. */
