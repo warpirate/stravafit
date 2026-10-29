@@ -301,6 +301,34 @@ class RecordingEngineTest {
     }
 
     @Test
+    fun `climbing during a manual pause is not counted`() {
+        val f = Feed().action(Action.START)
+        val e = engine(SportType.HIKE, autoPause = false)
+        e.processAll(f.inputs)
+        f.inputs.clear()
+        // 60 s flat, then a manual pause while a lift carries the athlete 200 m up, then 60 s flat again.
+        for (s in 1..60) {
+            f.move(1, 1.0)
+            f.add(EngineInput.Pressure(f.nanos(f.seconds) + 2, ElevationMetrics.altitudeToPressure(500.0)))
+        }
+        f.action(Action.PAUSE)
+        for (s in 1..120) {
+            f.ticks(1)
+            f.add(EngineInput.Pressure(f.nanos(f.seconds) + 2, ElevationMetrics.altitudeToPressure(500.0 + s * 200.0 / 120)))
+        }
+        f.action(Action.RESUME)
+        for (s in 1..60) {
+            f.move(1, 1.0)
+            f.add(EngineInput.Pressure(f.nanos(f.seconds) + 2, ElevationMetrics.altitudeToPressure(700.0)))
+        }
+        f.action(Action.FINISH)
+        e.feed(f)
+        val done = e.finishedActivity!!
+        assertNear(0.0, done.elevationGainMeters, 1.0, "gain")
+        assertNear(0.0, done.elevationLossMeters, 1.0, "loss")
+    }
+
+    @Test
     fun `mock locations flag the activity`() {
         val f = Feed().action(Action.START).move(10, 3.0)
         f.add(f.fix(speed = 3.0, mock = true).copy(monotonicNanos = f.nanos(10.5)))

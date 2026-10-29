@@ -80,6 +80,18 @@ public class ElevationAccumulator(
         }
     }
 
+    /**
+     * Forgets the smoothing window and the reference level while keeping [gain] and [loss], so the next
+     * sample starts a fresh baseline. Used when altitude changed during a span that must not count (a manual
+     * pause, a recording interruption): without it, the whole change would be counted on the first sample.
+     * [smoothed] keeps its last value until the next sample arrives.
+     */
+    public fun rebase() {
+        count = 0
+        next = 0
+        reference = Double.NaN
+    }
+
     /** Captures the accumulator's full state (for crash-recovery snapshots). */
     public fun snapshot(): State = State(ring.toList(), count, next, reference, gain, loss, smoothed)
 

@@ -369,6 +369,8 @@ public class RecordingEngine(public val config: RecordingConfig) {
             }
         }
         if (!hasBarometer) {
+            // While manually paused (a lift, a car) altitude is tracked for display but never counted.
+            if (status == RecordingStatus.PAUSED) gpsElevation.rebase()
             val h = if (verticalAccuracyAvg.isNaN()) {
                 gpsElevation.hysteresisMeters
             } else {
@@ -389,7 +391,15 @@ public class RecordingEngine(public val config: RecordingConfig) {
             carriedLoss = gpsElevation.loss
         }
         baroAltitude = ElevationMetrics.pressureToAltitude(hPa)
-        if (status.isActive) baroElevation.add(baroAltitude)
+        if (!status.isActive) return
+        if (status == RecordingStatus.PAUSED) baroElevation.rebase()
+        baroElevation.add(baroAltitude)
+    }
+
+    /** Starts fresh elevation baselines so altitude changed during a pause or interruption is not counted. */
+    private fun rebaseElevation() {
+        gpsElevation.rebase()
+        baroElevation.rebase()
     }
 
     private fun currentAltitude(): Double? = when {
@@ -437,6 +447,7 @@ public class RecordingEngine(public val config: RecordingConfig) {
                 endPause(t)
                 breakSegment()
                 motion.reset()
+                rebaseElevation()
             }
             Action.LAP -> if (status.isActive) closeLap(t, LapTrigger.MANUAL)
             Action.FINISH -> if (status.isActive) finish(t)
@@ -722,8 +733,11 @@ public class RecordingEngine(public val config: RecordingConfig) {
         }
         clockNanos = last + gap
         lastFixNanos = clockNanos
+        // The timer restarts at resumption: a later back-dated auto-pause must not reach into the gap.
+        if (status == RecordingStatus.RECORDING) lastTimerStart = last + gap
         breakSegment()
         motion.reset()
+        rebaseElevation()
     }
 
     public companion object {
