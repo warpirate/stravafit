@@ -109,7 +109,7 @@ internal fun DetailBody(content: DetailContent) {
         content.chart?.let { chart ->
             item(key = "analysis") {
                 Section("Analysis") {
-                    AnalysisSection(chart, content.sport, content.units, scrubIndex, onScrub = { scrubIndex = it })
+                    AnalysisSection(chart, content.sport, content.units, scrubIndex, onScrub = { scrubIndex = it }, averageSpeedMps = content.averageSpeedMps)
                 }
             }
         }

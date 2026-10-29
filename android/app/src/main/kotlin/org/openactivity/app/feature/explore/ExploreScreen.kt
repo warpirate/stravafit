@@ -68,7 +68,7 @@ fun ExploreScreen(onOpenRoute: (Long) -> Unit, viewModel: ExploreViewModel = hil
     ExploreContent(
         state = state,
         actions = ExploreActions(
-            onImport = { picker.launchOrElse(ImportDocumentsContract.MIME_TYPES) { messenger.show(NO_FILE_PICKER_MESSAGE) } },
+            onImport = { picker.launchOrElse(ImportDocumentsContract.ROUTE_MIME_TYPES) { messenger.show(NO_FILE_PICKER_MESSAGE) } },
             onOpenRoute = onOpenRoute,
             onShowOnMap = viewModel::selectRoute,
         ),

@@ -41,8 +41,14 @@ class UnitFormatter(private val units: UnitSystem, private val locale: Locale = 
     }
 
     /** Pace per kilometre or mile, e.g. "5:12" "/km". */
-    fun pace(meters: Double, seconds: Long): Measure? {
-        if (meters <= 0.0 || seconds <= 0) return null
+    fun pace(meters: Double, seconds: Long): Measure? = pace(meters, seconds.toDouble())
+
+    /**
+     * Pace from exact (fractional) [seconds]. Callers pass the stored moving time, not whole seconds, so the
+     * feed card and the activity detail round the same value the same way ("9:28 /mi" in both).
+     */
+    fun pace(meters: Double, seconds: Double): Measure? {
+        if (meters <= 0.0 || !(seconds > 0.0)) return null
         val perUnit = when (units) {
             UnitSystem.METRIC -> seconds / (meters / METERS_PER_KM)
             UnitSystem.IMPERIAL -> seconds / (meters / METERS_PER_MILE)
@@ -53,8 +59,11 @@ class UnitFormatter(private val units: UnitSystem, private val locale: Locale = 
     }
 
     /** Swim pace per 100 m or 100 yd. */
-    fun swimPace(meters: Double, seconds: Long): Measure? {
-        if (meters <= 0.0 || seconds <= 0) return null
+    fun swimPace(meters: Double, seconds: Long): Measure? = swimPace(meters, seconds.toDouble())
+
+    /** Swim pace from exact (fractional) [seconds]. */
+    fun swimPace(meters: Double, seconds: Double): Measure? {
+        if (meters <= 0.0 || !(seconds > 0.0)) return null
         val unitMeters = if (units == UnitSystem.METRIC) HUNDRED_METERS else HUNDRED_METERS * METERS_PER_YARD
         val perHundred = seconds / (meters / unitMeters)
         val unit = if (units == UnitSystem.METRIC) "/100m" else "/100yd"

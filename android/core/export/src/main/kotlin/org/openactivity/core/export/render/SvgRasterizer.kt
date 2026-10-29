@@ -28,6 +28,7 @@ public class SvgRasterizer @Inject constructor() {
     public fun render(svg: String, width: Int, height: Int, backgroundColor: Int? = null): Bitmap {
         require(width > 0 && height > 0) { "Bitmap size must be positive: ${width}x$height" }
         val document = parse(svg)
+        fitToViewport(document)
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         if (backgroundColor != null) canvas.drawColor(backgroundColor)
@@ -43,6 +44,21 @@ public class SvgRasterizer @Inject constructor() {
         } finally {
             bitmap.recycle()
         }
+    }
+
+    /**
+     * Makes the document scale to the render viewport. Our documents give a pixel width and height but no
+     * `viewBox`; AndroidSVG then draws them at their intrinsic size whatever the viewport, so a half-size
+     * preview showed only the top-left quarter (a blank Aurora gradient, an empty sticker, a cropped poster).
+     */
+    private fun fitToViewport(document: SVG) {
+        if (document.documentViewBox == null) {
+            val w = document.documentWidth
+            val h = document.documentHeight
+            if (w > 0f && h > 0f) document.setDocumentViewBox(0f, 0f, w, h)
+        }
+        document.setDocumentWidth("100%")
+        document.setDocumentHeight("100%")
     }
 
     internal fun parse(svg: String): SVG = try {

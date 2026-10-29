@@ -70,9 +70,9 @@ object OverlayPlanner {
             ),
             LineLayerSpec(LIVE_CASING, LIVE_SOURCE, palette.casing, casingWidth),
             LineLayerSpec(LIVE_LINE, LIVE_SOURCE, palette.liveTrack, LINE_WIDTH),
-            // Shape, not colour, separates them: the start is hollow, the finish is filled.
-            CircleLayerSpec(START_MARKER, MARKER_SOURCE, OverlayIds.ROLE_START, MARKER_RADIUS, palette.casing, palette.marker, MARKER_STROKE),
-            CircleLayerSpec(FINISH_MARKER, MARKER_SOURCE, OverlayIds.ROLE_FINISH, MARKER_RADIUS, palette.marker, palette.casing, MARKER_STROKE),
+            // A green start and a dark finish, each with a white ring (strava direction).
+            CircleLayerSpec(START_MARKER, MARKER_SOURCE, OverlayIds.ROLE_START, MARKER_RADIUS, palette.start, palette.markerRing, MARKER_STROKE),
+            CircleLayerSpec(FINISH_MARKER, MARKER_SOURCE, OverlayIds.ROLE_FINISH, MARKER_RADIUS, palette.finish, palette.markerRing, MARKER_STROKE),
         )
         return OverlayPlan(sources, layers)
     }

@@ -40,6 +40,7 @@ internal fun AnalysisSection(
     scrubIndex: Int?,
     onScrub: (Int?) -> Unit,
     modifier: Modifier = Modifier,
+    averageSpeedMps: Double? = null,
 ) {
     val viz = RidgelineTheme.colors.viz
     val base = ChartColors(
@@ -61,13 +62,15 @@ internal fun AnalysisSection(
     }
     // Elevation is stored in metres: label round feet in imperial rather than converted round metres.
     val elevationTicks: (ClosedFloatingPointRange<Double>) -> List<Double> = remember(units) {
-        { r -> ChartMath.scaledTicks(r, DetailFormat.elevationDisplayFactor(units)) }
+        { r -> ChartMath.scaledTicks(r, DetailFormat.elevationDisplayFactor(units), 4) }
     }
     val labelStyle = RidgelineTheme.text.caption
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
         Readout(data, sport, units, scrubIndex)
         data.seriesFor(ChartMetric.SPEED)?.let { s ->
-            ChartBlock(DetailFormat.speedLabel(sport), averageLabel(s.average, sport, units))
+            // The activity's own average (distance over moving time), so the chart agrees with the summary.
+            val average = averageSpeedMps?.takeIf { it > 0.0 } ?: s.average
+            ChartBlock(DetailFormat.speedLabel(sport), averageLabel(average, sport, units))
             ActivityChart(
                 data = data,
                 metric = ChartMetric.SPEED,
@@ -79,6 +82,7 @@ internal fun AnalysisSection(
                 onScrub = onScrub,
                 backgroundMetric = ChartMetric.ELEVATION,
                 tickValues = speedTicks,
+                average = average,
             )
         }
         data.seriesFor(ChartMetric.ELEVATION)?.let { s ->

@@ -22,7 +22,7 @@ import org.openactivity.core.map.thumbnail.RouteMapThumbnail
 import org.openactivity.model.LatLng
 
 /**
- * The activity's route on a MapLibre map with start and finish markers, coloured by pace.
+ * The activity's route on a MapLibre map with start and finish markers, in the route orange.
  *
  * [marker] (the scrubbed chart sample) is shown as a dot; [focus] (a selected split) is framed by the
  * camera, and the whole route again when it is null. Previews and screenshot tests, which cannot load
@@ -47,7 +47,11 @@ internal fun DetailMap(
     }
     val state = rememberMapState()
     val overlays = remember(route, speeds) {
-        MapOverlays(activityRoute = ActivityRouteOverlay(route, speeds.takeIf { it.size == route.size }))
+        MapOverlays(
+            // A solid orange line on its casing (strava direction): the purple/teal pace ramp was hard to
+            // see on dark tiles. Pace lives in the chart and the splits.
+            activityRoute = ActivityRouteOverlay(route, speeds.takeIf { it.size == route.size }, colorByPace = false),
+        )
     }
     val target = focus?.takeIf { it.size >= 2 } ?: route
     LaunchedEffect(state, target) {

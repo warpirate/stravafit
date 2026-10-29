@@ -52,6 +52,28 @@ class RenderSmokeTest {
         assertTrue("mostly transparent: $drawn px", drawn < art.bitmap.width * art.bitmap.height / 2)
     }
 
+    private fun Bitmap.opaqueBounds(): FloatArray {
+        var minX = width; var minY = height; var maxX = -1; var maxY = -1
+        for (y in 0 until height) for (x in 0 until width) {
+            if (Color.alpha(getPixel(x, y)) > 0) {
+                if (x < minX) minX = x
+                if (y < minY) minY = y
+                if (x > maxX) maxX = x
+                if (y > maxY) maxY = y
+            }
+        }
+        return floatArrayOf(minX / width.toFloat(), minY / height.toFloat(), maxX / width.toFloat(), maxY / height.toFloat())
+    }
+
+    @Test
+    fun `scaled preview shows the whole artwork, not its top-left corner`() = runTest {
+        // Regression: previews at half size were cropped because the SVG had no viewBox.
+        val spec = ArtSpec(template = ArtTemplate.MINIMAL_STICKER)
+        val full = (exporter.render(run, spec, scale = 1f) as RenderedArt.Image).bitmap.opaqueBounds()
+        val preview = (exporter.render(run, spec, scale = 0.25f) as RenderedArt.Image).bitmap.opaqueBounds()
+        for (i in full.indices) assertEquals("bound $i", full[i], preview[i], 0.03f)
+    }
+
     @Test
     fun `png export is a decodable png of the full output size`() = runTest {
         val file = exporter.exportImage(run, ArtSpec(template = ArtTemplate.STORY), ExportFormat.PNG)

@@ -68,6 +68,12 @@ data class MapPalette(
     @ColorInt val land: Int,
     /** Pace ramp from slowest to fastest; at least two colours. */
     val paceRamp: List<Int> = ViridisRamp,
+    /** Start marker fill (green, strava `routeStart`). */
+    @ColorInt val start: Int = 0xFF1FA45B.toInt(),
+    /** Finish marker fill (near-black, so it reads as the chequered flag's dark square). */
+    @ColorInt val finish: Int = 0xFF242428.toInt(),
+    /** Ring around the markers (white on any base map). */
+    @ColorInt val markerRing: Int = 0xFFFFFFFF.toInt(),
 ) {
     init {
         require(paceRamp.size >= 2) { "pace ramp needs at least two colours" }

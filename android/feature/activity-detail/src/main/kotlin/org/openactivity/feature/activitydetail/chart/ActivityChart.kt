@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
@@ -75,11 +76,12 @@ fun ActivityChart(
     height: Dp = 120.dp,
     backgroundMetric: ChartMetric? = null,
     tickValues: ((ClosedFloatingPointRange<Double>) -> List<Double>)? = null,
+    average: Double? = data.seriesFor(metric)?.average,
 ) {
     val series = data.seriesFor(metric) ?: return
     val background = backgroundMetric?.let { data.seriesFor(it) }
     val measurer = rememberTextMeasurer()
-    val range = remember(series) { ChartMath.padded(series.min, series.max) }
+    val range = remember(series) { ChartMath.robustRange(series.values, ChartMath.minSpan(metric)) }
     val ticks = remember(range, tickValues) {
         (tickValues?.invoke(range) ?: ChartMath.niceTicks(range.start, range.endInclusive, 3)).filter { it in range }
     }
@@ -115,7 +117,7 @@ fun ActivityChart(
         fun xOf(i: Int) = (data.x[i] / xMax * size.width).toFloat()
 
         if (background != null && colors.background != Color.Unspecified) {
-            val bgRange = ChartMath.padded(background.min, background.max, 0.15)
+            val bgRange = ChartMath.robustRange(background.values, ChartMath.minSpan(background.metric), 0.15)
             drawArea(data, background.values, ::xOf, bgRange.start, bgRange.endInclusive, colors.background)
         }
         // Grid lines first; their labels go on top of the series at the end.
@@ -126,8 +128,8 @@ fun ActivityChart(
         if (colors.fill != Color.Unspecified) {
             drawArea(data, series.values, ::xOf, range.start, range.endInclusive, colors.fill)
         }
-        drawSeriesLine(series.values, ::xOf, range.start, range.endInclusive, colors.line)
-        series.average?.let { avg ->
+        clipRect { drawSeriesLine(series.values, ::xOf, range.start, range.endInclusive, colors.line) }
+        average?.takeIf { it in range }?.let { avg ->
             val y = yOf(avg, range.start, range.endInclusive)
             drawLine(
                 colors.average,
@@ -153,20 +155,21 @@ fun ActivityChart(
     }
 }
 
-/** Draws a tick label just above its grid line at the left edge, on a small plate when [plate] is set. */
+/** Draws a tick label just above its grid line at the right edge, on a small plate when [plate] is set. */
 private fun DrawScope.drawTickLabel(layout: TextLayoutResult, lineY: Float, plate: Color) {
     val padH = 4.dp.toPx()
     val padV = 1.dp.toPx()
     val top = (lineY - layout.size.height - 2.dp.toPx() - padV).coerceAtLeast(padV)
+    val left = size.width - layout.size.width - padH * 2
     if (plate != Color.Unspecified) {
         drawRoundRect(
             color = plate,
-            topLeft = Offset(0f, top - padV),
+            topLeft = Offset(left, top - padV),
             size = Size(layout.size.width + padH * 2, layout.size.height + padV * 2),
             cornerRadius = CornerRadius(4.dp.toPx()),
         )
     }
-    drawText(layout, topLeft = Offset(padH, top))
+    drawText(layout, topLeft = Offset(left + padH, top))
 }
 
 private fun DrawScope.yOf(value: Double, min: Double, max: Double): Float =

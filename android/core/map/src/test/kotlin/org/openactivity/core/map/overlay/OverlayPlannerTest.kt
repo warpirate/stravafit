@@ -90,17 +90,17 @@ class OverlayPlannerTest {
     }
 
     @Test
-    fun startIsHollowAndFinishIsFilled() {
+    fun startIsGreenAndFinishIsDarkWithWhiteRings() {
         val plan = OverlayPlanner.plan(MapOverlays(activityRoute = ActivityRouteOverlay(track)), palette)
         val markers = plan.source(OverlayIds.MARKER_SOURCE).geoJson
         assertTrue(markers.contains("\"role\":\"start\"") && markers.contains("\"role\":\"finish\""))
         val circles = plan.layers.filterIsInstance<CircleLayerSpec>().associateBy { it.role }
         val start = circles.getValue(OverlayIds.ROLE_START)
         val finish = circles.getValue(OverlayIds.ROLE_FINISH)
-        assertEquals(palette.casing, start.fillColor)
-        assertEquals(palette.marker, start.strokeColor)
-        assertEquals(palette.marker, finish.fillColor)
-        assertEquals(palette.casing, finish.strokeColor)
+        assertEquals(palette.start, start.fillColor)
+        assertEquals(palette.markerRing, start.strokeColor)
+        assertEquals(palette.finish, finish.fillColor)
+        assertEquals(palette.markerRing, finish.strokeColor)
     }
 
     @Test

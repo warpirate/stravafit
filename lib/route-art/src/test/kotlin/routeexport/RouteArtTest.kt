@@ -151,3 +151,30 @@ class SummaryOverrideTest {
         assertTrue(svg.contains("42.20"), "poster shows the supplied distance")
     }
 }
+
+class PathSmoothingTest {
+    private fun controlPoints(d: String): List<XY> =
+        Regex("""C([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+)""").findAll(d).flatMap { m ->
+            val v = m.groupValues.drop(1).map { it.toDouble() }
+            listOf(XY(v[0], v[1]), XY(v[2], v[3]))
+        }.toList()
+
+    @Test
+    fun rightAngleTurnDoesNotOvershootTheCorner() {
+        // Regression: a 90° turn after a long leg threw a control point well past the corner.
+        val pts = listOf(XY(0.0, 0.0), XY(1000.0, 0.0), XY(1010.0, 0.0), XY(1010.0, 10.0), XY(1010.0, 800.0))
+        val cps = controlPoints(PathData.smooth(pts))
+        assertTrue(cps.isNotEmpty())
+        for (c in cps) {
+            assertTrue(c.x <= 1010.0 + 1e-6, "control point $c beyond the corner")
+            assertTrue(c.y >= -1e-6, "control point $c above the route")
+        }
+    }
+
+    @Test
+    fun gentleCurvesStaySmooth() {
+        val pts = (0..20).map { i -> XY(i * 10.0, kotlin.math.sin(i / 3.0) * 20) }
+        val d = PathData.smooth(pts)
+        assertEquals(20, Regex(" C").findAll(d).count())
+    }
+}

@@ -244,6 +244,35 @@ object ChartMath {
         return niceTicks(range.start * factor, range.endInclusive * factor, maxTicks).map { it / factor }
     }
 
+    /**
+     * The y range to plot [values] on: the 5th to 95th percentile (all values for short series), widened
+     * to at least [minSpan] around its centre and padded. A few slow samples at the start no longer squash
+     * the pace line into the top of the chart, and a flat elevation profile gets a readable scale instead
+     * of a lone "600" label.
+     */
+    fun robustRange(values: DoubleArray, minSpan: Double, fraction: Double = 0.08): ClosedFloatingPointRange<Double> {
+        val finite = values.filter { it.isFinite() }.sorted()
+        if (finite.isEmpty()) return 0.0..1.0
+        val n = finite.size
+        var lo = if (n >= ROBUST_MIN_SAMPLES) finite[(n * 0.05).toInt()] else finite.first()
+        var hi = if (n >= ROBUST_MIN_SAMPLES) finite[((n - 1) * 0.95).toInt()] else finite.last()
+        if (hi - lo < minSpan) {
+            val mid = (lo + hi) / 2
+            lo = mid - minSpan / 2
+            hi = mid + minSpan / 2
+        }
+        return padded(lo, hi, fraction)
+    }
+
+    /** Smallest y span per metric: 0.5 m/s of speed, 20 m of elevation, 20 bpm. */
+    fun minSpan(metric: ChartMetric): Double = when (metric) {
+        ChartMetric.SPEED -> 0.5
+        ChartMetric.ELEVATION -> 20.0
+        ChartMetric.HEART_RATE -> 20.0
+    }
+
+    private const val ROBUST_MIN_SAMPLES = 20
+
     /** [min]..[max] widened by [fraction] of the span on each side (and never empty). */
     fun padded(min: Double, max: Double, fraction: Double = 0.08): ClosedFloatingPointRange<Double> {
         val span = max - min

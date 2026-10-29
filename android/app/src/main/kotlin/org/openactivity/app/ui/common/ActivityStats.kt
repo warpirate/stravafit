@@ -21,6 +21,7 @@ import kotlin.math.roundToInt
  */
 fun activityStats(activity: SavedActivity, formatter: UnitFormatter): List<Stat> {
     val seconds = activity.movingTime.inWholeSeconds
+    val exactSeconds = activity.movingTime.inWholeMilliseconds / 1000.0
     val distance = activity.distanceMeters.takeIf { it > 0.0 }
     val time = Stat("Time", UnitFormatter.duration(seconds))
     if (distance == null) {
@@ -34,17 +35,17 @@ fun activityStats(activity: SavedActivity, formatter: UnitFormatter): List<Stat>
     return when {
         sport.category == SportCategory.BIKE -> listOf(
             formatter.distance(distance).toStat("Distance"),
-            formatter.elevation(activity.elevationGainMeters).toStat("Elev gain"),
+            formatter.elevation(activity.elevationGainMeters).toStat("Elev Gain"),
             time,
         )
         sport.speedDisplay == SpeedDisplay.PACE -> listOf(
             formatter.distance(distance).toStat("Distance"),
-            formatter.pace(distance, seconds).toStat("Pace"),
+            formatter.pace(distance, exactSeconds).toStat("Pace"),
             time,
         )
         sport.speedDisplay == SpeedDisplay.PACE_PER_100M -> listOf(
             formatter.swimDistance(distance).toStat("Distance"),
-            formatter.swimPace(distance, seconds).toStat("Pace"),
+            formatter.swimPace(distance, exactSeconds).toStat("Pace"),
             time,
         )
         else -> listOf(

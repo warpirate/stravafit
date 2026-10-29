@@ -58,6 +58,8 @@ data class DetailContent(
     val efforts: List<EffortRow>,
     val showEfforts: Boolean,
     val notes: List<String>,
+    /** The summary average (distance over moving time); the pace chart labels and draws this one. */
+    val averageSpeedMps: Double? = null,
 ) {
     /** True when there is a route to draw on the map. */
     val hasRoute: Boolean get() = route.size >= 2

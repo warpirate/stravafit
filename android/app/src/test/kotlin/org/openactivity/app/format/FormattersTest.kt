@@ -40,6 +40,14 @@ class UnitFormatterTest {
     }
 
     @Test
+    fun `pace from exact moving time rounds like the activity detail`() {
+        // Regression: the feed truncated moving time to whole seconds first and showed 15:45 /mi where the
+        // detail (distance over exact moving time) showed 15:46 /mi.
+        assertEquals("15:46", imperial.pace(5_000.0, 2_937.68)?.value)
+        assertEquals("15:45", imperial.pace(5_000.0, 2_937L)?.value)
+    }
+
+    @Test
     fun elevationAndGrouping() {
         assertEquals(Measure("1,102", "m", "metres"), metric.elevation(1_102.0))
         assertEquals(Measure("2,664", "ft", "feet"), imperial.elevation(812.0))

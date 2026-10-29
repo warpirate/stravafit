@@ -147,4 +147,22 @@ class ChartMathTest {
         assertTrue(feet.isNotEmpty())
         feet.forEach { assertEquals(Math.round(it / 50.0) * 50.0, it, 1e-6) }
     }
+
+    @Test
+    fun `robust range ignores a few slow outliers`() {
+        // Regression: a slow start squashed the pace line into the top of the chart under 10:00 and 20:00 labels.
+        val speeds = DoubleArray(200) { i -> if (i < 5) 0.9 else 3.2 + (i % 7) * 0.02 }
+        val r = ChartMath.robustRange(speeds, ChartMath.minSpan(ChartMetric.SPEED))
+        assertTrue("start ${r.start}", r.start > 2.5)
+        assertTrue("end ${r.endInclusive}", r.endInclusive < 4.0)
+    }
+
+    @Test
+    fun `flat elevation gets a readable span`() {
+        val flat = DoubleArray(100) { 560.0 }
+        val r = ChartMath.robustRange(flat, ChartMath.minSpan(ChartMetric.ELEVATION))
+        assertTrue(r.endInclusive - r.start >= 20.0)
+        assertTrue(560.0 in r)
+        assertTrue(ChartMath.scaledTicks(r, 1.0, 4).count { it in r } >= 2)
+    }
 }

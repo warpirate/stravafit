@@ -61,6 +61,7 @@ class ActivityImporterTest {
         assertEquals(Intent.ACTION_OPEN_DOCUMENT, intent.action)
         assertTrue(intent.getBooleanExtra(Intent.EXTRA_ALLOW_MULTIPLE, false))
         assertTrue(intent.hasCategory(Intent.CATEGORY_OPENABLE))
-        assertTrue("*/*" in intent.getStringArrayExtra(Intent.EXTRA_MIME_TYPES)!!)
+        assertTrue("application/gpx+xml" in intent.getStringArrayExtra(Intent.EXTRA_MIME_TYPES)!!)
+        assertTrue("*/*" !in intent.getStringArrayExtra(Intent.EXTRA_MIME_TYPES)!!)
     }
 }

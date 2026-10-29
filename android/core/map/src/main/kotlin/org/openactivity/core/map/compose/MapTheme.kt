@@ -45,5 +45,6 @@ fun mapPalette(): MapPalette {
         puck = (if (dark) Ref.Primary300 else Ref.Primary500).toArgb(),
         puckAccuracy = (if (dark) Ref.Primary300 else Ref.Primary500).toArgb(),
         land = colors.mapLand.toArgb(),
+        start = colors.routeStart.toArgb(),
     )
 }

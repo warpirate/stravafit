@@ -241,6 +241,7 @@ class ActivityDetailViewModel internal constructor(
                 efforts = DetailRows.efforts(detail, bests, units),
                 showEfforts = DetailRows.hasEfforts(a.sport),
                 notes = notes,
+                averageSpeedMps = a.averageSpeedMps.takeIf { it > 0.0 },
             )
         }
     }
