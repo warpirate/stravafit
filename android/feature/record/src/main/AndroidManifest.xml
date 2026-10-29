@@ -13,5 +13,9 @@
             <action android:name="android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
             <data android:scheme="package" />
         </intent>
+        <!-- Record detail 7.5: warn before the first recording when no text-to-speech engine is installed. -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
     </queries>
 </manifest>

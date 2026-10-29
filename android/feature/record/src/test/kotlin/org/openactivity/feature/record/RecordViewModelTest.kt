@@ -3,6 +3,10 @@
 
 package org.openactivity.feature.record
 
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewmodel.CreationExtras
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -272,6 +276,25 @@ class RecordViewModelTest {
         runCurrent()
         assertEquals(listOf("discard", "start"), controller.calls)
         assertNotNull(vm.uiState.value.recording)
+    }
+
+    @Test fun closingTheScreenCommitsAPendingDiscardAtOnce() = runTest(dispatcher) {
+        controller.stateFlow.value = recordingSnapshot(status = RecordingStatus.PAUSED)
+        val store = ViewModelStore()
+        val factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T = newViewModel() as T
+        }
+        val vm = ViewModelProvider(store, factory)[RecordViewModel::class.java]
+        vm.confirmDiscard()
+        runCurrent()
+        assertTrue(controller.calls.isEmpty())
+        store.clear()
+        runCurrent()
+        // A later Record screen must not show a recording that a stale timer deletes seconds afterwards.
+        assertEquals(listOf("discard"), controller.calls)
+        advanceUntilIdle()
+        assertEquals("deleted once", listOf("discard"), controller.calls)
     }
 
     @Test fun batteryPromptShowsUntilExemptOrDismissed() = runTest(dispatcher) {

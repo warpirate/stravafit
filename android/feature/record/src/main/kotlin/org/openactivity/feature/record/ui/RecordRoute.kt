@@ -21,6 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import org.openactivity.core.recordingservice.permission.RecordingPermissionSheet
 import org.openactivity.core.recordingservice.permission.appSettingsIntent
 import org.openactivity.core.recordingservice.permission.rememberRecordingPermissionRequester
@@ -65,15 +66,23 @@ fun RecordRoute(
         viewModel.events.collect { event ->
             when (event) {
                 is RecordEvent.ActivitySaved -> currentOnSaved(event.activityId)
+                // Snackbars show in their own coroutine so a long one (Undo) never holds back later events
+                // such as navigation after Save.
                 RecordEvent.Discarded -> {
                     snackbar.currentSnackbarData?.dismiss()
-                    // Long matches the view model's undo window (record detail 4.4: at least 5 s).
-                    val result = snackbar.showSnackbar(discardedText, actionLabel = undoLabel, duration = SnackbarDuration.Long)
-                    if (result == SnackbarResult.ActionPerformed) viewModel.undoDiscard()
+                    launch {
+                        // Long matches the view model's undo window (record detail 4.4: at least 5 s).
+                        val result = snackbar.showSnackbar(
+                            discardedText,
+                            actionLabel = undoLabel,
+                            duration = SnackbarDuration.Long,
+                        )
+                        if (result == SnackbarResult.ActionPerformed) viewModel.undoDiscard()
+                    }
                 }
                 is RecordEvent.Message -> {
                     snackbar.currentSnackbarData?.dismiss()
-                    snackbar.showSnackbar(event.text)
+                    launch { snackbar.showSnackbar(event.text) }
                 }
             }
         }
