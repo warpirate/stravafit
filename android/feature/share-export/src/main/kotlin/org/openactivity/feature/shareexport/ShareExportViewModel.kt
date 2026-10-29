@@ -34,6 +34,7 @@ import org.openactivity.core.export.file.ExportFormat
 import org.openactivity.core.export.file.ExportedFile
 import org.openactivity.core.export.file.FormatUnavailableReason
 import org.openactivity.core.export.model.ExportActivity
+import org.openactivity.core.export.model.privacyTrimmed
 import org.openactivity.core.export.share.GallerySaver
 import org.openactivity.core.export.share.ShareLauncher
 
@@ -248,10 +249,19 @@ public class ShareExportViewModel(
 
     private fun formats(loaded: ExportActivity, current: ArtSpec): List<Pair<ExportFormat, FormatUnavailableReason?>> {
         val imageReason = exporter.imageUnavailableReason(loaded, current)
+        // This runs on the main thread for every settings change: trim once (and only when the toggle
+        // changes) instead of once per data format.
+        val dataSource = if (current.privacyTrim) trimmedActivity(loaded) else loaded
         return ExportFormat.entries.map { format ->
-            format to if (format.isData) exporter.dataUnavailableReason(loaded, format, current.privacyTrim) else imageReason
+            format to if (format.isData) exporter.dataUnavailableReason(dataSource, format, privacyTrim = false) else imageReason
         }
     }
+
+    private var trimmed: Pair<ExportActivity, ExportActivity>? = null
+
+    private fun trimmedActivity(loaded: ExportActivity): ExportActivity =
+        trimmed?.takeIf { it.first === loaded }?.second
+            ?: loaded.privacyTrimmed().activity.also { trimmed = loaded to it }
 
     public companion object {
         /** Previews render at half the output resolution. */

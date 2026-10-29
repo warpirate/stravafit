@@ -31,6 +31,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -40,7 +41,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.launch
 import org.openactivity.core.designsystem.component.EmptyState
 import org.openactivity.core.designsystem.component.OverlineHeader
 import org.openactivity.core.designsystem.component.PrimaryButton
@@ -103,22 +108,33 @@ public fun ShareExportScreenHost(viewModel: ShareExportViewModel, onClose: () ->
     }
     val chooserTitle = stringResource(R.string.share_export_chooser)
 
-    LaunchedEffect(viewModel) {
-        viewModel.effects.collect { effect ->
-            when (effect) {
-                is ShareEffect.ShareFile ->
-                    if (!launcher.share(context, effect.file, chooserTitle)) viewModel.onShareFailed(story = false)
-                is ShareEffect.ShareStory -> {
-                    val a = effect.assets
-                    val sent = launcher.shareToInstagramStory(context, a.sticker, a.storyImage, a.topColor, a.bottomColor)
-                    if (!sent && !launcher.share(context, a.storyImage, chooserTitle)) viewModel.onShareFailed(story = true)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(viewModel, lifecycleOwner) {
+        // Only while started: activities launched from the background are blocked (Android 10+), so an
+        // effect that arrives while the user is elsewhere waits in the channel until they come back.
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            viewModel.effects.collect { effect ->
+                when (effect) {
+                    is ShareEffect.ShareFile ->
+                        if (!launcher.share(context, effect.file, chooserTitle)) viewModel.onShareFailed(story = false)
+                    is ShareEffect.ShareStory -> {
+                        val a = effect.assets
+                        val sent = launcher.shareToInstagramStory(context, a.sticker, a.storyImage, a.topColor, a.bottomColor)
+                        if (!sent && !launcher.share(context, a.storyImage, chooserTitle)) viewModel.onShareFailed(story = true)
+                    }
+                    is ShareEffect.SaveDocument -> {
+                        pendingDocument = effect.file
+                        createDocument.launch(effect.file)
+                    }
+                    ShareEffect.RequestStoragePermission -> storagePermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    // showSnackbar suspends until the message is dismissed; run it aside so later effects
+                    // (a share started right after "Saved") are not held back for seconds.
+                    is ShareEffect.Message -> {
+                        val text = context.getString(effect.text, *effect.args.toTypedArray())
+                        scope.launch { snackbar.showSnackbar(text) }
+                    }
                 }
-                is ShareEffect.SaveDocument -> {
-                    pendingDocument = effect.file
-                    createDocument.launch(effect.file)
-                }
-                ShareEffect.RequestStoragePermission -> storagePermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                is ShareEffect.Message -> snackbar.showSnackbar(context.getString(effect.text, *effect.args.toTypedArray()))
             }
         }
     }
