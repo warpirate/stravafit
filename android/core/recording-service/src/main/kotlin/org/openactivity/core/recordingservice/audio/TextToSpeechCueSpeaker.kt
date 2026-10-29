@@ -56,6 +56,7 @@ class TextToSpeechCueSpeaker @Inject constructor(
     private val inFlight = AtomicInteger(0)
     private val utteranceIds = AtomicInteger(0)
     private var tts: TextToSpeech? = null
+    private var shutdownWhenIdle = false
     private val _status = MutableStateFlow(SpeechStatus.NOT_STARTED)
 
     /** Current speech availability, for a warning in the audio settings. */
@@ -63,6 +64,7 @@ class TextToSpeechCueSpeaker @Inject constructor(
 
     @Synchronized
     override fun speak(cue: AudioCue, units: UnitSystem) {
+        shutdownWhenIdle = false // a new recording wants the engine after all
         val text = phrases.phrase(cue, units)
         when (_status.value) {
             SpeechStatus.READY -> say(text)
@@ -74,33 +76,55 @@ class TextToSpeechCueSpeaker @Inject constructor(
         }
     }
 
+    /**
+     * Releases the engine once the cues already queued (such as "Activity saved", spoken just before the
+     * service stops) have played, rather than cutting them off.
+     */
     @Synchronized
     override fun shutdown() {
+        if (inFlight.get() > 0 || (tts != null && pending.isNotEmpty())) {
+            shutdownWhenIdle = true
+        } else {
+            shutdownNow()
+        }
+    }
+
+    @Synchronized
+    private fun shutdownNow() {
+        shutdownWhenIdle = false
         tts?.stop()
         tts?.shutdown()
         tts = null
         pending.clear()
+        inFlight.set(0)
         _status.value = SpeechStatus.NOT_STARTED
         audioManager?.abandonAudioFocusRequest(focusRequest)
     }
 
     private fun startEngine() {
         if (tts != null) return
-        tts = TextToSpeech(context.applicationContext) { result -> onInit(result) }
+        // Without any speech engine installed, the constructor reports ERROR synchronously (before `tts`
+        // is assigned), so onInit must not depend on `tts` for the failure path.
+        val engine = TextToSpeech(context.applicationContext) { result -> onInit(result) }
+        if (_status.value == SpeechStatus.UNAVAILABLE) engine.shutdown() else tts = engine
     }
 
     @Synchronized
     private fun onInit(result: Int) {
-        val engine = tts ?: return
         if (result != TextToSpeech.SUCCESS) {
             _status.value = SpeechStatus.UNAVAILABLE
             pending.clear()
+            tts?.shutdown()
+            tts = null
+            shutdownWhenIdle = false
             return
         }
+        val engine = tts ?: return
         val language = engine.setLanguage(Locale.getDefault())
         if (language == TextToSpeech.LANG_MISSING_DATA || language == TextToSpeech.LANG_NOT_SUPPORTED) {
             _status.value = SpeechStatus.LANGUAGE_MISSING
             pending.clear()
+            if (shutdownWhenIdle) shutdownNow()
             return
         }
         engine.setAudioAttributes(attributes)
@@ -120,6 +144,7 @@ class TextToSpeechCueSpeaker @Inject constructor(
             val (text, at) = pending.removeFirst()
             if (now - at <= STALE_MILLIS) say(text)
         }
+        if (shutdownWhenIdle && inFlight.get() == 0) shutdownNow()
     }
 
     private fun say(text: String) {
@@ -129,10 +154,12 @@ class TextToSpeechCueSpeaker @Inject constructor(
         if (engine.speak(text, TextToSpeech.QUEUE_ADD, Bundle(), id) != TextToSpeech.SUCCESS) finished()
     }
 
+    @Synchronized
     private fun finished() {
         if (inFlight.decrementAndGet() <= 0) {
             inFlight.set(0)
             audioManager?.abandonAudioFocusRequest(focusRequest)
+            if (shutdownWhenIdle) shutdownNow()
         }
     }
 

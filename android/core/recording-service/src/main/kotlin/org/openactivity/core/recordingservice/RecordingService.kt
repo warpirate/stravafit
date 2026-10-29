@@ -10,6 +10,7 @@ import android.os.PowerManager
 import android.os.SystemClock
 import androidx.core.app.ServiceCompat
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -67,9 +68,9 @@ class RecordingService : Service() {
             return START_NOT_STICKY
         }
         when (intent?.action) {
-            ACTION_PAUSE -> scope.launch { controller.pause() }
-            ACTION_RESUME -> scope.launch { controller.resume() }
-            ACTION_LAP -> scope.launch { controller.lap() }
+            ACTION_PAUSE -> command { controller.pause() }
+            ACTION_RESUME -> command { controller.resume() }
+            ACTION_LAP -> command { controller.lap() }
             ACTION_FINISH -> finishFromNotification()
             ACTION_START -> Unit
             else -> recover()
@@ -86,40 +87,51 @@ class RecordingService : Service() {
     }
 
     override fun onDestroy() {
+        handledStart = false // cancelled work must not render (and stop) a destroyed service
         scope.cancel()
         if (::wakeLock.isInitialized) wakeLock.release()
         speaker.shutdown()
         super.onDestroy()
     }
 
-    private fun recover() {
-        busy++
-        scope.launch {
-            val running = try {
-                controller.recoverInterrupted()
-            } catch (e: Exception) {
-                false
-            }
-            busy--
-            // Nothing to continue (already saved, or the journal was unreadable): just stop.
-            if (!running) render(controller.state.value)
+    private fun recover() = whileBusy { controller.recoverInterrupted() }
+
+    /**
+     * Applies a notification action. The action can arrive after the process died without a sticky
+     * restart (the notification outlives it), so bring the recording back from the journal first;
+     * otherwise the tap would silently do nothing.
+     */
+    private fun command(action: suspend () -> Unit) = whileBusy {
+        if (!controller.state.value.isActive) controller.recoverInterrupted()
+        action()
+    }
+
+    private fun finishFromNotification() = whileBusy {
+        val id = if (controller.state.value.isActive) controller.finish() else controller.finishInterrupted()
+        if (id != null) {
+            val title = activities.observeActivity(id).first()?.title.orEmpty()
+            notifications.showSaved(id, title)
         }
     }
 
-    private fun finishFromNotification() {
+    /**
+     * Runs [work] while keeping the service up: the controller is briefly idle during recovery and while
+     * saving, and the service must not stop then. Failures leave the journal in place, so the recording
+     * shows up as interrupted rather than being lost.
+     */
+    private fun whileBusy(work: suspend () -> Unit) {
         busy++
         scope.launch {
-            val id = try {
-                controller.finish()
+            try {
+                work()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                null
+                // Journal or database failure: nothing more to do here (see above).
+            } finally {
+                busy--
+                render(controller.state.value)
             }
-            if (id != null) {
-                val title = activities.observeActivity(id).first()?.title.orEmpty()
-                notifications.showSaved(id, title)
-            }
-            busy--
-            render(controller.state.value)
         }
     }
 

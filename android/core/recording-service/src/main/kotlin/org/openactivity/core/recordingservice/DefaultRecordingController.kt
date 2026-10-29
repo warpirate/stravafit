@@ -170,8 +170,10 @@ class DefaultRecordingController @Inject constructor(
             throw e
         }
         journalLock.withLock { journal.clear() }
-        _state.value = RecordingUiSnapshot.idle(s.units)
+        // Queue the cue before going idle: going idle stops the service, which releases the speech engine
+        // once queued cues have played.
         if (s.settings.audioCues.enabled) speaker.speak(AudioCue.Saved, s.units)
+        _state.value = RecordingUiSnapshot.idle(s.units)
         return id
     }
 
