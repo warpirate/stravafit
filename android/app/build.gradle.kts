@@ -77,6 +77,15 @@ roborazzi {
     outputDir.set(layout.projectDirectory.dir("screenshots"))
 }
 
+// Robolectric/Roborazzi tests need the ui-test-manifest activity, which is debug-only.
+// Release unit tests would run the same sources without it, so host tests run on debug variants only.
+androidComponents {
+    beforeVariants(selector().withBuildType("release")) {
+        (it as com.android.build.api.variant.HasHostTestsBuilder)
+            .hostTests.getValue(com.android.build.api.variant.HostTestBuilder.UNIT_TEST_TYPE).enable = false
+    }
+}
+
 dependencies {
     implementation(project(":android:core:designsystem"))
 

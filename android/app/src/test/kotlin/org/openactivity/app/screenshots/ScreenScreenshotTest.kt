@@ -139,8 +139,10 @@ private fun Feed() {
 
 @Composable
 private fun Me(tab: MeTab) {
-    val vm = remember { MeViewModel(SampleProfileRepository(), SampleFeedRepository(TEST_CLOCK), FakePreferencesRepository(), testTimeFormatter()) }
-    remember(tab) { vm.selectTab(tab) }
+    val vm = remember(tab) {
+        MeViewModel(SampleProfileRepository(), SampleFeedRepository(TEST_CLOCK), FakePreferencesRepository(), testTimeFormatter())
+            .also { it.selectTab(tab) }
+    }
     val state by vm.uiState.collectAsState()
     MeContent(state, MeActions())
 }
