@@ -19,10 +19,17 @@ sealed interface LaunchRequest {
     companion object {
         /**
          * Reads and removes the request extras from [intent], so a configuration change or a
-         * re-delivered intent does not navigate twice. Null when the intent asks for nothing.
+         * re-delivered intent does not navigate twice. Null when the intent asks for nothing, and
+         * when the app is reopened from Recents: Android then replays the task's original intent,
+         * extras included, which would otherwise reopen a notification's target long after the tap.
          */
         fun consume(intent: Intent?): LaunchRequest? {
             intent ?: return null
+            if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) {
+                intent.removeExtra(RecordingNotifications.EXTRA_OPEN_RECORDING)
+                intent.removeExtra(RecordingNotifications.EXTRA_ACTIVITY_ID)
+                return null
+            }
             if (intent.getBooleanExtra(RecordingNotifications.EXTRA_OPEN_RECORDING, false)) {
                 intent.removeExtra(RecordingNotifications.EXTRA_OPEN_RECORDING)
                 return OpenRecorder

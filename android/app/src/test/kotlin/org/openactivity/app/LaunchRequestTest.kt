@@ -37,6 +37,15 @@ class LaunchRequestTest {
     }
 
     @Test
+    fun `reopening from recents does not replay the notification`() {
+        val intent = Intent()
+            .putExtra(RecordingNotifications.EXTRA_ACTIVITY_ID, 42L)
+            .addFlags(Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY)
+        assertNull(LaunchRequest.consume(intent))
+        assertFalse(intent.hasExtra(RecordingNotifications.EXTRA_ACTIVITY_ID))
+    }
+
+    @Test
     fun `invalid activity id is ignored`() {
         val intent = Intent().putExtra(RecordingNotifications.EXTRA_ACTIVITY_ID, 0L)
         assertNull(LaunchRequest.consume(intent))
