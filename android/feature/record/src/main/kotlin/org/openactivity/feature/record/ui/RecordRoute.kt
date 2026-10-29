@@ -92,7 +92,7 @@ fun RecordRoute(
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.cancelCountdown() }
     // The exemption may have been granted in the system dialog or in settings meanwhile.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshBatteryExemption() }
-    BackHandler(enabled = state.phase is RecordPhase.Countdown) { viewModel.cancelCountdown() }
+    BackHandler(enabled = state.phase is RecordPhase.Countdown || state.phase == RecordPhase.WaitingForGps) { viewModel.cancelCountdown() }
     KeepScreenOn(enabled = state.isRecording && state.keepScreenOn)
     ShowOverLockScreen(enabled = state.isRecording)
 
@@ -131,7 +131,7 @@ fun RecordRoute(
             onPause = viewModel::pause,
             onResume = viewModel::resume,
             onLap = viewModel::lap,
-            onFinish = viewModel::requestFinish,
+            onFinish = viewModel::finish,
             onSave = viewModel::save,
             onDiscard = viewModel::requestDiscard,
             onConfirmDiscard = viewModel::confirmDiscard,
@@ -141,7 +141,7 @@ fun RecordRoute(
             onDiscardInterrupted = viewModel::discardInterrupted,
             onAllowBackground = {
                 runCatching { context.startActivity(batteryExemptionIntent(context)) }
-                    .onFailure { viewModel.dismissBatteryPrompt() }
+                viewModel.allowBackground()
             },
             onDismissBatteryPrompt = viewModel::dismissBatteryPrompt,
         )

@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.feature.record.ui
 
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
+import org.openactivity.core.designsystem.theme.Elevation
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -63,115 +72,154 @@ import org.openactivity.feature.record.R
 import org.openactivity.feature.record.RecordingUi
 
 /**
- * Controls under the recording (core-screens 3.4, 3.6). Running: Lap · Pause · Map/Stats. Paused:
- * Resume · Finish, where Finish needs a press-and-hold so a pocket tap can never end the activity
- * (record detail 4.6). Every action gives a short haptic.
+ * Controls at the bottom of the recording panel. Running: Lap, Stop (pauses), Lock. Paused: Resume and
+ * Finish, where Finish needs a press-and-hold so a pocket tap can never end the activity; the hold is the
+ * confirmation, so the Save screen opens straight after. Locked: Lap and Stop are disabled and the lock
+ * button needs a hold to unlock. Every action gives a short haptic.
  */
 @Composable
 internal fun RecordingControls(
     recording: RecordingUi,
     actions: RecordActions,
-    showingStats: Boolean,
-    onTogglePage: (() -> Unit)?,
+    locked: Boolean,
+    onLockChange: (Boolean) -> Unit,
 ) {
     val haptics = LocalHapticFeedback.current
     fun withHaptic(action: () -> Unit): () -> Unit = {
         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
         action()
     }
-    Surface(shape = SheetTopShape, color = MaterialTheme.colorScheme.surface, shadowElevation = 6.dp) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(horizontal = Spacing.gutter, vertical = Spacing.xl),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (recording.isPaused) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
-                    PillAction(
-                        label = stringResource(R.string.record_resume),
-                        icon = Icons.Rounded.PlayArrow,
-                        filled = true,
-                        onClick = withHaptic(actions.onResume),
-                        modifier = Modifier.weight(1f),
-                    )
-                    HoldToFinishButton(
-                        onFinish = withHaptic(actions.onFinish),
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            } else {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                        RoundAction(stringResource(R.string.record_lap), Icons.Rounded.Flag, withHaptic(actions.onLap))
-                    }
-                    PauseButton(withHaptic(actions.onPause))
-                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                        if (onTogglePage != null) {
-                            RoundAction(
-                                label = stringResource(if (showingStats) R.string.record_map else R.string.record_stats),
-                                icon = if (showingStats) Icons.Rounded.Map else Icons.Rounded.QueryStats,
-                                onClick = onTogglePage,
-                            )
-                        }
-                    }
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = Spacing.gutter, vertical = Spacing.l),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = if (recording.isPaused) Arrangement.spacedBy(Spacing.x3, Alignment.CenterHorizontally) else Arrangement.Start,
+    ) {
+        if (recording.isPaused) {
+            BigRoundButton(
+                label = stringResource(R.string.record_resume),
+                filled = false,
+                onClick = withHaptic(actions.onResume),
+            )
+            HoldToFinishButton(onFinish = withHaptic(actions.onFinish))
+        } else {
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                RoundAction(stringResource(R.string.record_lap), Icons.Outlined.Flag, withHaptic(actions.onLap), enabled = !locked)
+            }
+            StopButton(withHaptic(actions.onPause), enabled = !locked)
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                if (locked) {
+                    HoldToUnlock(onUnlock = withHaptic { onLockChange(false) })
+                } else {
+                    RoundAction(stringResource(R.string.record_lock), Icons.Outlined.Lock, withHaptic { onLockChange(true) })
                 }
             }
         }
     }
 }
 
+/** The orange Stop button with a white square: it pauses the recording (Resume or Finish follow). */
 @Composable
-private fun PauseButton(onClick: () -> Unit) {
+private fun StopButton(onClick: () -> Unit, enabled: Boolean) {
     val description = stringResource(R.string.record_pause)
     Surface(
         onClick = onClick,
+        enabled = enabled,
         shape = PillShape,
-        color = MaterialTheme.colorScheme.primary,
-        contentColor = MaterialTheme.colorScheme.onPrimary,
-        shadowElevation = 4.dp,
-        modifier = Modifier.size(PAUSE_DIAMETER).semantics { contentDescription = description },
+        color = RidgelineTheme.colors.accent,
+        contentColor = RidgelineTheme.colors.onAccent,
+        shadowElevation = Elevation.recordButton,
+        modifier = Modifier
+            .size(STOP_DIAMETER)
+            .alpha(if (enabled) 1f else DISABLED_ALPHA)
+            .semantics { contentDescription = description },
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Icon(Icons.Rounded.Pause, contentDescription = null, modifier = Modifier.size(36.dp))
+            Box(Modifier.size(28.dp).background(RidgelineTheme.colors.onAccent, RoundedCornerShape(4.dp)))
         }
     }
 }
 
 @Composable
-private fun RoundAction(label: String, icon: ImageVector, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun RoundAction(label: String, icon: ImageVector, onClick: () -> Unit, enabled: Boolean = true) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.alpha(if (enabled) 1f else DISABLED_ALPHA)) {
         Surface(
             onClick = onClick,
+            enabled = enabled,
             shape = PillShape,
             color = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            border = BorderStroke(1.5.dp, RidgelineTheme.colors.borderStrong),
             modifier = Modifier.size(SIDE_DIAMETER).semantics { contentDescription = label },
         ) {
             Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = null) }
         }
         Spacer(Modifier.height(Spacing.xs))
-        Text(label, style = MaterialTheme.typography.labelMedium)
+        Text(label, style = MaterialTheme.typography.labelLarge)
     }
 }
 
+/** Resume: a 96 dp circle outlined in the accent, label in accent text. */
 @Composable
-private fun PillAction(label: String, icon: ImageVector, filled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun BigRoundButton(label: String, filled: Boolean, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         shape = PillShape,
-        color = if (filled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-        contentColor = if (filled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-        border = if (filled) null else BorderStroke(1.5.dp, MaterialTheme.colorScheme.outline),
-        modifier = modifier.height(PILL_HEIGHT),
+        color = if (filled) RidgelineTheme.colors.accent else MaterialTheme.colorScheme.surface,
+        contentColor = if (filled) RidgelineTheme.colors.onAccent else RidgelineTheme.colors.accentText,
+        border = if (filled) null else BorderStroke(2.dp, RidgelineTheme.colors.accent),
+        modifier = Modifier.size(BIG_DIAMETER),
     ) {
-        Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null)
-            Spacer(Modifier.width(Spacing.s))
-            Text(label.uppercase(), style = MaterialTheme.typography.labelLarge)
+        Box(contentAlignment = Alignment.Center) { Text(label, style = RidgelineTheme.text.buttonHero) }
+    }
+}
+
+/** While locked: hold the lock to unlock, so a pocket cannot lap or pause the recording. */
+@Composable
+private fun HoldToUnlock(onUnlock: () -> Unit) {
+    val progress = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    val current by rememberUpdatedState(onUnlock)
+    val label = stringResource(R.string.record_unlock)
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            Modifier
+                .size(SIDE_DIAMETER)
+                .semantics(mergeDescendants = true) {
+                    role = Role.Button
+                    contentDescription = label
+                    onLongClick(label = label) { current(); true }
+                }
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onPress = {
+                            val fill = scope.launch {
+                                progress.snapTo(0f)
+                                progress.animateTo(1f, tween(HOLD_MS, easing = LinearEasing))
+                                current()
+                            }
+                            tryAwaitRelease()
+                            if (fill.isActive) {
+                                fill.cancel()
+                                scope.launch { progress.animateTo(0f, tween(RESET_MS)) }
+                            } else {
+                                progress.snapTo(0f)
+                            }
+                        },
+                    )
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator(
+                progress = { progress.value },
+                modifier = Modifier.fillMaxSize(),
+                color = RidgelineTheme.colors.accent,
+                trackColor = RidgelineTheme.colors.borderStrong,
+                strokeWidth = 2.dp,
+            )
+            Icon(Icons.Rounded.Lock, contentDescription = null, tint = RidgelineTheme.colors.accent)
         }
+        Spacer(Modifier.height(Spacing.xs))
+        Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1)
     }
 }
 
@@ -190,11 +238,11 @@ internal fun HoldToFinishButton(onFinish: () -> Unit, modifier: Modifier = Modif
     val reduced = RidgelineTheme.motion.reduced
     Surface(
         shape = PillShape,
-        color = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.error,
-        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.error),
+        color = RidgelineTheme.colors.accent,
+        contentColor = RidgelineTheme.colors.onAccent,
+        shadowElevation = Elevation.recordButton,
         modifier = modifier
-            .height(PILL_HEIGHT)
+            .size(BIG_DIAMETER)
             .semantics(mergeDescendants = true) {
                 role = Role.Button
                 contentDescription = "$label. $hint"
@@ -221,34 +269,27 @@ internal fun HoldToFinishButton(onFinish: () -> Unit, modifier: Modifier = Modif
                 )
             },
     ) {
-        Box(contentAlignment = Alignment.CenterStart) {
-            Box(
-                Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(progress.value)
-                    .clip(PillShape)
-                    .background(MaterialTheme.colorScheme.errorContainer),
+        Box(contentAlignment = Alignment.Center) {
+            // The ring fills while held; after a short tap the label says how Finish works.
+            CircularProgressIndicator(
+                progress = { progress.value },
+                modifier = Modifier.fillMaxSize().padding(4.dp),
+                color = RidgelineTheme.colors.onAccent,
+                trackColor = Color.Transparent,
+                strokeWidth = 3.dp,
             )
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Stop, contentDescription = null)
-                Spacer(Modifier.width(Spacing.s))
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(label.uppercase(), style = MaterialTheme.typography.labelLarge)
-                    // Always say how Finish works; after a short tap the cue is emphasised.
-                    Text(
-                        hint,
-                        style = RidgelineTheme.text.caption,
-                        color = if (hinted) MaterialTheme.colorScheme.error else RidgelineTheme.colors.textSecondary,
-                    )
-                }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(label, style = RidgelineTheme.text.buttonHero)
+                if (hinted) Text(hint, style = RidgelineTheme.text.caption)
             }
         }
     }
 }
 
-private val PAUSE_DIAMETER = 80.dp
+private val STOP_DIAMETER = 84.dp
+private val BIG_DIAMETER = 96.dp
 private val SIDE_DIAMETER = 56.dp
-private val PILL_HEIGHT = 64.dp
+private const val DISABLED_ALPHA = 0.38f
 private const val HOLD_MS = 900
 private const val HOLD_MS_REDUCED = 600
 private const val RESET_MS = 150

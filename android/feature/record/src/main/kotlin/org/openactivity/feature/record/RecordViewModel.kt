@@ -181,6 +181,14 @@ class RecordViewModel @Inject constructor(
         local.update { it.copy(batteryExempt = exempt) }
     }
 
+    /**
+     * "Allow" on the battery prompt: the system dialog takes over, and the prompt is not offered again
+     * whatever the athlete answers there (it used to come back on every visit after a refusal).
+     */
+    fun allowBackground() {
+        launchSafely(SETTINGS_ERROR) { preferences.dismissBatteryPrompt() }
+    }
+
     /** "Not now" on the battery prompt: it is not offered again on this device. */
     fun dismissBatteryPrompt() {
         launchSafely(SETTINGS_ERROR) { preferences.dismissBatteryPrompt() }
@@ -214,24 +222,43 @@ class RecordViewModel @Inject constructor(
      * on, the timer starts after 3 seconds unless [cancelCountdown] runs first.
      */
     fun start() {
-        if (local.value.phase != RecordPhase.PreStart) return
+        val phase = local.value.phase
+        if (phase == RecordPhase.WaitingForGps) {
+            // A second tap while waiting means "start anyway, without a fix".
+            countdownJob?.cancel()
+            countdownJob = viewModelScope.launch { startSequence() }
+            return
+        }
+        if (phase != RecordPhase.PreStart) return
         if (controller.state.value.isActive && !local.value.discardPending) return
         countdownJob = viewModelScope.launch {
-            // A new start closes the undo window: the discarded recording goes for good first.
-            commitPendingDiscard()
-            if (preferences.preferences.first().countdown) {
-                for (left in COUNTDOWN_SECONDS downTo 1) {
-                    local.update { it.copy(phase = RecordPhase.Countdown(left), sheet = RecordSheet.None) }
-                    delay(ONE_SECOND_MS)
-                }
+            if (needsFix(uiState.value)) {
+                // Starting without a fix records the first seconds without any position: wait for GPS.
+                local.update { it.copy(phase = RecordPhase.WaitingForGps, sheet = RecordSheet.None) }
+                uiState.first { !needsFix(it) }
             }
-            beginRecording()
+            startSequence()
         }
     }
 
-    /** Stops a running countdown (tap, back, or the screen leaving the foreground). */
+    private fun needsFix(state: RecordUiState): Boolean =
+        state.sport.usesGps && state.gps.indicator != GpsIndicator.Ready && state.gps.indicator != GpsIndicator.Weak
+
+    private suspend fun startSequence() {
+        // A new start closes the undo window: the discarded recording goes for good first.
+        commitPendingDiscard()
+        if (preferences.preferences.first().countdown) {
+            for (left in COUNTDOWN_SECONDS downTo 1) {
+                local.update { it.copy(phase = RecordPhase.Countdown(left), sheet = RecordSheet.None) }
+                delay(ONE_SECOND_MS)
+            }
+        }
+        beginRecording()
+    }
+
+    /** Stops a running countdown or the wait for GPS (tap, back, or the screen leaving the foreground). */
     fun cancelCountdown() {
-        if (local.value.phase !is RecordPhase.Countdown) return
+        if (local.value.phase !is RecordPhase.Countdown && local.value.phase != RecordPhase.WaitingForGps) return
         countdownJob?.cancel()
         countdownJob = null
         local.update { it.copy(phase = RecordPhase.PreStart) }
@@ -282,9 +309,17 @@ class RecordViewModel @Inject constructor(
         }
     }
 
-    /** Opens the finish sheet (after the long-press on Finish). */
+    /** Opens the finish sheet (Save, Resume or Discard). */
     fun requestFinish() {
         if (controller.state.value.isActive) local.update { it.copy(sheet = RecordSheet.Finish) }
+    }
+
+    /**
+     * Hold-to-finish: the hold already confirmed the intent, so the activity is saved straight away and the
+     * Save screen opens (it offers Discard). No second confirmation sheet.
+     */
+    fun finish() {
+        if (controller.state.value.isActive) save()
     }
 
     /** Saves the recording and opens the new activity. */

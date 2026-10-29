@@ -17,6 +17,9 @@ sealed interface RecordPhase {
     /** Choosing a sport and waiting for GPS. */
     data object PreStart : RecordPhase
 
+    /** Start was tapped before GPS had a fix; recording begins once it has one (or on a second tap). */
+    data object WaitingForGps : RecordPhase
+
     /** The optional 3-2-1 before the timer starts. */
     data class Countdown(val secondsLeft: Int) : RecordPhase
 
@@ -144,6 +147,7 @@ data class RecordUiState(
     /** Start works before a fix (the track fills in once GPS locks); only the ring style changes. */
     val startButtonState: RecordButtonState
         get() = when {
+            phase == RecordPhase.WaitingForGps -> RecordButtonState.Acquiring
             phase != RecordPhase.PreStart -> RecordButtonState.Disabled
             gps.indicator == GpsIndicator.Ready || gps.indicator == GpsIndicator.Indoor -> RecordButtonState.Ready
             else -> RecordButtonState.Acquiring

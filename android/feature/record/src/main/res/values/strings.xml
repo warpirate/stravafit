@@ -24,8 +24,8 @@
     <string name="record_gps_acquiring">Acquiring GPS…</string>
     <string name="record_gps_weak">GPS signal weak</string>
     <string name="record_gps_weak_accuracy">GPS signal weak · ±%1$d m</string>
-    <string name="record_gps_ready">GPS ready</string>
-    <string name="record_gps_ready_accuracy">GPS ready · ±%1$d m</string>
+    <string name="record_gps_ready">GPS signal acquired</string>
+    <string name="record_gps_ready_accuracy">GPS signal acquired · ±%1$d m</string>
     <string name="record_gps_indoor">Indoor · GPS off</string>
     <string name="record_gps_no_permission">Allow location</string>
     <string name="record_gps_approximate">Precise location is off</string>
@@ -48,13 +48,13 @@
     <string name="record_countdown_cancel">Tap to cancel</string>
     <string name="record_speech_missing">Your phone has no voice for its language, so cues stay silent. Install one in the system text-to-speech settings.</string>
     <string name="record_battery_title">Keep recording with the screen off</string>
-    <string name="record_battery_body">Some phones stop apps in the background to save battery. Let this app run so your track has no gaps.</string>
+    <string name="record_battery_body">Let the app run in the background so your track has no gaps.</string>
     <string name="record_battery_settings_body">Exempt the app from battery optimisation so the phone never stops a recording.</string>
     <string name="record_battery_allow">Allow</string>
     <string name="record_not_now">Not now</string>
 
     <!-- Recording -->
-    <string name="record_status_recording">Rec</string>
+    <string name="record_status_recording">Recording</string>
     <string name="record_status_paused">Paused</string>
     <string name="record_status_auto_paused">Auto-paused</string>
     <string name="record_minimise">Minimise. Recording continues</string>
@@ -83,4 +83,20 @@
     <string name="record_undo">Undo</string>
     <string name="record_interrupted_title">Recover activity in progress?</string>
     <string name="record_interrupted_body">A %1$s started %2$s stopped when the app was closed. Resume it, save it as it is, or discard it.</string>
+    <string name="record_add_route_short">Add route</string>
+    <string name="record_waiting_gps">Waiting for GPS. Tap Start again to start without a fix.</string>
+    <string name="record_waiting_label">Waiting</string>
+    <string name="record_summary_auto_pause_on">Auto-pause on</string>
+    <string name="record_summary_auto_pause_off">Auto-pause off</string>
+    <string name="record_summary_splits">Splits every %1$s</string>
+    <string name="record_summary_cues_on">Audio cues on</string>
+    <string name="record_summary_countdown">3 s countdown</string>
+    <string name="record_lock">Lock</string>
+    <string name="record_unlock">Hold to unlock</string>
+    <string name="record_locked">Controls locked</string>
+    <string name="record_stop">Stop</string>
+    <string name="record_to_split">%1$s to split</string>
+    <string name="record_split_label">%1$s %2$d</string>
+    <string name="record_heart_rate">Heart Rate</string>
+    <string name="record_map_layers">Map layers</string>
 </resources>

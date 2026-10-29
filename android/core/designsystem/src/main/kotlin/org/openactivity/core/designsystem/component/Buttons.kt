@@ -30,6 +30,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
+import org.openactivity.core.designsystem.theme.PillShape
 import org.openactivity.core.designsystem.theme.RidgelineTheme
 import org.openactivity.core.designsystem.theme.Spacing
 
@@ -59,7 +60,7 @@ fun PrimaryButton(
             .heightIn(min = ButtonHeight)
             .loadingSemantics(loading),
         enabled = enabled && !loading,
-        shape = MaterialTheme.shapes.medium,
+        shape = PillShape,
         contentPadding = ButtonPadding,
     ) {
         ButtonContent(text = text, loading = loading, leadingIcon = leadingIcon)
@@ -82,7 +83,7 @@ fun SecondaryButton(
             .heightIn(min = ButtonHeight)
             .loadingSemantics(loading),
         enabled = enabled && !loading,
-        shape = MaterialTheme.shapes.medium,
+        shape = PillShape,
         colors = ButtonDefaults.filledTonalButtonColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -106,7 +107,7 @@ fun RidgelineTextButton(
         onClick = onClick,
         modifier = modifier.heightIn(min = TextButtonHeight),
         enabled = enabled,
-        shape = MaterialTheme.shapes.medium,
+        shape = PillShape,
         contentPadding = PaddingValues(horizontal = Spacing.m, vertical = Spacing.s),
     ) {
         ButtonContent(text = text, loading = false, leadingIcon = leadingIcon)

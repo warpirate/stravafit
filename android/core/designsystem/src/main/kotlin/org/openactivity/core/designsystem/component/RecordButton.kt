@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.core.designsystem.component
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -15,8 +15,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -32,7 +30,7 @@ import org.openactivity.core.designsystem.theme.Spacing
 
 /** Pre-start states of the [RecordButton]. */
 enum class RecordButtonState {
-    /** No GPS fix yet. Start still works; the track is backfilled once a fix arrives. */
+    /** No GPS fix yet. Start waits for a fix (a second tap starts anyway). */
     Acquiring,
 
     /** GPS fix is good enough, or the sport is indoor. */
@@ -42,17 +40,15 @@ enum class RecordButtonState {
     Disabled,
 }
 
-private val RingWidth = 3.dp
-private val RingGap = 5.dp
 private const val DISABLED_ALPHA = 0.38f
+private const val ACQUIRING_ALPHA = 0.72f
 
 /**
- * The big circular Start button of the Record screen.
+ * The big circular Start button of the Record screen: a flat orange circle with a sentence-case label and
+ * no ring (strava direction). While GPS is still [RecordButtonState.Acquiring] it is slightly faded and a
+ * thin progress arc runs inside it, so the state does not rely on colour alone.
  *
- * A [Ready] button carries a solid primary ring; an [Acquiring] one a dashed, muted ring so the
- * state is shown by shape as well as colour.
- *
- * @param diameter diameter of the filled circle; the ring sits outside it. 72 dp by default.
+ * @param diameter diameter of the circle. 96 dp in the strava spec.
  */
 @Composable
 fun RecordButton(
@@ -60,18 +56,21 @@ fun RecordButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     label: String = "Start",
-    diameter: Dp = 72.dp,
+    diameter: Dp = 96.dp,
 ) {
     val enabled = state != RecordButtonState.Disabled
-    val ringColor = when (state) {
-        RecordButtonState.Ready -> MaterialTheme.colorScheme.primary
-        else -> RidgelineTheme.colors.borderStrong
-    }
-    val outer = diameter + (RingGap + RingWidth) * 2
-    Box(
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
         modifier = modifier
-            .size(outer)
-            .alpha(if (enabled) 1f else DISABLED_ALPHA)
+            .size(diameter)
+            .alpha(
+                when (state) {
+                    RecordButtonState.Disabled -> DISABLED_ALPHA
+                    RecordButtonState.Acquiring -> ACQUIRING_ALPHA
+                    RecordButtonState.Ready -> 1f
+                },
+            )
             .semantics(mergeDescendants = true) {
                 role = Role.Button
                 contentDescription = "$label recording"
@@ -81,33 +80,21 @@ fun RecordButton(
                     RecordButtonState.Disabled -> "Unavailable"
                 }
             },
-        contentAlignment = Alignment.Center,
+        shape = PillShape,
+        color = RidgelineTheme.colors.accent,
+        contentColor = RidgelineTheme.colors.onAccent,
+        shadowElevation = Elevation.recordButton,
     ) {
-        Canvas(Modifier.fillMaxSize()) {
-            val stroke = RingWidth.toPx()
-            val dash = if (state == RecordButtonState.Ready) {
-                null
-            } else {
-                PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 5.dp.toPx()))
+        Box(contentAlignment = Alignment.Center) {
+            if (state == RecordButtonState.Acquiring) {
+                CircularProgressIndicator(
+                    modifier = Modifier.fillMaxSize().padding(6.dp),
+                    strokeWidth = 2.dp,
+                    color = RidgelineTheme.colors.onAccent,
+                    trackColor = RidgelineTheme.colors.onAccent.copy(alpha = 0.25f),
+                )
             }
-            drawCircle(
-                color = ringColor,
-                radius = size.minDimension / 2 - stroke / 2,
-                style = Stroke(width = stroke, pathEffect = dash),
-            )
-        }
-        Surface(
-            onClick = onClick,
-            enabled = enabled,
-            modifier = Modifier.size(diameter),
-            shape = PillShape,
-            color = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            shadowElevation = Elevation.level4,
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(text = label.uppercase(), style = MaterialTheme.typography.labelLarge)
-            }
+            Text(text = label, style = RidgelineTheme.text.buttonHero)
         }
     }
 }

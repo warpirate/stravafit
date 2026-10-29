@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.ui
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -25,6 +26,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
 import org.openactivity.app.LaunchRequest
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.openactivity.app.navigation.ActiveRecordingBar
 import org.openactivity.app.navigation.AppBottomBar
 import org.openactivity.app.navigation.AppNavHost
 import org.openactivity.app.navigation.TopLevelDestination
@@ -63,6 +67,8 @@ fun OpenActivityApp(
         }
         onLaunchRequestHandled()
     }
+    val recordingStatus: RecordingStatusViewModel = hiltViewModel()
+    val active by recordingStatus.active.collectAsStateWithLifecycle()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentTab = backStackEntry?.destination?.currentTab()
 
@@ -78,7 +84,13 @@ fun OpenActivityApp(
             },
             bottomBar = {
                 if (currentTab != null) {
-                    AppBottomBar(selected = currentTab, onSelect = { navController.navigateTo(it) })
+                    Column {
+                        // A recording running behind the tabs (after Back or minimise) stays one tap away.
+                        active?.let { rec ->
+                            ActiveRecordingBar(rec.time, rec.paused, rec.sport, onClick = { navController.navigateToRecord() })
+                        }
+                        AppBottomBar(selected = currentTab, onSelect = { navController.navigateTo(it) })
+                    }
                 }
             },
         ) { padding ->

@@ -18,6 +18,10 @@ import org.openactivity.recording.RecordingStatus
  * @property split the split in progress ("Split 3" with its pace or speed).
  * @property lap the lap in progress ("Lap 2" with its time).
  * @property splits completed splits, oldest first.
+ * @property heartRate latest heart rate ("--" without a sensor).
+ * @property splitNumber "Km 3" or "Mi 3": the split in progress.
+ * @property splitProgress how far through the split in progress, 0..1.
+ * @property toSplit distance left to the next split, with its unit ("590 m", "0.37 mi").
  */
 data class LiveMetrics(
     val time: Stat,
@@ -30,6 +34,10 @@ data class LiveMetrics(
     val split: Stat,
     val lap: Stat,
     val splits: List<SplitRow>,
+    val heartRate: Stat = Stat("Heart Rate", null, "bpm"),
+    val splitNumber: String = "",
+    val splitProgress: Float = 0f,
+    val toSplit: String = "",
 ) {
     /** One completed split in the live splits list. */
     data class SplitRow(val number: Int, val value: String?, val unit: String, val partial: Boolean)
@@ -57,12 +65,12 @@ data class LiveMetrics(
             val splitSpeed = if (splitMillis > 0) snapshot.currentSplit.distanceMeters / (splitMillis / MILLIS) else 0.0
             val speed = when {
                 sport.displaysPace -> when (paceMode) {
-                    PaceMode.SPLIT -> speedStat("Split pace", splitSpeed)
+                    PaceMode.SPLIT -> speedStat("Split Avg", splitSpeed)
                     PaceMode.CURRENT -> speedStat("Pace", if (paused) 0.0 else snapshot.currentSpeedMps)
-                    PaceMode.AVERAGE -> speedStat("Avg pace", snapshot.averageSpeedMps)
+                    PaceMode.AVERAGE -> speedStat("Avg Pace", snapshot.averageSpeedMps)
                 }
                 // Rides show average speed while paused and current speed while moving (record detail 3.3).
-                paused -> speedStat("Avg speed", snapshot.averageSpeedMps)
+                paused -> speedStat("Avg Speed", snapshot.averageSpeedMps)
                 else -> speedStat("Speed", snapshot.currentSpeedMps)
             }
 
@@ -70,7 +78,7 @@ data class LiveMetrics(
             val elevationSpoken = RecordFormat.elevationUnitSpoken(units)
             return LiveMetrics(
                 time = Stat("Time", RecordFormat.duration(snapshot.timerTime)),
-                movingTime = Stat("Moving time", RecordFormat.duration(snapshot.movingTime)),
+                movingTime = Stat("Moving Time", RecordFormat.duration(snapshot.movingTime)),
                 distance = Stat(
                     "Distance",
                     RecordFormat.distance(snapshot.distanceMeters, units),
@@ -78,7 +86,7 @@ data class LiveMetrics(
                     RecordFormat.distanceUnitSpoken(units),
                 ),
                 speed = speed,
-                average = speedStat(if (sport.displaysPace) "Avg pace" else "Avg speed", snapshot.averageSpeedMps),
+                average = speedStat(if (sport.displaysPace) "Avg Pace" else "Avg Speed", snapshot.averageSpeedMps),
                 elevation = Stat(
                     "Elevation",
                     snapshot.altitudeMeters?.let { RecordFormat.elevation(it, units) },
@@ -86,13 +94,17 @@ data class LiveMetrics(
                     elevationSpoken,
                 ),
                 elevationGain = Stat(
-                    "Elev gain",
+                    "Elev Gain",
                     RecordFormat.elevation(snapshot.elevationGainMeters, units),
                     elevationUnit,
                     elevationSpoken,
                 ),
                 split = speedStat("Split ${snapshot.currentSplit.index + 1}", splitSpeed),
                 lap = Stat("Lap ${snapshot.currentLap.index + 1}", RecordFormat.duration(snapshot.currentLap.elapsed)),
+                heartRate = Stat("Heart Rate", snapshot.heartRateBpm?.toString(), "bpm", "beats per minute"),
+                splitNumber = "${if (units == org.openactivity.model.UnitSystem.METRIC) "Km" else "Mi"} ${snapshot.currentSplit.index + 1}",
+                splitProgress = (snapshot.currentSplit.distanceMeters / units.splitLengthMeters).toFloat().coerceIn(0f, 1f),
+                toSplit = remaining(units.splitLengthMeters - snapshot.currentSplit.distanceMeters, units),
                 splits = snapshot.splits.map { split ->
                     val mps = split.averageSpeed.metersPerSecond
                     SplitRow(
@@ -106,5 +118,14 @@ data class LiveMetrics(
         }
 
         private const val MILLIS = 1000.0
+
+        private fun remaining(meters: Double, units: org.openactivity.model.UnitSystem): String {
+            val m = meters.coerceAtLeast(0.0)
+            return if (units == org.openactivity.model.UnitSystem.METRIC) {
+                if (m < 1000.0) "${(m / 10).toInt() * 10} m" else "${RecordFormat.distance(m, units)} km"
+            } else {
+                "${RecordFormat.distance(m, units)} mi"
+            }
+        }
     }
 }

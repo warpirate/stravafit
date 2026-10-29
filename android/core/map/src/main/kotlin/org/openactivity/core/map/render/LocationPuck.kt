@@ -46,12 +46,21 @@ internal class LocationPuck(
             return
         }
         if (!component.isLocationComponentActivated || activePalette != palette) activate(component, style, palette)
-        if (!component.isLocationComponentEnabled) {
-            component.isLocationComponentEnabled = true
-            applyTracking(component)
-        }
+        val enabling = !component.isLocationComponentEnabled
+        if (enabling) component.isLocationComponentEnabled = true
         component.renderMode = if (location.bearingDegrees != null) RenderMode.GPS else RenderMode.NORMAL
+        // The fix goes in before tracking starts: MapLibre skips the tracking transition (and with it the
+        // zoom) while it has no location yet, which left the camera centred at world zoom.
         component.forceLocationUpdate(location.toAndroidLocation())
+        if (enabling) applyTracking(component) else zoomInIfFollowingFromAfar(component)
+    }
+
+    /** Follow mode at a world or country zoom shows nothing useful: bring the camera in to street level. */
+    private fun zoomInIfFollowingFromAfar(component: LocationComponent) {
+        if (!follow || component.cameraMode == CameraMode.NONE) return
+        if (map.cameraPosition.zoom < MIN_FOLLOW_ZOOM) {
+            component.zoomWhileTracking(FOLLOW_ZOOM, TRANSITION_MS)
+        }
     }
 
     /** Starts or stops following the puck with the camera. */
@@ -99,14 +108,17 @@ internal class LocationPuck(
             component.cameraMode = CameraMode.NONE
             return
         }
-        val zoom = map.cameraPosition.zoom.takeIf { it >= MIN_FOLLOW_ZOOM } ?: FOLLOW_ZOOM
+        val zoom = followZoom(map.cameraPosition.zoom)
         component.setCameraMode(CameraMode.TRACKING, TRANSITION_MS, zoom, null, null, null)
     }
 
-    private companion object {
+    internal companion object {
         const val ACCURACY_ALPHA = 0.18f
         const val MIN_FOLLOW_ZOOM = 13.0
         const val FOLLOW_ZOOM = 16.0
         const val TRANSITION_MS = 750L
+
+        /** Zoom to follow at: keep the user's zoom when it is close enough, else street level. */
+        fun followZoom(current: Double): Double = current.takeIf { it >= MIN_FOLLOW_ZOOM } ?: FOLLOW_ZOOM
     }
 }

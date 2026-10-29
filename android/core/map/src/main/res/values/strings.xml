@@ -5,6 +5,7 @@
     <string name="map_style_outdoor">Outdoor</string>
     <string name="map_style_dark">Dark</string>
     <string name="map_recenter">Centre on my location</string>
+    <string name="map_layers">Map layers</string>
     <string name="map_following">Following your location</string>
     <string name="map_attribution_label">Map data: %1$s</string>
     <string name="map_thumbnail_offline">Route preview (map unavailable offline)</string>

@@ -56,6 +56,10 @@ class RecordViewModelTest {
 
     @Before fun setUp() = Dispatchers.setMain(dispatcher)
 
+    private fun gpsReady() {
+        location.fixes.value = PreStartFix(GpsStatus.forAccuracy(5.0), MapLocation(LatLng(51.5, -0.12), accuracyMeters = 5f))
+    }
+
     @After fun tearDown() = Dispatchers.resetMain()
 
     private fun TestScope.viewModel(): RecordViewModel {
@@ -147,6 +151,7 @@ class RecordViewModelTest {
         advanceUntilIdle()
         assertEquals(2, vm.uiState.value.route?.points?.size)
 
+        gpsReady()
         vm.start()
         advanceUntilIdle()
         assertEquals(SportType.RIDE to 7L, controller.started)
@@ -161,6 +166,7 @@ class RecordViewModelTest {
     @Test fun countdownRunsThreeTwoOneBeforeStarting() = runTest(dispatcher) {
         prefs.state.value = RecordPreferences(countdown = true)
         val vm = viewModel()
+        gpsReady()
         vm.start()
         runCurrent()
         assertEquals(RecordPhase.Countdown(3), vm.uiState.value.phase)
@@ -177,6 +183,7 @@ class RecordViewModelTest {
     @Test fun cancellingTheCountdownNeverStarts() = runTest(dispatcher) {
         prefs.state.value = RecordPreferences(countdown = true)
         val vm = viewModel()
+        gpsReady()
         vm.start()
         advanceTimeBy(1_500)
         vm.cancelCountdown()
@@ -189,6 +196,7 @@ class RecordViewModelTest {
         controller.startError = RuntimeException("no service")
         val vm = viewModel()
         val events = events(vm)
+        gpsReady()
         vm.start()
         advanceUntilIdle()
         assertEquals(RecordPhase.PreStart, vm.uiState.value.phase)
@@ -272,6 +280,7 @@ class RecordViewModelTest {
         val vm = viewModel()
         vm.confirmDiscard()
         runCurrent()
+        gpsReady()
         vm.start()
         runCurrent()
         assertEquals(listOf("discard", "start"), controller.calls)
@@ -402,8 +411,63 @@ class RecordViewModelTest {
     @Test fun startUsesTheChosenSportEvenWhenTheStateIsNotCollected() = runTest(dispatcher) {
         val vm = newViewModel()
         vm.selectSport(SportType.WALK)
+        gpsReady()
         vm.start()
         advanceUntilIdle()
         assertEquals(SportType.WALK, controller.started?.first)
+    }
+
+    @Test fun startWaitsForAFixThenRecords() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.start()
+        runCurrent()
+        assertEquals(RecordPhase.WaitingForGps, vm.uiState.value.phase)
+        assertNull("nothing recorded without a position", controller.started)
+        gpsReady()
+        advanceUntilIdle()
+        assertNotNull(controller.started)
+        assertEquals(RecordPhase.Recording, vm.uiState.value.phase)
+    }
+
+    @Test fun secondTapWhileWaitingStartsAnyway() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.start()
+        runCurrent()
+        vm.start()
+        advanceUntilIdle()
+        assertNotNull(controller.started)
+    }
+
+    @Test fun waitingForGpsCanBeCancelled() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.start()
+        runCurrent()
+        vm.cancelCountdown()
+        gpsReady()
+        advanceUntilIdle()
+        assertNull(controller.started)
+        assertEquals(RecordPhase.PreStart, vm.uiState.value.phase)
+    }
+
+    @Test fun holdToFinishSavesWithoutASecondConfirmation() = runTest(dispatcher) {
+        controller.stateFlow.value = recordingSnapshot(status = RecordingStatus.PAUSED)
+        val vm = viewModel()
+        val events = events(vm)
+        vm.finish()
+        advanceUntilIdle()
+        assertEquals(listOf<RecordEvent>(RecordEvent.ActivitySaved(42L)), events)
+        assertEquals(RecordSheet.None, vm.uiState.value.sheet)
+    }
+
+    @Test fun allowingBackgroundDoesNotAskAgain() = runTest(dispatcher) {
+        battery.exempt = false
+        val vm = viewModel()
+        vm.refreshBatteryExemption()
+        runCurrent()
+        assertTrue(vm.uiState.value.showBatteryPrompt)
+        vm.allowBackground()
+        vm.refreshBatteryExemption() // the athlete refused in the system dialog
+        advanceUntilIdle()
+        assertFalse(vm.uiState.value.showBatteryPrompt)
     }
 }

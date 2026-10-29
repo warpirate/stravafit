@@ -56,7 +56,7 @@ class FormatTest {
 
     @Test fun runPaceDefaultsToTheSplitAverage() {
         val m = LiveMetrics.from(recordingSnapshot(), PaceMode.SPLIT)
-        assertEquals("Split pace", m.speed.label)
+        assertEquals("Split Avg", m.speed.label)
         assertEquals("5:17", m.speed.value) // 410 m in 2:10
         assertEquals("/km", m.speed.unit)
         assertEquals("12:47", m.time.value)
@@ -71,7 +71,7 @@ class FormatTest {
 
     @Test fun runPaceCanShowCurrentOrAverage() {
         assertEquals("Pace", LiveMetrics.from(recordingSnapshot(), PaceMode.CURRENT).speed.label)
-        assertEquals("Avg pace", LiveMetrics.from(recordingSnapshot(), PaceMode.AVERAGE).speed.label)
+        assertEquals("Avg Pace", LiveMetrics.from(recordingSnapshot(), PaceMode.AVERAGE).speed.label)
         val paused = LiveMetrics.from(recordingSnapshot(status = RecordingStatus.PAUSED), PaceMode.CURRENT)
         assertNull("no current pace while paused", paused.speed.value)
     }
@@ -81,6 +81,6 @@ class FormatTest {
         assertEquals("Speed", moving.speed.label)
         assertEquals("km/h", moving.speed.unit)
         val paused = LiveMetrics.from(recordingSnapshot(sport = SportType.RIDE, status = RecordingStatus.AUTO_PAUSED), PaceMode.SPLIT)
-        assertEquals("Avg speed", paused.speed.label)
+        assertEquals("Avg Speed", paused.speed.label)
     }
 }

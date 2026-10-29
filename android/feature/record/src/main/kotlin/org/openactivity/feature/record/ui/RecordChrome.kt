@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.feature.record.ui
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,8 +36,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import org.openactivity.core.designsystem.component.StatusPill
+import org.openactivity.core.designsystem.theme.Elevation
 import org.openactivity.core.designsystem.theme.PillShape
 import org.openactivity.core.designsystem.theme.RidgelineTheme
 import org.openactivity.core.designsystem.theme.Spacing
@@ -48,8 +54,9 @@ import org.openactivity.feature.record.R
 @Composable
 internal fun GpsStatusPill(gps: GpsUi, onFix: () -> Unit, modifier: Modifier = Modifier) {
     val colors = RidgelineTheme.colors
-    val surface = MaterialTheme.colorScheme.surface
-    val onSurface = MaterialTheme.colorScheme.onSurface
+    // Pills float over the map: strava `float` colour with the float shadow, readable on any tiles.
+    val surface = colors.float
+    val onSurface = colors.onFloat
     val accuracy = gps.accuracyMeters?.toInt()
     val live = modifier.semantics { liveRegion = LiveRegionMode.Polite }
     when (gps.indicator) {
@@ -75,11 +82,13 @@ internal fun GpsStatusPill(gps: GpsUi, onFix: () -> Unit, modifier: Modifier = M
             icon = { PillIcon(Icons.Rounded.GpsNotFixed, colors.onWarningContainer) },
         )
         GpsIndicator.Ready -> StatusPill(
-            text = if (accuracy != null) stringResource(R.string.record_gps_ready_accuracy, accuracy) else stringResource(R.string.record_gps_ready),
-            containerColor = colors.successContainer,
+            text = stringResource(R.string.record_gps_ready),
+            containerColor = surface,
             contentColor = onSurface,
-            modifier = live,
-            icon = { PillIcon(Icons.Rounded.Check, colors.success) },
+            modifier = live.semantics {
+                if (accuracy != null) stateDescription = "±$accuracy m"
+            },
+            icon = { Box(Modifier.size(10.dp).background(colors.success, CircleShape)) },
         )
         GpsIndicator.Indoor -> StatusPill(
             text = stringResource(R.string.record_gps_indoor),
@@ -133,9 +142,9 @@ internal fun MapIconButton(
     Surface(
         modifier = modifier,
         shape = PillShape,
-        color = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        shadowElevation = 3.dp,
+        color = RidgelineTheme.colors.float,
+        contentColor = RidgelineTheme.colors.onFloat,
+        shadowElevation = Elevation.float,
     ) {
         IconButton(onClick = onClick) { Icon(icon, contentDescription = contentDescription) }
     }
@@ -173,35 +182,35 @@ internal fun RecordBanner(
  */
 @Composable
 internal fun BatteryPrompt(onAllow: () -> Unit, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    // Compact so it never covers the map, on the raised colour with a strong edge so it stands out on dark
+    // tiles too. Shown at most until the athlete answers once (Allow or Not now).
     Surface(
         modifier = modifier,
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        shadowElevation = 3.dp,
+        shape = MaterialTheme.shapes.large,
+        color = RidgelineTheme.colors.float,
+        contentColor = RidgelineTheme.colors.onFloat,
+        border = BorderStroke(1.dp, RidgelineTheme.colors.borderStrong),
+        shadowElevation = Elevation.float,
     ) {
-        Column(Modifier.padding(start = Spacing.m, end = Spacing.s, top = Spacing.m)) {
-            Row(verticalAlignment = Alignment.Top) {
-                Icon(
-                    Icons.Rounded.BatteryAlert,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = RidgelineTheme.colors.onWarningContainer,
+        Row(Modifier.padding(start = Spacing.m, end = Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Rounded.BatteryAlert,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = RidgelineTheme.colors.accent,
+            )
+            Spacer(Modifier.width(Spacing.s))
+            Column(Modifier.weight(1f).padding(vertical = Spacing.s)) {
+                Text(stringResource(R.string.record_battery_title), style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                Text(
+                    stringResource(R.string.record_battery_body),
+                    style = RidgelineTheme.text.caption,
+                    color = RidgelineTheme.colors.textSecondary,
+                    maxLines = 2,
                 )
-                Spacer(Modifier.width(Spacing.s))
-                Column(Modifier.weight(1f).padding(end = Spacing.s)) {
-                    Text(stringResource(R.string.record_battery_title), style = MaterialTheme.typography.titleSmall)
-                    Text(
-                        stringResource(R.string.record_battery_body),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = RidgelineTheme.colors.textSecondary,
-                    )
-                }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.record_not_now)) }
-                TextButton(onClick = onAllow) { Text(stringResource(R.string.record_battery_allow)) }
-            }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.record_not_now), color = RidgelineTheme.colors.textSecondary) }
+            TextButton(onClick = onAllow) { Text(stringResource(R.string.record_battery_allow), color = RidgelineTheme.colors.accentText) }
         }
     }
 }
