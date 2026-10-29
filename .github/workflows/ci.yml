@@ -1,0 +1,175 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Main CI (blueprint §12): JVM build + unit tests for shared/* and lib/*,
+# Android unit tests, and debug assembles of both app flavors (gms + foss).
+# Modules are discovered from the file tree, matching settings.gradle.kts,
+# so jobs keep working while the module set grows.
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**/*.kt"
+      - "**/*.kts"
+      - "**/*.java"
+      - "gradle/**"
+      - "gradlew"
+      - "gradlew.bat"
+      - "gradle.properties"
+      - "shared/**"
+      - "lib/**"
+      - "android/**"
+      - "design-system/**"
+      - "testdata/**"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    paths:
+      - "**/*.kt"
+      - "**/*.kts"
+      - "**/*.java"
+      - "gradle/**"
+      - "gradlew"
+      - "gradlew.bat"
+      - "gradle.properties"
+      - "shared/**"
+      - "lib/**"
+      - "android/**"
+      - "design-system/**"
+      - "testdata/**"
+      - ".github/workflows/ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.daemon=false
+  GRADLE_ARGS: --console=plain --continue --stacktrace
+
+jobs:
+  jvm:
+    name: JVM build and tests (shared, lib)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # Also validates the Gradle wrapper checksum.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Discover JVM modules
+        id: modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          tasks=""
+          for f in $(find shared lib -mindepth 2 -maxdepth 2 -name build.gradle.kts 2>/dev/null | sort); do
+            project=":$(dirname "$f" | tr '/' ':')"
+            tasks="$tasks $project:build"
+          done
+          echo "Gradle tasks:${tasks:- (none)}"
+          echo "tasks=${tasks# }" >> "$GITHUB_OUTPUT"
+
+      - name: Build and test
+        if: steps.modules.outputs.tasks != ''
+        run: ./gradlew ${{ steps.modules.outputs.tasks }} $GRADLE_ARGS
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-jvm
+          path: |
+            shared/*/build/reports/tests/
+            shared/*/build/test-results/
+            lib/*/build/reports/tests/
+            lib/*/build/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  android:
+    name: Android unit tests and assemble (gms + foss)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      # ubuntu-latest ships the Android SDK; point Gradle at it explicitly.
+      - name: Write local.properties
+        shell: bash
+        run: echo "sdk.dir=${ANDROID_HOME:-$ANDROID_SDK_ROOT}" > local.properties
+
+      - name: Discover Android modules
+        id: modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          tests=""
+          for f in $(find android -name build.gradle.kts -not -path '*/build/*' 2>/dev/null | sort); do
+            dir="$(dirname "$f")"
+            [ "$dir" = "android/app" ] && continue
+            tests="$tests :$(echo "$dir" | tr '/' ':'):test"
+          done
+          assemble=""
+          if [ -f android/app/build.gradle.kts ]; then
+            assemble=":android:app:assembleGmsDebug :android:app:assembleFossDebug :android:app:testGmsDebugUnitTest :android:app:testFossDebugUnitTest"
+          fi
+          echo "Unit-test tasks:${tests:- (none)}"
+          echo "App tasks: ${assemble:-(none, android/app does not exist yet)}"
+          echo "tests=${tests# }" >> "$GITHUB_OUTPUT"
+          echo "assemble=$assemble" >> "$GITHUB_OUTPUT"
+
+      - name: Android library unit tests
+        if: steps.modules.outputs.tests != ''
+        run: ./gradlew ${{ steps.modules.outputs.tests }} $GRADLE_ARGS
+
+      - name: Assemble gms and foss debug
+        if: steps.modules.outputs.assemble != ''
+        run: ./gradlew ${{ steps.modules.outputs.assemble }} $GRADLE_ARGS
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-android
+          path: |
+            android/**/build/reports/tests/
+            android/**/build/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload debug APKs
+        if: success() && steps.modules.outputs.assemble != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apks
+          path: android/app/build/outputs/apk/**/debug/*.apk
+          if-no-files-found: warn
+          retention-days: 7

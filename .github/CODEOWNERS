@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Code owners per area (blueprint §13.6). The last matching pattern wins.
+# @warpirate is a placeholder until area maintainers are appointed. Replace a
+# line's owner with a user or an @org/team once that area has a maintainer.
+
+# Default
+*                               @warpirate
+
+# Recording engine and GPS
+/android/core/recording/        @warpirate
+/shared/geo/                    @warpirate
+/shared/metrics/                @warpirate
+
+# Maps and routes
+/android/core/map/              @warpirate
+/android/core/routing/          @warpirate
+
+# Export (route art and file formats)
+/lib/                           @warpirate
+/android/core/export/           @warpirate
+
+# Design system
+/design-system/                 @warpirate
+/android/core/designsystem/     @warpirate
+
+# Backend. RLS and auth changes need two reviewers (see SECURITY.md).
+/backend/                       @warpirate
+
+# Golden files and fixtures. Changes need an owner review (CONTRIBUTING.md §9).
+/testdata/                      @warpirate
+
+# Docs, ADRs and checklists
+/docs/                          @warpirate
+
+# Licensing, CI and repository policy
+/LICENSE                        @warpirate
+/LICENSES/                      @warpirate
+/REUSE.toml                     @warpirate
+/.github/                       @warpirate
+/SECURITY.md                    @warpirate
+/CODE_OF_CONDUCT.md             @warpirate

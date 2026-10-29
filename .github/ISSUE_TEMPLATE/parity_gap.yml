@@ -1,0 +1,86 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Parity gap
+description: A behaviour that is missing from, wrong in, or under-specified by the feature-parity checklist or a 09-details acceptance checklist.
+title: "parity: "
+labels: ["parity-gap", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this to track work against [`docs/08-blueprint/feature-parity-checklist.md`](https://github.com/warpirate/stravafit/blob/main/docs/08-blueprint/feature-parity-checklist.md) and the acceptance checklists in `docs/09-details/`.
+        **Clean room:** describe publicly observable behaviour in your own words. Do not paste copy text, icons, screenshots or decompiled material from other apps, and use neutral feature names (e.g. "high-five", not a trademarked name).
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind of gap
+      options:
+        - Checklist row exists but is not implemented yet
+        - Implemented, but behaviour differs from the acceptance item
+        - Missing from the checklist entirely
+        - Checklist row or acceptance item is wrong or unclear
+    validations:
+      required: true
+
+  - type: input
+    id: row
+    attributes:
+      label: Parity checklist row
+      description: The feature name exactly as written in the checklist table, or "none" if missing.
+      placeholder: "Email one-time code login (5-min expiry, countdown, rate limit)"
+    validations:
+      required: true
+
+  - type: input
+    id: checklist-ids
+    attributes:
+      label: Acceptance checklist ID(s)
+      description: File base name plus item number from `docs/09-details/<area>.md`, e.g. `record-4.4`. Write "none" if there is none yet.
+      placeholder: "record-4.4, record-4.5"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority (as listed, or proposed)
+      options:
+        - P0 (MVP)
+        - P1
+        - P2
+        - Later
+        - Not listed yet
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: What should happen, in your own words.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Current behaviour or gap
+      description: What happens today in StravaFit, or what the docs are missing.
+    validations:
+      required: true
+
+  - type: textarea
+    id: source
+    attributes:
+      label: Public source
+      description: Link to public documentation that describes the behaviour (help pages, public API docs). Mark anything you could not verify as "(unverified)".
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues for this checklist row or ID.
+          required: true
+        - label: This report contains no copied third-party text, assets or screenshots.
+          required: true

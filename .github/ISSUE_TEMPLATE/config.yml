@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability or private-data leak
+    url: https://github.com/warpirate/stravafit/security/advisories/new
+    about: Please report privately. Never in a public issue. See SECURITY.md.
+  - name: Feature-parity checklist
+    url: https://github.com/warpirate/stravafit/blob/main/docs/08-blueprint/feature-parity-checklist.md
+    about: Check whether a feature is already planned, and its priority, before filing.
+  - name: Contributing guide
+    url: https://github.com/warpirate/stravafit/blob/main/CONTRIBUTING.md
+    about: Setup, module map, how to pick work, commit and sign-off rules.

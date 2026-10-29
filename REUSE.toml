@@ -1,0 +1,46 @@
+# REUSE (https://reuse.software) licensing map for the StravaFit monorepo.
+#
+# Precedence: for files matched by more than one [[annotations]] table, the
+# LAST matching table wins. With precedence = "closest", an SPDX header inside
+# a file overrides this map for that file.
+#
+#   lib/**            Apache-2.0           (ADR-010: reusable libraries)
+#   docs/**           CC-BY-4.0            (research, specs, blueprint)
+#   design-system/**  CC-BY-4.0            (tokens and theme reference)
+#   everything else   AGPL-3.0-or-later    (ADR-007: app, server, tooling)
+#
+# Third-party files that ship with the repo (the Gradle wrapper) keep their
+# upstream licence and copyright.
+
+version = 1
+
+# Default: everything is AGPL-3.0-or-later unless a later table says otherwise.
+[[annotations]]
+path = "**"
+precedence = "closest"
+SPDX-FileCopyrightText = "2026 StravaFit contributors <https://github.com/warpirate/stravafit>"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+# Reusable, publishable libraries (ADR-010).
+[[annotations]]
+path = "lib/**"
+precedence = "closest"
+SPDX-FileCopyrightText = "2026 StravaFit contributors <https://github.com/warpirate/stravafit>"
+SPDX-License-Identifier = "Apache-2.0"
+
+# Documentation and design material.
+[[annotations]]
+path = ["docs/**", "design-system/**"]
+precedence = "closest"
+SPDX-FileCopyrightText = "2026 StravaFit contributors <https://github.com/warpirate/stravafit>"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+# Gradle wrapper: upstream Gradle files, Apache-2.0.
+[[annotations]]
+path = ["gradlew", "gradlew.bat", "gradle/wrapper/**"]
+precedence = "override"
+SPDX-FileCopyrightText = "2015 the original authors (Gradle, Inc.)"
+SPDX-License-Identifier = "Apache-2.0"
+
+# Licence texts themselves are not licensed by this project.
+# (REUSE ignores LICENSES/ automatically; listed here for readers.)

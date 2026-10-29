@@ -1,0 +1,75 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "StravaFit dependency updates. GitHub Actions are updated by Dependabot (.github/dependabot.yml), so the Actions manager is disabled here.",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":dependencyDashboard",
+    ":timezone(Etc/UTC)"
+  ],
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies"],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "minimumReleaseAge": "3 days",
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "labels": ["dependencies", "security"],
+    "schedule": ["at any time"]
+  },
+  "github-actions": {
+    "enabled": false
+  },
+  "packageRules": [
+    {
+      "description": "Kotlin and KSP versions are coupled (ksp = <kotlin>-<ksp>), so update them together. The ([.:]|$) boundary keeps org.jetbrains.kotlinx libraries (coroutines, serialization), which have their own versions, out of this group.",
+      "groupName": "Kotlin and KSP",
+      "matchPackageNames": [
+        "/^org\\.jetbrains\\.kotlin([.:]|$)/",
+        "/^com\\.google\\.devtools\\.ksp([.:]|$)/"
+      ]
+    },
+    {
+      "description": "Android Gradle Plugin.",
+      "groupName": "Android Gradle Plugin",
+      "matchPackageNames": ["/^com\\.android\\.(application|library|tools\\.build)/"]
+    },
+    {
+      "description": "Jetpack Compose BOM and AndroidX Compose artefacts.",
+      "groupName": "Jetpack Compose",
+      "matchPackageNames": ["/^androidx\\.compose/"]
+    },
+    {
+      "description": "Dagger/Hilt artefacts share one version.",
+      "groupName": "Hilt",
+      "matchPackageNames": ["/^com\\.google\\.dagger/", "/^androidx\\.hilt/"]
+    },
+    {
+      "description": "Room artefacts share one version.",
+      "groupName": "Room",
+      "matchPackageNames": ["/^androidx\\.room/"]
+    },
+    {
+      "description": "Test-only dependencies: group minor and patch updates.",
+      "groupName": "test dependencies",
+      "matchPackageNames": [
+        "/^org\\.junit/",
+        "/^junit:/",
+        "/^org\\.robolectric/",
+        "/^androidx\\.test/"
+      ],
+      "matchUpdateTypes": ["minor", "patch"]
+    },
+    {
+      "description": "Gradle wrapper updates use the build scope.",
+      "matchManagers": ["gradle-wrapper"],
+      "semanticCommitType": "build"
+    },
+    {
+      "description": "Dependency updates use the build(deps) commit prefix.",
+      "matchManagers": ["gradle"],
+      "semanticCommitType": "build",
+      "semanticCommitScope": "deps"
+    }
+  ]
+}
