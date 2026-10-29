@@ -56,6 +56,9 @@ class FakeRecordingController : RecordingController {
     var finishResult: Long? = 42L
     var startError: Exception? = null
 
+    /** Thrown by [pause] and [finishInterrupted] when set, like a failing database write. */
+    var commandError: Exception? = null
+
     override suspend fun start(sport: SportType, routeId: Long?) {
         startError?.let { throw it }
         calls += "start"
@@ -64,6 +67,7 @@ class FakeRecordingController : RecordingController {
     }
 
     override suspend fun pause() {
+        commandError?.let { throw it }
         calls += "pause"
         stateFlow.update { it.copy(status = RecordingStatus.PAUSED) }
     }
@@ -100,6 +104,7 @@ class FakeRecordingController : RecordingController {
     }
 
     override suspend fun finishInterrupted(): Long? {
+        commandError?.let { throw it }
         calls += "finishInterrupted"
         interruptedFlow.value = null
         return finishResult

@@ -201,7 +201,7 @@ internal fun HoldToFinishButton(onFinish: () -> Unit, modifier: Modifier = Modif
                 onClick(label = hint) { hinted = true; true }
                 onLongClick(label = label) { currentOnFinish(); true }
             }
-            .pointerInput(Unit) {
+            .pointerInput(reduced) {
                 detectTapGestures(
                     onPress = {
                         val fill = scope.launch {

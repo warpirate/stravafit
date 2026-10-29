@@ -121,7 +121,7 @@ class RecordViewModel @Inject constructor(
     /** Selects [sport], closes the picker and makes it the default for next time (record detail 2.2). */
     fun selectSport(sport: SportType) {
         local.update { it.copy(chosenSport = sport, sheet = RecordSheet.None) }
-        viewModelScope.launch {
+        launchSafely(SETTINGS_ERROR) {
             settingsRepository.setDefaultSport(sport)
             preferences.addRecentSport(sport)
         }
@@ -132,8 +132,8 @@ class RecordViewModel @Inject constructor(
 
     /** Flips auto-pause for the selected sport (stored per sport). */
     fun toggleAutoPause() {
-        viewModelScope.launch {
-            val sport = uiState.value.sport
+        launchSafely(SETTINGS_ERROR) {
+            val sport = currentSport()
             val current = settingsRepository.settings.first().autoPauseEnabled(sport)
             settingsRepository.setAutoPause(sport, !current)
         }
@@ -141,7 +141,7 @@ class RecordViewModel @Inject constructor(
 
     /** Flips spoken audio cues. */
     fun toggleAudioCues() {
-        viewModelScope.launch {
+        launchSafely(SETTINGS_ERROR) {
             val cues = settingsRepository.settings.first().audioCues
             settingsRepository.setAudioCues(cues.copy(enabled = !cues.enabled))
         }
@@ -149,17 +149,17 @@ class RecordViewModel @Inject constructor(
 
     /** Turns the 3-2-1 countdown before the timer on or off. */
     fun setCountdown(enabled: Boolean) {
-        viewModelScope.launch { preferences.setCountdown(enabled) }
+        launchSafely(SETTINGS_ERROR) { preferences.setCountdown(enabled) }
     }
 
     /** Turns "Screen display: always on" on or off. */
     fun setKeepScreenOn(enabled: Boolean) {
-        viewModelScope.launch { preferences.setKeepScreenOn(enabled) }
+        launchSafely(SETTINGS_ERROR) { preferences.setKeepScreenOn(enabled) }
     }
 
     /** Moves the pace field to its next mode (split, current, average). */
     fun cyclePaceMode() {
-        viewModelScope.launch { preferences.setPaceMode(uiState.value.paceMode.next()) }
+        launchSafely(SETTINGS_ERROR) { preferences.setPaceMode(preferences.preferences.first().paceMode.next()) }
     }
 
     /**
@@ -189,7 +189,7 @@ class RecordViewModel @Inject constructor(
 
     private suspend fun beginRecording() {
         val state = local.value
-        val sport = uiState.value.sport
+        val sport = currentSport()
         local.update { it.copy(phase = RecordPhase.Starting, sheet = RecordSheet.None) }
         try {
             controller.start(sport, state.chosenRouteId)
@@ -197,9 +197,10 @@ class RecordViewModel @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: IllegalStateException) {
-            // Already recording (for example started from another entry point): show that recording.
+            // Already recording (for example started from the notification): that recording shows instead.
+            if (!controller.state.value.isActive) eventChannel.send(RecordEvent.Message(startError(e)))
         } catch (e: Exception) {
-            eventChannel.send(RecordEvent.Message("Couldn't start recording. ${e.message.orEmpty()}".trim()))
+            eventChannel.send(RecordEvent.Message(startError(e)))
         } finally {
             local.update { it.copy(phase = RecordPhase.PreStart) }
         }
@@ -211,21 +212,21 @@ class RecordViewModel @Inject constructor(
 
     /** Pauses the timer. */
     fun pause() {
-        viewModelScope.launch { controller.pause() }
+        launchSafely(COMMAND_ERROR) { controller.pause() }
     }
 
     /** Resumes after a pause and closes the finish sheet. */
     fun resume() {
         local.update { it.copy(sheet = RecordSheet.None) }
-        viewModelScope.launch { controller.resume() }
+        launchSafely(COMMAND_ERROR) { controller.resume() }
     }
 
     /** Closes the current lap and announces it. */
     fun lap() {
-        viewModelScope.launch {
+        launchSafely(COMMAND_ERROR) {
             controller.lap()
             val snapshot = controller.state.value
-            val lap = snapshot.laps.lastOrNull() ?: return@launch
+            val lap = snapshot.laps.lastOrNull() ?: return@launchSafely
             val distance = RecordFormat.distance(lap.distance.meters, snapshot.units) + " " + RecordFormat.distanceUnit(snapshot.units)
             eventChannel.send(RecordEvent.Message("Lap ${lap.index + 1} · $distance · ${RecordFormat.duration(lap.elapsedTime)}"))
         }
@@ -259,7 +260,7 @@ class RecordViewModel @Inject constructor(
     /** Throws the recording away for good. */
     fun confirmDiscard() {
         local.update { it.copy(sheet = RecordSheet.None, chosenRouteId = null) }
-        viewModelScope.launch {
+        launchSafely("Couldn't discard the activity.") {
             controller.discard()
             eventChannel.send(RecordEvent.Message("Activity discarded"))
         }
@@ -271,7 +272,7 @@ class RecordViewModel @Inject constructor(
 
     /** Continues a recording that was interrupted when the app process died. */
     fun resumeInterrupted() {
-        viewModelScope.launch {
+        launchSafely(RESUME_ERROR) {
             if (!controller.recoverInterrupted()) eventChannel.send(RecordEvent.Message("That recording can't be resumed"))
         }
     }
@@ -282,6 +283,10 @@ class RecordViewModel @Inject constructor(
             local.update { it.copy(phase = RecordPhase.Saving) }
             try {
                 controller.finishInterrupted()?.let { eventChannel.send(RecordEvent.ActivitySaved(it)) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                eventChannel.send(RecordEvent.Message("Couldn't save the interrupted recording."))
             } finally {
                 local.update { it.copy(phase = RecordPhase.PreStart) }
             }
@@ -290,10 +295,33 @@ class RecordViewModel @Inject constructor(
 
     /** Deletes an interrupted recording. */
     fun discardInterrupted() {
-        viewModelScope.launch { controller.discardInterrupted() }
+        launchSafely("Couldn't discard the interrupted recording.") { controller.discardInterrupted() }
     }
 
     // endregion
+
+    /**
+     * Runs [block] in the view model scope; a failure (storage full, a database error) becomes a message
+     * instead of crashing the app, since an uncaught exception in [viewModelScope] kills the process and,
+     * with it, the recording.
+     */
+    private fun launchSafely(failure: String, block: suspend () -> Unit) {
+        viewModelScope.launch {
+            try {
+                block()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                eventChannel.send(RecordEvent.Message(failure))
+            }
+        }
+    }
+
+    /** The sport Start would record, read from the sources rather than the (possibly unsubscribed) [uiState]. */
+    private suspend fun currentSport(): SportType =
+        effectiveSport(local.value, settingsRepository.settings.first(), controller.state.value)
+
+    private fun startError(e: Exception): String = "Couldn't start recording. ${e.message.orEmpty()}".trim()
 
     private fun baseState(
         l: Local,
@@ -331,6 +359,9 @@ class RecordViewModel @Inject constructor(
         const val COUNTDOWN_SECONDS = 3
         private const val ONE_SECOND_MS = 1_000L
         private const val STOP_TIMEOUT_MS = 5_000L
+        private const val SETTINGS_ERROR = "Couldn't save that setting."
+        private const val COMMAND_ERROR = "That didn't work. The recording carries on."
+        private const val RESUME_ERROR = "Couldn't resume the interrupted recording."
         private val RECORDING_SHEETS = setOf(RecordSheet.Finish, RecordSheet.DiscardConfirm)
     }
 }

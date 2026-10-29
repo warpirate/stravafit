@@ -264,4 +264,36 @@ class RecordViewModelTest {
         assertTrue(state.keepScreenOn)
         assertEquals(PaceMode.CURRENT, state.paceMode)
     }
+
+    @Test fun aFailingCommandIsReportedInsteadOfCrashing() = runTest(dispatcher) {
+        controller.stateFlow.value = recordingSnapshot()
+        controller.commandError = java.io.IOException("disk full")
+        val vm = viewModel()
+        val events = events(vm)
+        vm.pause()
+        advanceUntilIdle()
+        runCurrent() // the event collector lives in backgroundScope, which advanceUntilIdle does not wait for
+        assertTrue(events.single() is RecordEvent.Message)
+        assertFalse(vm.uiState.value.recording!!.isPaused)
+    }
+
+    @Test fun failingToSaveAnInterruptedRecordingKeepsTheScreenUsable() = runTest(dispatcher) {
+        controller.interruptedFlow.value = InterruptedRecording(SportType.RUN, Instant.EPOCH, Instant.EPOCH)
+        controller.commandError = IllegalStateException("database locked")
+        val vm = viewModel()
+        val events = events(vm)
+        vm.saveInterrupted()
+        advanceUntilIdle()
+        assertTrue(events.single() is RecordEvent.Message)
+        assertEquals(RecordPhase.PreStart, vm.uiState.value.phase)
+        assertNotNull("still offered again", vm.uiState.value.interrupted)
+    }
+
+    @Test fun startUsesTheChosenSportEvenWhenTheStateIsNotCollected() = runTest(dispatcher) {
+        val vm = RecordViewModel(controller, settings, routes, prefs, location)
+        vm.selectSport(SportType.WALK)
+        vm.start()
+        advanceUntilIdle()
+        assertEquals(SportType.WALK, controller.started?.first)
+    }
 }
