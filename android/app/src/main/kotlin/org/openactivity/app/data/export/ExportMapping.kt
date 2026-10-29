@@ -37,8 +37,9 @@ fun ActivityDetail.toExportActivity(): ExportActivity {
         points = points,
         stats = ExportStats(
             distanceMeters = activity.distanceMeters,
-            movingTimeSeconds = activity.movingTime.inWholeSeconds,
-            elapsedTimeSeconds = activity.elapsedTime.inWholeSeconds,
+            movingTimeSeconds = Math.round(activity.movingTime.inWholeMilliseconds / 1000.0),
+            elapsedTimeSeconds = Math.round(activity.elapsedTime.inWholeMilliseconds / 1000.0),
+            movingTimeExactSeconds = activity.movingTime.inWholeMilliseconds / 1000.0,
             elevationGainMeters = activity.elevationGainMeters,
             averageHeartRate = activity.averageHeartRate?.roundToInt(),
         ),

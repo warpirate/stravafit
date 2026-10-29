@@ -93,6 +93,11 @@ public data class ExportStats(
     val elevationGainMeters: Double? = null,
     val averageHeartRate: Int? = null,
     val calories: Int? = null,
+    /**
+     * Moving time with its fraction. Images derive pace from it so they round the same value the same way
+     * as the activity detail and the feed (5:48 /km everywhere, never 5:47 on the poster).
+     */
+    val movingTimeExactSeconds: Double = movingTimeSeconds.toDouble(),
 )
 
 /**

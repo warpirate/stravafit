@@ -18,6 +18,8 @@ import org.openactivity.app.format.UnitFormatter
 import org.openactivity.app.model.UserProfile
 import org.openactivity.app.ui.common.activityStats
 import org.openactivity.app.ui.common.decodeRoute
+import org.openactivity.app.feature.me.ProgressFormat
+import org.openactivity.core.data.model.PersonalBest
 import org.openactivity.core.data.model.SavedActivity
 import org.openactivity.core.data.repository.ActivityRepository
 import org.openactivity.model.SportType
@@ -40,22 +42,27 @@ class FeedViewModel @Inject constructor(
 
     private val selection = MutableStateFlow(Selection())
 
+    /** Personal records by activity id, over runs and rides separately. */
+    private val records = combine(
+        activityRepository.observePersonalBests(ProgressFormat.RUN_SPORTS),
+        activityRepository.observePersonalBests(ProgressFormat.RIDE_SPORTS),
+    ) { runs, rides -> (runs + rides).distinctBy { it.activityId to it.target }.groupBy { it.activityId } }
+
     val uiState: StateFlow<FeedUiState> = combine(
         activityRepository.observeActivities(),
         profileRepository.profile,
         preferencesRepository.preferences,
         selection,
-    ) { activities, profile, preferences, selected ->
+        records,
+    ) { activities, profile, preferences, selected, prs ->
         val formatter = UnitFormatter(preferences.unitSystem, Locale.getDefault())
         val sports = activities.map { it.sport }.distinct()
         val filter = selected.sport?.takeIf { it in sports }
-        val cards = when (selected.scope) {
-            FeedScope.Following -> emptyList()
-            FeedScope.You -> activities
-                .filter { filter == null || it.sport == filter }
-                .sortedByDescending { it.startTime }
-                .map { it.toCard(profile, formatter) }
-        }
+        // Following is you plus the athletes you follow; without a server account that is only you.
+        val cards = activities
+            .filter { filter == null || it.sport == filter }
+            .sortedByDescending { it.startTime }
+            .map { it.toCard(profile, formatter, prs[it.id].orEmpty()) }
         FeedUiState(
             scope = selected.scope,
             isLoading = false,
@@ -64,6 +71,7 @@ class FeedViewModel @Inject constructor(
             sportFilter = filter,
             hasAnyActivity = activities.isNotEmpty(),
             message = selected.message,
+            hasUnreadNotifications = !selected.notificationsSeen,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), FeedUiState())
 
@@ -81,10 +89,13 @@ class FeedViewModel @Inject constructor(
         }
     }
 
+    /** The bell was opened: its unread dot goes. */
+    fun notificationsOpened() = selection.update { it.copy(notificationsSeen = true) }
+
     /** Clears the one-shot message after the snackbar showed it. */
     fun messageShown() = selection.update { it.copy(message = null) }
 
-    private fun SavedActivity.toCard(profile: UserProfile, formatter: UnitFormatter) = ActivityCardUi(
+    private fun SavedActivity.toCard(profile: UserProfile, formatter: UnitFormatter, prs: List<PersonalBest>) = ActivityCardUi(
         id = id,
         athleteName = profile.displayName,
         athletePhotoPath = profile.photoPath,
@@ -96,12 +107,14 @@ class FeedViewModel @Inject constructor(
         stats = activityStats(this, formatter),
         route = if (sport.usesGps || polyline != null) decodeRoute(polyline) else null,
         highFiveCount = 0,
+        achievements = prs.maxByOrNull { it.target }?.let { Achievements(prs.size, ProgressFormat.effortLabel(it.target, formatter)) },
     )
 
     private data class Selection(
-        val scope: FeedScope = FeedScope.You,
+        val scope: FeedScope = FeedScope.Following,
         val sport: SportType? = null,
         val message: String? = null,
+        val notificationsSeen: Boolean = false,
     )
 
     internal companion object {

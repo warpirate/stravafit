@@ -49,6 +49,15 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.openactivity.app.ui.LocalMessenger
+import org.openactivity.app.ui.RecordingStatusViewModel
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import org.openactivity.core.designsystem.component.SecondaryButton
 import org.openactivity.app.ui.common.icon
 import org.openactivity.app.ui.common.label
 import org.openactivity.core.designsystem.component.ActivityCardSkeleton
@@ -66,7 +75,10 @@ fun FeedScreen(
     onShareActivity: (Long) -> Unit = {},
     viewModel: FeedViewModel = hiltViewModel(),
 ) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val feed by viewModel.uiState.collectAsStateWithLifecycle()
+    val recordingStatus: RecordingStatusViewModel = hiltViewModel()
+    val recording by recordingStatus.active.collectAsStateWithLifecycle()
+    val state = feed.copy(recordingInProgress = recording != null)
     val messenger = LocalMessenger.current
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -84,6 +96,10 @@ fun FeedScreen(
             onRecord = onRecord,
             onShareActivity = onShareActivity,
             onNotAvailable = messenger::show,
+            onOpenNotifications = {
+                viewModel.notificationsOpened()
+                messenger.show(SERVER_NEEDED)
+            },
         ),
     )
 }
@@ -98,6 +114,7 @@ data class FeedActions(
     val onShareActivity: (Long) -> Unit = {},
     /** Search, messages, notifications and high-fives need a server account; this explains that. */
     val onNotAvailable: (String) -> Unit = {},
+    val onOpenNotifications: () -> Unit = {},
 )
 
 /**
@@ -122,7 +139,7 @@ fun FeedContent(state: FeedUiState, actions: FeedActions, modifier: Modifier = M
             ) {
                 TopBarAction(Icons.Rounded.Search, "Search", onClick = { actions.onNotAvailable(SERVER_NEEDED) })
                 TopBarAction(Icons.AutoMirrored.Outlined.Chat, "Messages", onClick = { actions.onNotAvailable(SERVER_NEEDED) })
-                TopBarAction(Icons.Outlined.Notifications, "Notifications", onClick = { actions.onNotAvailable(SERVER_NEEDED) })
+                NotificationsAction(state.hasUnreadNotifications, actions.onOpenNotifications)
             }
         },
     ) { padding ->
@@ -132,7 +149,7 @@ fun FeedContent(state: FeedUiState, actions: FeedActions, modifier: Modifier = M
                 contentPadding = PaddingValues(bottom = Spacing.l),
                 verticalArrangement = Arrangement.spacedBy(Spacing.cardGap),
             ) {
-                if (state.scope == FeedScope.You && state.sports.isNotEmpty()) {
+                if (state.sports.isNotEmpty()) {
                     item(key = "sports") { SportFilter(state.sports, state.sportFilter, actions.onSelectSport) }
                 }
                 when {
@@ -149,6 +166,9 @@ fun FeedContent(state: FeedUiState, actions: FeedActions, modifier: Modifier = M
                             ),
                         )
                     }
+                }
+                if (!state.isLoading && !state.isEmpty) {
+                    item(key = "follow") { FollowSuggestion(actions) }
                 }
             }
         }
@@ -217,20 +237,19 @@ private fun SportFilter(sports: List<SportType>, selected: SportType?, onSelect:
 private fun FeedEmpty(state: FeedUiState, actions: FeedActions) {
     Box(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface), contentAlignment = Alignment.Center) {
         when {
-            state.scope == FeedScope.Following -> EmptyState(
-                icon = Icons.Rounded.CloudOff,
-                title = "Sign in to a server to follow people",
-                body = "Following athletes, their activities, high-fives and comments need a server account. " +
-                    "That is coming soon. Your own activities stay on this device and appear under You.",
-                primaryActionLabel = "Show your activities",
-                onPrimaryAction = { actions.onSelectScope(FeedScope.You) },
-            )
             state.sportFilter != null -> EmptyState(
                 icon = Icons.Rounded.FilterAltOff,
                 title = "No ${state.sportFilter.label.lowercase()} activities",
                 body = "Pick another sport or show them all.",
                 primaryActionLabel = "Show all sports",
                 onPrimaryAction = { actions.onSelectSport(null) },
+            )
+            state.recordingInProgress -> EmptyState(
+                icon = Icons.Rounded.DynamicFeed,
+                title = "Recording in progress",
+                body = "Your activity shows up here, with its map and stats, once you finish and save it.",
+                primaryActionLabel = "Back to recording",
+                onPrimaryAction = actions.onRecord,
             )
             else -> EmptyState(
                 icon = Icons.Rounded.DynamicFeed,
@@ -240,6 +259,51 @@ private fun FeedEmpty(state: FeedUiState, actions: FeedActions) {
                 onPrimaryAction = actions.onRecord,
             )
         }
+    }
+}
+
+/** The bell with the accent unread dot of the mockup until it has been opened. */
+@Composable
+private fun NotificationsAction(unread: Boolean, onClick: () -> Unit) {
+    Box {
+        TopBarAction(Icons.Outlined.Notifications, if (unread) "Notifications, unread" else "Notifications", onClick = onClick)
+        if (unread) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 10.dp, end = 10.dp)
+                    .size(9.dp)
+                    .background(RidgelineTheme.colors.accent, CircleShape),
+            )
+        }
+    }
+}
+
+/**
+ * Closes the feed under the cards instead of leaving a bare grey block: following other athletes needs a
+ * server account, said once, honestly.
+ */
+@Composable
+private fun FollowSuggestion(actions: FeedActions) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = Spacing.cardPadding, vertical = Spacing.l),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(Icons.Rounded.CloudOff, contentDescription = null, tint = RidgelineTheme.colors.textMuted, modifier = Modifier.size(32.dp))
+        Spacer(Modifier.height(Spacing.s))
+        Text("You're all caught up", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(Spacing.xs))
+        Text(
+            "Activities from athletes you follow appear here too once following is available. It needs a server account.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = RidgelineTheme.colors.textSecondary,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(Spacing.m))
+        SecondaryButton("Find athletes to follow", onClick = { actions.onNotAvailable(SERVER_NEEDED) })
     }
 }
 

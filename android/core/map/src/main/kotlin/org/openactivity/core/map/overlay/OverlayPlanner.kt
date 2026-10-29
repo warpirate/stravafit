@@ -31,6 +31,9 @@ object OverlayPlanner {
     const val PLANNED_WIDTH: Float = 5f
     const val MARKER_RADIUS: Float = 6f
     const val MARKER_STROKE: Float = 3f
+    /** The chequered flag is a little larger than the start dot so its squares read. */
+    const val FLAG_RADIUS: Float = 9f
+    const val FLAG_RING: Float = 2.5f
 
     /** Builds the plan for [overlays] coloured with [palette]. */
     fun plan(overlays: MapOverlays, palette: MapPalette): OverlayPlan {
@@ -44,7 +47,9 @@ object OverlayPlanner {
         val markers = activity
             ?.takeIf { it.showEndpoints && it.points.size >= 2 }
             ?.let { listOf(it.points.first() to OverlayIds.ROLE_START, it.points.last() to OverlayIds.ROLE_FINISH) }
-            .orEmpty()
+            // While recording, the live track gets its green start marker (the puck marks its head).
+            ?: overlays.liveTrack.firstOrNull()?.takeIf { overlays.showLiveStart }?.let { listOf(it to OverlayIds.ROLE_START) }
+            ?: emptyList()
 
         val sources = listOf(
             SourceSpec(PLANNED_SOURCE, GeoJson.lineString(overlays.plannedRoute)),
@@ -70,9 +75,9 @@ object OverlayPlanner {
             ),
             LineLayerSpec(LIVE_CASING, LIVE_SOURCE, palette.casing, casingWidth),
             LineLayerSpec(LIVE_LINE, LIVE_SOURCE, palette.liveTrack, LINE_WIDTH),
-            // A green start and a dark finish, each with a white ring (strava direction).
+            // A green start and a chequered finish flag, each with a white ring (strava direction).
             CircleLayerSpec(START_MARKER, MARKER_SOURCE, OverlayIds.ROLE_START, MARKER_RADIUS, palette.start, palette.markerRing, MARKER_STROKE),
-            CircleLayerSpec(FINISH_MARKER, MARKER_SOURCE, OverlayIds.ROLE_FINISH, MARKER_RADIUS, palette.finish, palette.markerRing, MARKER_STROKE),
+            FlagLayerSpec(FINISH_MARKER, MARKER_SOURCE, OverlayIds.ROLE_FINISH, FLAG_RADIUS, palette.finish, palette.markerRing, FLAG_RING),
         )
         return OverlayPlan(sources, layers)
     }

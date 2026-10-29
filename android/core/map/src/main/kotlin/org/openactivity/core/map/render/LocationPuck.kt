@@ -82,12 +82,24 @@ internal class LocationPuck(
     }
 
     private fun activate(component: LocationComponent, style: Style, palette: MapPalette) {
+        // The mockup's blue dot: a saturated blue centre in a white ring with a soft blue halo, large enough
+        // to find at a glance and to stand out at the head of the live track in both themes.
         val options = LocationComponentOptions.builder(context)
             .foregroundTintColor(palette.puck)
+            .foregroundStaleTintColor(palette.puck)
             .bearingTintColor(palette.puck)
-            .backgroundTintColor(palette.casing)
+            .backgroundTintColor(PUCK_RING)
+            .backgroundStaleTintColor(PUCK_RING)
             .accuracyColor(palette.puckAccuracy)
             .accuracyAlpha(ACCURACY_ALPHA)
+            .minZoomIconScale(PUCK_SCALE)
+            .maxZoomIconScale(PUCK_SCALE)
+            .elevation(PUCK_ELEVATION)
+            .pulseEnabled(true)
+            .pulseColor(palette.puck)
+            .pulseAlpha(PULSE_ALPHA)
+            .pulseMaxRadius(PULSE_RADIUS)
+            .pulseSingleDuration(PULSE_MS)
             .build()
         if (component.isLocationComponentActivated) {
             component.applyStyle(options)
@@ -114,6 +126,12 @@ internal class LocationPuck(
 
     internal companion object {
         const val ACCURACY_ALPHA = 0.18f
+        const val PUCK_RING: Int = 0xFFFFFFFF.toInt()
+        const val PUCK_SCALE = 1.35f
+        const val PUCK_ELEVATION = 4f
+        const val PULSE_ALPHA = 0.35f
+        const val PULSE_RADIUS = 30f
+        const val PULSE_MS = 2_200f
         const val MIN_FOLLOW_ZOOM = 13.0
         const val FOLLOW_ZOOM = 16.0
         const val TRANSITION_MS = 750L

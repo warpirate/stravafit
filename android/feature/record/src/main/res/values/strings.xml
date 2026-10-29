@@ -70,6 +70,7 @@
     <string name="record_pace_cycle">Switch pace</string>
     <string name="record_auto_paused_banner">Auto-paused. Recording resumes when you move.</string>
     <string name="record_gps_lost_banner">GPS signal lost. Time is still recording.</string>
+    <string name="record_banner_close">Close</string>
     <string name="record_recovered_banner">Recovered after the app was closed. The gap adds no distance.</string>
 
     <!-- Finish -->

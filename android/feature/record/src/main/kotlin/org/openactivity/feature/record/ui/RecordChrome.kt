@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.BatteryAlert
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.GpsNotFixed
@@ -157,6 +158,7 @@ internal fun RecordBanner(
     modifier: Modifier = Modifier,
     icon: ImageVector = Icons.Rounded.Warning,
     warning: Boolean = true,
+    onClose: (() -> Unit)? = null,
 ) {
     val colors = RidgelineTheme.colors
     val container = if (warning) colors.warningContainer else MaterialTheme.colorScheme.surface
@@ -171,7 +173,16 @@ internal fun RecordBanner(
         Row(Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(Spacing.s))
-            Text(text, style = MaterialTheme.typography.bodySmall)
+            Text(text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f, fill = onClose != null))
+            if (onClose != null) {
+                androidx.compose.material3.IconButton(onClick = onClose, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Rounded.Close,
+                        contentDescription = androidx.compose.ui.res.stringResource(R.string.record_banner_close),
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
         }
     }
 }

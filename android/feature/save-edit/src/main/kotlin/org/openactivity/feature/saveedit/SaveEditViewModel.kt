@@ -283,7 +283,7 @@ class SaveEditViewModel internal constructor(
 
         /** "5.02 km · 26:14" in [units]. */
         fun summary(a: SavedActivity, units: UnitSystem): String {
-            val seconds = a.movingTime.inWholeSeconds
+            val seconds = Math.round(a.movingTime.inWholeMilliseconds / 1000.0)
             val time = if (seconds >= 3600) {
                 String.format(Locale.ROOT, "%d:%02d:%02d", seconds / 3600, seconds % 3600 / 60, seconds % 60)
             } else {

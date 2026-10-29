@@ -74,13 +74,11 @@ class ThumbnailTest {
         assertEquals(300, bitmap.width)
         assertEquals(150, bitmap.height)
         assertEquals(palette.land, bitmap.getPixel(1, 1))
-        // The start marker is hollow: its centre is casing, its ring is the route colour.
+        // Green start in a white ring, chequered finish flag (dark and white squares), as on the live map.
         val camera = r.camera!!
         val start = CameraMath.project(route.first(), camera, r.widthDp, r.heightDp)
-        assertEquals(Color.WHITE, bitmap.getPixel((start.x * 2).toInt(), (start.y * 2).toInt()))
-        // The finish marker is filled with the route colour.
-        val finish = CameraMath.project(route.last(), camera, r.widthDp, r.heightDp)
-        assertEquals(palette.marker, bitmap.getPixel((finish.x * 2).toInt(), (finish.y * 2).toInt()))
+        assertEquals(palette.start, bitmap.getPixel((start.x * 2).toInt(), (start.y * 2).toInt()))
+        assertTrue("chequered finish", bitmap.countPixels(palette.finish) > 4)
         assertTrue("route colour present", bitmap.countPixels(palette.activityRoute) > 200)
     }
 

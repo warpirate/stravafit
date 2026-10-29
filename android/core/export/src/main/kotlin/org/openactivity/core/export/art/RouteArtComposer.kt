@@ -126,7 +126,7 @@ public class RouteArtComposer @Inject constructor() {
             sport = original.sport.toLibSport(),
             summary = computed.copy(
                 distanceM = stats.distanceMeters,
-                movingSec = stats.movingTimeSeconds.toDouble().takeIf { it > 0 },
+                movingSec = stats.movingTimeExactSeconds.takeIf { it > 0 },
                 elapsedSec = stats.elapsedTimeSeconds.toDouble().takeIf { it > 0 },
                 elevGainM = stats.elevationGainMeters ?: computed.elevGainM,
                 avgHr = stats.averageHeartRate ?: computed.avgHr,

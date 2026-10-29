@@ -44,6 +44,21 @@ data class CircleLayerSpec(
 ) : LayerSpec
 
 /**
+ * The chequered finish flag for Point features whose `role` equals [role], drawn as an icon of outer
+ * radius [radiusDp] with a [ringColor] ring around [darkColor] and white squares.
+ */
+@Immutable
+data class FlagLayerSpec(
+    override val id: String,
+    override val sourceId: String,
+    val role: String,
+    val radiusDp: Float,
+    @ColorInt val darkColor: Int,
+    @ColorInt val ringColor: Int,
+    val ringWidthDp: Float,
+) : LayerSpec
+
+/**
  * Sources and layers for one frame of overlays. [layers] are in draw order, bottom first. Every
  * source and layer is always present (empty when unused), so updating the map only swaps GeoJSON
  * and never reorders layers.

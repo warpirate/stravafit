@@ -11,7 +11,9 @@ import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.layers.PropertyValue
 import org.maplibre.android.style.sources.GeoJsonOptions
 import org.maplibre.android.style.sources.GeoJsonSource
+import org.maplibre.android.style.layers.SymbolLayer
 import org.openactivity.core.map.overlay.CircleLayerSpec
+import org.openactivity.core.map.overlay.FlagLayerSpec
 import org.openactivity.core.map.overlay.GradientStop
 import org.openactivity.core.map.overlay.LayerSpec
 import org.openactivity.core.map.overlay.LineLayerSpec
@@ -24,7 +26,7 @@ import org.openactivity.core.map.overlay.OverlayPlan
  * Must be used on the main thread. Unchanged GeoJSON and layer properties are skipped, so calling
  * [apply] for every new GPS fix only re-uploads the live track.
  */
-internal class OverlayRenderer(private val style: Style) {
+internal class OverlayRenderer(private val style: Style, private val density: Float = 1f) {
     private val appliedSources = HashMap<String, String>()
     private val appliedLayers = HashMap<String, LayerSpec>()
 
@@ -66,6 +68,23 @@ internal class OverlayRenderer(private val style: Style) {
         is CircleLayerSpec -> CircleLayer(spec.id, spec.sourceId)
             .withFilter(Expression.eq(Expression.get("role"), spec.role))
             .withProperties(PropertyFactory.circlePitchAlignment(Property.CIRCLE_PITCH_ALIGNMENT_MAP))
+        is FlagLayerSpec -> SymbolLayer(spec.id, spec.sourceId)
+            .withFilter(Expression.eq(Expression.get("role"), spec.role))
+            .withProperties(
+                PropertyFactory.iconAllowOverlap(true),
+                PropertyFactory.iconIgnorePlacement(true),
+            )
+    }
+
+    private fun flagImageId(spec: FlagLayerSpec): String {
+        val id = "${spec.id}-${spec.darkColor}-${spec.ringColor}-${spec.radiusDp}"
+        if (style.getImage(id) == null) {
+            style.addImage(
+                id,
+                MarkerBitmaps.checkered(spec.radiusDp * density, spec.ringWidthDp * density, spec.darkColor, spec.ringColor),
+            )
+        }
+        return id
     }
 
     private fun properties(spec: LayerSpec): Array<PropertyValue<*>> = when (spec) {
@@ -81,6 +100,7 @@ internal class OverlayRenderer(private val style: Style) {
             PropertyFactory.circleStrokeColor(spec.strokeColor),
             PropertyFactory.circleStrokeWidth(spec.strokeWidthDp),
         )
+        is FlagLayerSpec -> arrayOf(PropertyFactory.iconImage(flagImageId(spec)))
     }
 
     companion object {

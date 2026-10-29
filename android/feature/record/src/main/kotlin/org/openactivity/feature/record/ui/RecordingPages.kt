@@ -37,6 +37,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -120,12 +122,19 @@ internal fun RecordingNotices(recording: RecordingUi, modifier: Modifier = Modif
         if (recording.gpsLost && !recording.isPaused) {
             RecordBanner(stringResource(R.string.record_gps_lost_banner), Modifier.fillMaxWidth(), icon = Icons.Rounded.GpsOff)
         }
-        if (recording.recovered) {
+        // The recovery notice is informational: it closes itself after a few seconds, or on its close button.
+        var recoveredDismissed by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+        if (recording.recovered && !recoveredDismissed) {
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                kotlinx.coroutines.delay(RECOVERED_BANNER_MS)
+                recoveredDismissed = true
+            }
             RecordBanner(
                 stringResource(R.string.record_recovered_banner),
                 Modifier.fillMaxWidth(),
                 icon = Icons.Rounded.History,
                 warning = false,
+                onClose = { recoveredDismissed = true },
             )
         }
     }
@@ -294,3 +303,6 @@ private fun PanelCell(
 private const val AUTO_PAUSE_DIM = 0.4f
 private val SPLIT_NUMBER_WIDTH = 72.dp
 private val TOP_ROW_CLEARANCE = 72.dp
+
+/** How long the "recovered after the app was closed" notice stays. */
+internal const val RECOVERED_BANNER_MS = 8_000L

@@ -78,6 +78,9 @@ class SnapshotThumbnailRenderer(
                 lineColor = request.palette.activityRoute,
                 casingColor = request.palette.casing,
                 markerColor = request.palette.marker,
+                startColor = request.palette.start,
+                finishColor = request.palette.finish,
+                ringColor = request.palette.markerRing,
             )
             sized
         }

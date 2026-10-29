@@ -20,7 +20,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.PanTool
+import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -88,6 +93,10 @@ fun ActivityCard(card: ActivityCardUi, actions: ActivityCardActions, modifier: M
             Spacer(Modifier.height(Spacing.m))
             Row(horizontalArrangement = Arrangement.spacedBy(STAT_SPACING)) {
                 card.stats.forEach { StatValue(it) }
+            }
+            card.achievements?.let {
+                Spacer(Modifier.height(Spacing.m))
+                AchievementsLine(it)
             }
             Spacer(Modifier.height(Spacing.l))
         }
@@ -192,6 +201,30 @@ private fun VisibilityTag(label: String) {
         Icon(Icons.Rounded.Lock, contentDescription = null, modifier = Modifier.size(12.dp), tint = RidgelineTheme.colors.textMuted)
         Spacer(Modifier.width(2.dp))
         Text(label, style = RidgelineTheme.text.caption, color = RidgelineTheme.colors.textMuted, maxLines = 1)
+    }
+}
+
+/** "🏆 3 achievements, including a PR for 1K" with a gold trophy. */
+@Composable
+private fun AchievementsLine(achievements: Achievements) {
+    val noun = if (achievements.count == 1) "achievement" else "achievements"
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            Icons.Rounded.EmojiEvents,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = RidgelineTheme.colors.medalGold,
+        )
+        Spacer(Modifier.width(Spacing.s))
+        Text(
+            buildAnnotatedString {
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("${achievements.count} $noun") }
+                append(", including a PR for ${achievements.highlight}")
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

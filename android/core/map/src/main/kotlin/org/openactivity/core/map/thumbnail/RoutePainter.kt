@@ -7,6 +7,7 @@ import android.graphics.Path
 import org.openactivity.core.map.camera.CameraMath
 import org.openactivity.core.map.camera.MapCamera
 import org.openactivity.core.map.overlay.OverlayPlanner
+import org.openactivity.core.map.render.MarkerBitmaps
 import org.openactivity.model.LatLng
 
 /**
@@ -26,6 +27,9 @@ internal object RoutePainter {
         lineColor: Int,
         casingColor: Int,
         markerColor: Int,
+        startColor: Int = 0xFF1FA45B.toInt(),
+        finishColor: Int = 0xFF242428.toInt(),
+        ringColor: Int = 0xFFFFFFFF.toInt(),
     ) {
         if (points.size < 2) return
         val widthDp = canvas.width / density
@@ -52,15 +56,20 @@ internal object RoutePainter {
         val radius = OverlayPlanner.MARKER_RADIUS * density * THUMB_SCALE
         val ring = OverlayPlanner.MARKER_STROKE * density * THUMB_SCALE
         val fill = Paint(Paint.ANTI_ALIAS_FLAG)
-        // Finish: filled marker with a casing ring.
-        fill.color = casingColor
-        canvas.drawCircle(finish.x * density, finish.y * density, radius + ring / 2, fill)
-        fill.color = markerColor
-        canvas.drawCircle(finish.x * density, finish.y * density, radius - ring / 2, fill)
-        // Start: hollow marker (casing fill, coloured ring) drawn last so it stays visible on loops.
-        fill.color = markerColor
+        // Finish: the chequered flag in a white ring, as on the live map and the activity detail.
+        MarkerBitmaps.drawCheckered(
+            canvas,
+            finish.x * density,
+            finish.y * density,
+            OverlayPlanner.FLAG_RADIUS * density * THUMB_SCALE,
+            OverlayPlanner.FLAG_RING * density * THUMB_SCALE,
+            finishColor,
+            ringColor,
+        )
+        // Start: green dot in a white ring, drawn last so it stays visible on loops.
+        fill.color = ringColor
         canvas.drawCircle(start.x * density, start.y * density, radius + ring / 2, fill)
-        fill.color = casingColor
+        fill.color = startColor
         canvas.drawCircle(start.x * density, start.y * density, radius - ring / 2, fill)
     }
 

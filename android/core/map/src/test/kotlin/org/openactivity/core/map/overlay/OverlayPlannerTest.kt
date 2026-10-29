@@ -90,17 +90,24 @@ class OverlayPlannerTest {
     }
 
     @Test
-    fun startIsGreenAndFinishIsDarkWithWhiteRings() {
+    fun startIsGreenAndFinishIsAChequeredFlagWithWhiteRings() {
         val plan = OverlayPlanner.plan(MapOverlays(activityRoute = ActivityRouteOverlay(track)), palette)
         val markers = plan.source(OverlayIds.MARKER_SOURCE).geoJson
         assertTrue(markers.contains("\"role\":\"start\"") && markers.contains("\"role\":\"finish\""))
-        val circles = plan.layers.filterIsInstance<CircleLayerSpec>().associateBy { it.role }
-        val start = circles.getValue(OverlayIds.ROLE_START)
-        val finish = circles.getValue(OverlayIds.ROLE_FINISH)
+        val start = plan.layers.filterIsInstance<CircleLayerSpec>().single { it.role == OverlayIds.ROLE_START }
+        val finish = plan.layers.filterIsInstance<FlagLayerSpec>().single { it.role == OverlayIds.ROLE_FINISH }
         assertEquals(palette.start, start.fillColor)
         assertEquals(palette.markerRing, start.strokeColor)
-        assertEquals(palette.finish, finish.fillColor)
-        assertEquals(palette.markerRing, finish.strokeColor)
+        assertEquals(palette.finish, finish.darkColor)
+        assertEquals(palette.markerRing, finish.ringColor)
+    }
+
+    @Test
+    fun liveTrackGetsAGreenStartMarker() {
+        val plan = OverlayPlanner.plan(MapOverlays(liveTrack = track), palette)
+        val markers = plan.source(OverlayIds.MARKER_SOURCE).geoJson
+        assertTrue(markers.contains("\"role\":\"start\""))
+        assertTrue(!markers.contains("\"role\":\"finish\""))
     }
 
     @Test

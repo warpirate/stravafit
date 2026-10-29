@@ -44,12 +44,12 @@ class FeedViewModelTest {
     }
 
     @Test
-    fun `starts loading, then shows an empty You feed when there are no activities`() = runTest(main.dispatcher) {
+    fun `starts loading, then shows an empty Following feed when there are no activities`() = runTest(main.dispatcher) {
         val vm = viewModel()
         assertTrue(vm.uiState.value.isLoading)
         collect(vm)
         val state = vm.uiState.value
-        assertEquals(FeedScope.You, state.scope)
+        assertEquals(FeedScope.Following, state.scope)
         assertTrue(state.isEmpty)
         assertFalse(state.hasAnyActivity)
     }
@@ -94,14 +94,36 @@ class FeedViewModelTest {
     }
 
     @Test
-    fun `following feed is empty without a server account`() = runTest(main.dispatcher) {
+    fun `following feed shows your own activities until you follow someone`() = runTest(main.dispatcher) {
         activities.activities.value = listOf(savedActivity(1))
         val vm = viewModel()
         collect(vm)
         vm.selectScope(FeedScope.Following)
         advanceUntilIdle()
-        assertTrue(vm.uiState.value.isEmpty)
-        assertTrue(vm.uiState.value.hasAnyActivity)
+        assertEquals(listOf(1L), vm.uiState.value.cards.map { it.id })
+    }
+
+    @Test
+    fun `cards carry an achievements line for personal records`() = runTest(main.dispatcher) {
+        activities.activities.value = listOf(savedActivity(1), savedActivity(2))
+        activities.bests.value = listOf(400.0, 804.672, 1000.0).map {
+            org.openactivity.core.data.model.PersonalBest(it, it / 3.0, 1L, "Run", SportType.RUN, TEST_CLOCK.instant())
+        }
+        val vm = viewModel()
+        collect(vm)
+        val byId = vm.uiState.value.cards.associateBy { it.id }
+        assertEquals(Achievements(3, "1K"), byId.getValue(1L).achievements)
+        assertNull(byId.getValue(2L).achievements)
+    }
+
+    @Test
+    fun `the bell is unread until opened`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        collect(vm)
+        assertTrue(vm.uiState.value.hasUnreadNotifications)
+        vm.notificationsOpened()
+        advanceUntilIdle()
+        assertFalse(vm.uiState.value.hasUnreadNotifications)
     }
 
     @Test

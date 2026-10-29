@@ -67,7 +67,7 @@ data class ThumbnailRequest(
         /** Short routes are not zoomed in further than this. */
         const val MAX_ZOOM: Double = 16.0
 
-        private const val KEY_VERSION = 1
+        private const val KEY_VERSION = 2
     }
 }
 

@@ -62,8 +62,9 @@ class RepositoryExportActivityProvider @Inject constructor(
                 },
                 stats = ExportStats(
                     distanceMeters = a.distanceMeters,
-                    movingTimeSeconds = a.movingTime.inWholeSeconds,
-                    elapsedTimeSeconds = a.elapsedTime.inWholeSeconds,
+                    movingTimeSeconds = Math.round(a.movingTime.inWholeMilliseconds / 1000.0),
+                    elapsedTimeSeconds = Math.round(a.elapsedTime.inWholeMilliseconds / 1000.0),
+                    movingTimeExactSeconds = a.movingTime.inWholeMilliseconds / 1000.0,
                     elevationGainMeters = a.elevationGainMeters.takeIf { detail.points.any { p -> p.elevationMeters != null } },
                     averageHeartRate = a.averageHeartRate?.roundToInt(),
                     calories = null,

@@ -20,15 +20,16 @@ import kotlin.math.roundToInt
  * - activities without distance (indoor): time, average heart rate, elevation or elapsed time
  */
 fun activityStats(activity: SavedActivity, formatter: UnitFormatter): List<Stat> {
-    val seconds = activity.movingTime.inWholeSeconds
+    // Rounded like the activity detail and the Save screen, so every surface shows the same time.
     val exactSeconds = activity.movingTime.inWholeMilliseconds / 1000.0
+    val seconds = Math.round(exactSeconds)
     val distance = activity.distanceMeters.takeIf { it > 0.0 }
     val time = Stat("Time", UnitFormatter.duration(seconds))
     if (distance == null) {
         return listOf(
             time,
             Stat("Avg HR", activity.averageHeartRate?.roundToInt()?.toString(), "bpm", "beats per minute"),
-            Stat("Elapsed", UnitFormatter.duration(activity.elapsedTime.inWholeSeconds)),
+            Stat("Elapsed", UnitFormatter.duration(Math.round(activity.elapsedTime.inWholeMilliseconds / 1000.0))),
         )
     }
     val sport = activity.sport

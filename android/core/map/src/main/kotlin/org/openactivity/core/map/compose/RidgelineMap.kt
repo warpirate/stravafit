@@ -155,7 +155,8 @@ private fun MapViewHost(
     LaunchedEffect(state, style) { state.isStyleLoaded = style != null }
 
     // Overlays: plan off the main thread (GeoJSON for long tracks), apply on it.
-    val renderer = remember(style) { style?.let(::OverlayRenderer) }
+    val density = androidx.compose.ui.platform.LocalDensity.current.density
+    val renderer = remember(style, density) { style?.let { OverlayRenderer(it, density) } }
     // Lint false positive: the producer does assign `value` (ProduceStateDoesNotAssignValue).
     @SuppressLint("ProduceStateDoesNotAssignValue")
     val plan by produceState<OverlayPlan?>(null, overlays, palette) {

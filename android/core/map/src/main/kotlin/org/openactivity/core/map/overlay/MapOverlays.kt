@@ -17,6 +17,8 @@ data class MapOverlays(
     val liveTrack: List<LatLng> = emptyList(),
     val plannedRoute: List<LatLng> = emptyList(),
     val activityRoute: ActivityRouteOverlay? = null,
+    /** Mark the start of [liveTrack] with the green start marker. */
+    val showLiveStart: Boolean = true,
 ) {
     /** Every point on the map, for fitting the camera to all overlays at once. */
     val allPoints: List<LatLng> get() = plannedRoute + (activityRoute?.points ?: emptyList()) + liveTrack
