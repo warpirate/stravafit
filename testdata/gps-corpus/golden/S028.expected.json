@@ -1,0 +1,16 @@
+{
+  "corpus_id": "S028",
+  "engine_version": ">=0.1.0",
+  "expected": {
+    "distance_m": {"value": 4398.814, "tol_pct": 1.000},
+    "moving_time_s": {"value": 1222.222, "tol_abs": 12.222},
+    "elapsed_time_s": {"value": 1292.222, "tol_abs": 0.001},
+    "elevation_gain_m": {"value": 0.000, "tol_pct_over": 0.000, "tol_pct_under": 0.000, "tol_abs": 30.000},
+    "elevation_loss_m": {"value": 0.000, "tol_pct_over": 0.000, "tol_pct_under": 0.000, "tol_abs": 30.000},
+    "splits_km": {"count": 4, "elapsed_s": [277.778, 277.778, 347.778, 277.778], "each_tol_abs_s": 3.000},
+    "laps": {"count": 5, "distance_m": [998.836, 1000.000, 2.160, 997.840, 1399.978], "each_tol_pct": 2.500, "each_tol_abs_m": 15.000},
+    "start_epoch_ms": {"value": 1780297200000, "tol_abs": 0},
+    "flags": []
+  },
+  "rationale": "Analytic truth from TrackGen seed 1028 (observable window: first fix with accuracy <= 50 m to last fix before FINISH); tolerances per gps-qa-test-performance.md section 3.3."
+}
