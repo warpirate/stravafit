@@ -44,4 +44,5 @@ includeIfPresent(
     ":android:core:export", // WP export
     ":android:core:import", // WP export
     ":android:feature:share-export", // WP export
+    ":android:feature:record", // WP record
 )

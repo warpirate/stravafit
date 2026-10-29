@@ -12,7 +12,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable data object MeRoute
 
-/** Full-screen recorder, outside the tab stacks; the bottom bar is hidden. */
-@Serializable data object RecordRoute
+/** Full-screen recorder from `:android:feature:record`, outside the tab stacks; the bottom bar is hidden. */
+typealias RecordRoute = org.openactivity.feature.record.navigation.RecordDestination
 
 @Serializable data object SettingsRoute

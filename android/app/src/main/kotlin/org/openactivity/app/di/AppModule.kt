@@ -14,9 +14,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import org.openactivity.app.data.CommunityRepository
 import org.openactivity.app.data.DataStorePreferencesRepository
-import org.openactivity.app.data.DeviceGpsStatusSource
 import org.openactivity.app.data.FeedRepository
-import org.openactivity.app.data.GpsStatusSource
 import org.openactivity.app.data.PreferencesRepository
 import org.openactivity.app.data.ProfileRepository
 import org.openactivity.app.data.RouteRepository
@@ -44,8 +42,6 @@ abstract class DataModule {
     @Binds abstract fun routeRepository(impl: SampleRouteRepository): RouteRepository
 
     @Binds abstract fun preferencesRepository(impl: DataStorePreferencesRepository): PreferencesRepository
-
-    @Binds abstract fun gpsStatusSource(impl: DeviceGpsStatusSource): GpsStatusSource
 }
 
 /** Platform services. */

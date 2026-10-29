@@ -11,6 +11,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -26,13 +27,21 @@ import kotlinx.coroutines.launch
 import org.openactivity.app.navigation.AppBottomBar
 import org.openactivity.app.navigation.AppNavHost
 import org.openactivity.app.navigation.TopLevelDestination
+import org.openactivity.feature.record.navigation.navigateToRecord
 
 /**
  * App shell: one scaffold with the bottom bar and a snackbar host around the nav host.
  * The bottom bar shows only on tab roots; Record and Settings are full screen.
+ *
+ * @param openRecorderRequested true to open the recorder (from the recording notification).
+ * @param onRecorderOpened called once the recorder has been opened for that request.
  */
 @Composable
-fun OpenActivityApp(navController: NavHostController = rememberNavController()) {
+fun OpenActivityApp(
+    navController: NavHostController = rememberNavController(),
+    openRecorderRequested: Boolean = false,
+    onRecorderOpened: () -> Unit = {},
+) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val messenger = remember(snackbar, scope) {
@@ -41,6 +50,13 @@ fun OpenActivityApp(navController: NavHostController = rememberNavController()) 
                 snackbar.currentSnackbarData?.dismiss()
                 snackbar.showSnackbar(message)
             }
+        }
+    }
+    // The recording notification asks for the recorder (EXTRA_OPEN_RECORDING).
+    LaunchedEffect(openRecorderRequested) {
+        if (openRecorderRequested) {
+            navController.navigateToRecord()
+            onRecorderOpened()
         }
     }
     val backStackEntry by navController.currentBackStackEntryAsState()

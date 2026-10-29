@@ -94,6 +94,7 @@ dependencies {
     implementation(project(":android:core:data")) // WP data-service
     implementation(project(":android:core:recording-service")) // WP data-service
     implementation(project(":android:core:map")) // WP maps
+    implementation(project(":android:feature:record")) // WP record
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

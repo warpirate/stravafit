@@ -1,0 +1,336 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+package org.openactivity.feature.record
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import org.openactivity.core.data.repository.RouteRepository
+import org.openactivity.core.data.repository.SettingsRepository
+import org.openactivity.core.datastore.AppSettings
+import org.openactivity.core.recordingservice.InterruptedRecording
+import org.openactivity.core.recordingservice.RecordingController
+import org.openactivity.core.recordingservice.RecordingUiSnapshot
+import org.openactivity.feature.record.data.RecordPreferences
+import org.openactivity.feature.record.data.RecordPreferencesRepository
+import org.openactivity.feature.record.format.RecordFormat
+import org.openactivity.feature.record.location.PreStartLocation
+import org.openactivity.model.SportType
+import javax.inject.Inject
+
+/**
+ * The Record screen: pre-start (sport, GPS, route, quick settings), the optional countdown, and the live
+ * recording through [RecordingController]. All state comes out of [uiState]; one-shot effects out of [events].
+ *
+ * Location is only watched while the screen is collected, a GPS sport is selected and nothing is being
+ * recorded (the recording service has its own subscription then).
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+@HiltViewModel
+class RecordViewModel @Inject constructor(
+    private val controller: RecordingController,
+    private val settingsRepository: SettingsRepository,
+    private val routeRepository: RouteRepository,
+    private val preferences: RecordPreferencesRepository,
+    private val location: PreStartLocation,
+) : ViewModel() {
+
+    /** State owned by this screen rather than by a repository or the recording. */
+    private data class Local(
+        val phase: RecordPhase = RecordPhase.PreStart,
+        val chosenSport: SportType? = null,
+        val chosenRouteId: Long? = null,
+        val sheet: RecordSheet = RecordSheet.None,
+    )
+
+    private val local = MutableStateFlow(Local())
+    private val eventChannel = Channel<RecordEvent>(Channel.BUFFERED)
+    private var countdownJob: Job? = null
+
+    /** One-shot effects: navigation after save, lap toasts, errors. */
+    val events: Flow<RecordEvent> = eventChannel.receiveAsFlow()
+
+    private val settings = settingsRepository.settings.onStart { emit(AppSettings()) }.distinctUntilChanged()
+    private val prefs = preferences.preferences.onStart { emit(RecordPreferences()) }.distinctUntilChanged()
+
+    private val sport: Flow<SportType> =
+        combine(local, settings, controller.state) { l, s, rec -> effectiveSport(l, s, rec) }.distinctUntilChanged()
+
+    private val gpsReading: Flow<GpsReading?> =
+        combine(sport, controller.state.map { it.isActive }) { s, active -> s.usesGps && !active }
+            .distinctUntilChanged()
+            .flatMapLatest { wanted -> if (wanted) GpsReading.watch(location.fixes(), SLOW_FIX_HINT_MS) else flowOf(null) }
+
+    private val routeChoice: Flow<RouteChoice?> =
+        combine(local.map { it.chosenRouteId }, controller.state.map { it.routeId }) { chosen, recording -> recording ?: chosen }
+            .distinctUntilChanged()
+            .flatMapLatest { id ->
+                if (id == null) flowOf(null) else routeRepository.observeRoute(id).map { it?.toChoice() }
+            }
+
+    private val routes: Flow<List<RouteSummary>?> = routeRepository.observeRoutes()
+        .map<_, List<RouteSummary>?> { list -> list.map { RouteSummary(it.id, it.name, it.distanceMeters, it.sport) } }
+        .onStart { emit(null) }
+
+    private val base: Flow<RecordUiState> = combine(
+        local,
+        settings,
+        prefs,
+        controller.state,
+        controller.interruptedRecording,
+    ) { l, s, p, rec, interrupted -> baseState(l, s, p, rec, interrupted) }
+
+    /** The screen state. Collect it with the lifecycle so location stops when the screen does. */
+    val uiState: StateFlow<RecordUiState> = combine(base, gpsReading, routes, routeChoice) { state, reading, list, route ->
+        val withGps = if (state.recording == null) {
+            state.copy(
+                gps = GpsMapping.preStart(state.sport, reading?.fix?.status),
+                location = reading?.fix?.location,
+                showSlowFixHint = reading?.slowFixHint == true,
+            )
+        } else {
+            state
+        }
+        withGps.copy(routes = list, route = route)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), RecordUiState())
+
+    // region pre-start
+
+    /** Shows [sheet], or hides every sheet with [RecordSheet.None]. */
+    fun showSheet(sheet: RecordSheet) = local.update { it.copy(sheet = sheet) }
+
+    /** Selects [sport], closes the picker and makes it the default for next time (record detail 2.2). */
+    fun selectSport(sport: SportType) {
+        local.update { it.copy(chosenSport = sport, sheet = RecordSheet.None) }
+        viewModelScope.launch {
+            settingsRepository.setDefaultSport(sport)
+            preferences.addRecentSport(sport)
+        }
+    }
+
+    /** Draws route [id] on the map and follows it once recording; null removes it. */
+    fun selectRoute(id: Long?) = local.update { it.copy(chosenRouteId = id, sheet = RecordSheet.None) }
+
+    /** Flips auto-pause for the selected sport (stored per sport). */
+    fun toggleAutoPause() {
+        viewModelScope.launch {
+            val sport = uiState.value.sport
+            val current = settingsRepository.settings.first().autoPauseEnabled(sport)
+            settingsRepository.setAutoPause(sport, !current)
+        }
+    }
+
+    /** Flips spoken audio cues. */
+    fun toggleAudioCues() {
+        viewModelScope.launch {
+            val cues = settingsRepository.settings.first().audioCues
+            settingsRepository.setAudioCues(cues.copy(enabled = !cues.enabled))
+        }
+    }
+
+    /** Turns the 3-2-1 countdown before the timer on or off. */
+    fun setCountdown(enabled: Boolean) {
+        viewModelScope.launch { preferences.setCountdown(enabled) }
+    }
+
+    /** Turns "Screen display: always on" on or off. */
+    fun setKeepScreenOn(enabled: Boolean) {
+        viewModelScope.launch { preferences.setKeepScreenOn(enabled) }
+    }
+
+    /** Moves the pace field to its next mode (split, current, average). */
+    fun cyclePaceMode() {
+        viewModelScope.launch { preferences.setPaceMode(uiState.value.paceMode.next()) }
+    }
+
+    /**
+     * Starts recording. Call once permissions are settled, while the screen is visible: with the countdown
+     * on, the timer starts after 3 seconds unless [cancelCountdown] runs first.
+     */
+    fun start() {
+        if (local.value.phase != RecordPhase.PreStart || controller.state.value.isActive) return
+        countdownJob = viewModelScope.launch {
+            if (preferences.preferences.first().countdown) {
+                for (left in COUNTDOWN_SECONDS downTo 1) {
+                    local.update { it.copy(phase = RecordPhase.Countdown(left), sheet = RecordSheet.None) }
+                    delay(ONE_SECOND_MS)
+                }
+            }
+            beginRecording()
+        }
+    }
+
+    /** Stops a running countdown (tap, back, or the screen leaving the foreground). */
+    fun cancelCountdown() {
+        if (local.value.phase !is RecordPhase.Countdown) return
+        countdownJob?.cancel()
+        countdownJob = null
+        local.update { it.copy(phase = RecordPhase.PreStart) }
+    }
+
+    private suspend fun beginRecording() {
+        val state = local.value
+        val sport = uiState.value.sport
+        local.update { it.copy(phase = RecordPhase.Starting, sheet = RecordSheet.None) }
+        try {
+            controller.start(sport, state.chosenRouteId)
+            preferences.addRecentSport(sport)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: IllegalStateException) {
+            // Already recording (for example started from another entry point): show that recording.
+        } catch (e: Exception) {
+            eventChannel.send(RecordEvent.Message("Couldn't start recording. ${e.message.orEmpty()}".trim()))
+        } finally {
+            local.update { it.copy(phase = RecordPhase.PreStart) }
+        }
+    }
+
+    // endregion
+
+    // region recording
+
+    /** Pauses the timer. */
+    fun pause() {
+        viewModelScope.launch { controller.pause() }
+    }
+
+    /** Resumes after a pause and closes the finish sheet. */
+    fun resume() {
+        local.update { it.copy(sheet = RecordSheet.None) }
+        viewModelScope.launch { controller.resume() }
+    }
+
+    /** Closes the current lap and announces it. */
+    fun lap() {
+        viewModelScope.launch {
+            controller.lap()
+            val snapshot = controller.state.value
+            val lap = snapshot.laps.lastOrNull() ?: return@launch
+            val distance = RecordFormat.distance(lap.distance.meters, snapshot.units) + " " + RecordFormat.distanceUnit(snapshot.units)
+            eventChannel.send(RecordEvent.Message("Lap ${lap.index + 1} · $distance · ${RecordFormat.duration(lap.elapsedTime)}"))
+        }
+    }
+
+    /** Opens the finish sheet (after the long-press on Finish). */
+    fun requestFinish() {
+        if (controller.state.value.isActive) local.update { it.copy(sheet = RecordSheet.Finish) }
+    }
+
+    /** Saves the recording and opens the new activity. */
+    fun save() {
+        local.update { it.copy(phase = RecordPhase.Saving, sheet = RecordSheet.None) }
+        viewModelScope.launch {
+            try {
+                val id = controller.finish()
+                if (id != null) eventChannel.send(RecordEvent.ActivitySaved(id))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                eventChannel.send(RecordEvent.Message("Couldn't save the activity. It is still recording."))
+            } finally {
+                local.update { it.copy(phase = RecordPhase.PreStart) }
+            }
+        }
+    }
+
+    /** Asks to confirm discarding. */
+    fun requestDiscard() = local.update { it.copy(sheet = RecordSheet.DiscardConfirm) }
+
+    /** Throws the recording away for good. */
+    fun confirmDiscard() {
+        local.update { it.copy(sheet = RecordSheet.None, chosenRouteId = null) }
+        viewModelScope.launch {
+            controller.discard()
+            eventChannel.send(RecordEvent.Message("Activity discarded"))
+        }
+    }
+
+    // endregion
+
+    // region interrupted recording
+
+    /** Continues a recording that was interrupted when the app process died. */
+    fun resumeInterrupted() {
+        viewModelScope.launch {
+            if (!controller.recoverInterrupted()) eventChannel.send(RecordEvent.Message("That recording can't be resumed"))
+        }
+    }
+
+    /** Saves an interrupted recording as it is. */
+    fun saveInterrupted() {
+        viewModelScope.launch {
+            local.update { it.copy(phase = RecordPhase.Saving) }
+            try {
+                controller.finishInterrupted()?.let { eventChannel.send(RecordEvent.ActivitySaved(it)) }
+            } finally {
+                local.update { it.copy(phase = RecordPhase.PreStart) }
+            }
+        }
+    }
+
+    /** Deletes an interrupted recording. */
+    fun discardInterrupted() {
+        viewModelScope.launch { controller.discardInterrupted() }
+    }
+
+    // endregion
+
+    private fun baseState(
+        l: Local,
+        s: AppSettings,
+        p: RecordPreferences,
+        rec: RecordingUiSnapshot,
+        interrupted: InterruptedRecording?,
+    ): RecordUiState {
+        val sport = effectiveSport(l, s, rec)
+        val recording = if (rec.isActive) RecordingMapping.toUi(rec, p.paceMode) else null
+        return RecordUiState(
+            phase = if (recording != null && l.phase != RecordPhase.Saving) RecordPhase.Recording else l.phase,
+            sport = sport,
+            recentSports = (listOf(sport) + (p.recentSports - sport)).take(RecordPreferences.MAX_RECENT),
+            units = if (rec.isActive) rec.units else s.units,
+            autoPause = s.autoPauseEnabled(sport),
+            audioCues = s.audioCues.enabled,
+            countdown = p.countdown,
+            keepScreenOn = p.keepScreenOn,
+            paceMode = p.paceMode,
+            gps = if (recording != null) GpsMapping.recording(sport, rec.gpsStatus) else GpsUi(GpsIndicator.Acquiring),
+            location = recording?.location,
+            sheet = if (recording == null && l.sheet in RECORDING_SHEETS) RecordSheet.None else l.sheet,
+            recording = recording,
+            interrupted = interrupted.takeIf { !rec.isActive },
+        )
+    }
+
+    private fun effectiveSport(l: Local, s: AppSettings, rec: RecordingUiSnapshot): SportType =
+        if (rec.isActive) rec.sport ?: s.defaultSport else l.chosenSport ?: s.defaultSport
+
+    internal companion object {
+        /** Record checklist 2.5: hint after 20 s without a fix. */
+        const val SLOW_FIX_HINT_MS = 20_000L
+        const val COUNTDOWN_SECONDS = 3
+        private const val ONE_SECOND_MS = 1_000L
+        private const val STOP_TIMEOUT_MS = 5_000L
+        private val RECORDING_SHEETS = setOf(RecordSheet.Finish, RecordSheet.DiscardConfirm)
+    }
+}

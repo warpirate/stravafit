@@ -35,10 +35,6 @@ import org.openactivity.app.feature.me.MeActions
 import org.openactivity.app.feature.me.MeContent
 import org.openactivity.app.feature.me.MeTab
 import org.openactivity.app.feature.me.MeViewModel
-import org.openactivity.app.feature.record.GpsState
-import org.openactivity.app.feature.record.RecordActions
-import org.openactivity.app.feature.record.RecordContent
-import org.openactivity.app.feature.record.RecordUiState
 import org.openactivity.app.feature.settings.SettingsContent
 import org.openactivity.app.feature.settings.SettingsUiState
 import org.openactivity.app.model.Sport
@@ -82,18 +78,6 @@ class ScreenScreenshotTest {
         WithBottomBar(TopLevelDestination.Feed) {
             FeedContent(FeedUiState(scope = FeedScope.Following, isLoading = true), {}, ActivityCardActions(), {}, {}, {}, {})
         }
-    }
-
-    @Test fun recordAcquiringLight() = snap("record_acquiring_light", dark = false) {
-        RecordContent(RecordUiState(sport = Sport.Run, gps = GpsState.Acquiring(38f), showSlowFixHint = true), RecordActions())
-    }
-
-    @Test fun recordReadyDark() = snap("record_ready_dark", dark = true) {
-        RecordContent(RecordUiState(sport = Sport.Ride, gps = GpsState.Ready(8f), autoPause = true), RecordActions())
-    }
-
-    @Test fun recordIndoorLight() = snap("record_indoor_light", dark = false) {
-        RecordContent(RecordUiState(sport = Sport.WeightTraining, gps = GpsState.Indoor), RecordActions())
     }
 
     @Test fun meProgressLight() = snap("me_progress_light", dark = false) { WithBottomBar(TopLevelDestination.Me) { Me(MeTab.Progress) } }
