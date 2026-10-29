@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# StravaFit self-host stack:
+#   * the official Supabase self-host stack (vendored into ./supabase by
+#     scripts/fetch-supabase.sh at a pinned commit), included unchanged;
+#   * `migrate`   one-shot job applying backend/supabase/migrations;
+#   * `worker`    Kotlin worker for heavy jobs (ADR-008) — placeholder image,
+#                 enabled with `--profile worker` once it is published;
+#   * `tiles`     static PMTiles server for self-hosted OSM base maps (ADR-012);
+#   * `caddy`     TLS termination and the single public entry point.
+#
+# Requires Docker Compose v2.20+ (for `include`). See README.md.
+
+include:
+  - path: ./supabase/docker-compose.yml
+    env_file: ./.env
+
+services:
+  migrate:
+    image: postgres:16-alpine
+    restart: "no"
+    profiles: ["migrate"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGPORT: ${POSTGRES_PORT:-5432}
+      PGDATABASE: ${POSTGRES_DB:-postgres}
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - ../../backend/supabase/migrations:/migrations:ro
+      - ../../backend/supabase/seed.sql:/seed.sql:ro
+      - ./scripts/migrate.sh:/migrate.sh:ro
+    entrypoint: ["/bin/sh", "/migrate.sh"]
+
+  worker:
+    image: ${WORKER_IMAGE:-ghcr.io/warpirate/stravafit-worker:edge}
+    restart: unless-stopped
+    # Not published yet: opt in with `docker compose --profile worker up -d`.
+    profiles: ["worker"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Direct Postgres connection (job queue + worker RPCs in schema `private`).
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}
+      # Storage access through the API gateway with the service role key.
+      SUPABASE_URL: http://api-gw:8000
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-2}
+      WORKER_QUEUES: ingest,post_process,privacy_reprocess,media,cleanup
+
+  tiles:
+    image: ${PMTILES_IMAGE:-protomaps/go-pmtiles:v1.28.0}
+    restart: unless-stopped
+    command: ["serve", "/data", "--port=8080", "--cors=*", "--public-url=${PUBLIC_URL}/tiles"]
+    volumes:
+      - ${TILES_DIR:-./volumes/tiles}:/data:ro
+
+  caddy:
+    image: ${CADDY_IMAGE:-caddy:2.8.4-alpine}
+    restart: unless-stopped
+    depends_on:
+      - api-gw
+      - tiles
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  caddy-data:
+  caddy-config:

@@ -1,0 +1,7 @@
+# Vendored by scripts/fetch-supabase.sh
+/supabase/
+# Secrets
+/.env
+/.env.old
+# Runtime data (tiles, etc.)
+/volumes/
