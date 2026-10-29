@@ -17,6 +17,10 @@ import org.openactivity.feature.record.data.RecordDataStore
 import org.openactivity.feature.record.data.RecordPreferencesRepository
 import org.openactivity.feature.record.location.DevicePreStartLocation
 import org.openactivity.feature.record.location.PreStartLocation
+import org.openactivity.feature.record.system.BatteryOptimization
+import org.openactivity.feature.record.system.CueSpeakerAvailability
+import org.openactivity.feature.record.system.SpeechAvailability
+import org.openactivity.feature.record.system.SystemBatteryOptimization
 import javax.inject.Singleton
 
 /** Bindings of the Record feature. */
@@ -28,6 +32,12 @@ abstract class RecordModule {
 
     @Binds
     abstract fun preStartLocation(impl: DevicePreStartLocation): PreStartLocation
+
+    @Binds
+    abstract fun batteryOptimization(impl: SystemBatteryOptimization): BatteryOptimization
+
+    @Binds
+    abstract fun speechAvailability(impl: CueSpeakerAvailability): SpeechAvailability
 
     companion object {
         private const val FILE_NAME = "record_preferences"

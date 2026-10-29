@@ -3,6 +3,10 @@
 
 package org.openactivity.feature.record
 
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewmodel.CreationExtras
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -28,6 +32,7 @@ import org.openactivity.core.location.GpsState
 import org.openactivity.core.location.GpsStatus
 import org.openactivity.core.map.MapLocation
 import org.openactivity.core.recordingservice.InterruptedRecording
+import org.openactivity.core.recordingservice.audio.SpeechStatus
 import org.openactivity.feature.record.data.PaceMode
 import org.openactivity.feature.record.data.RecordPreferences
 import org.openactivity.feature.record.location.PreStartFix
@@ -43,13 +48,18 @@ class RecordViewModelTest {
     private val prefs = FakeRecordPreferences()
     private val routes = FakeRouteRepository(listOf(testRoute()))
     private val location = FakePreStartLocation()
+    private val battery = FakeBatteryOptimization()
+    private val speech = FakeSpeechAvailability()
+
+    private fun TestScope.newViewModel() =
+        RecordViewModel(controller, settings, routes, prefs, location, battery, speech, backgroundScope)
 
     @Before fun setUp() = Dispatchers.setMain(dispatcher)
 
     @After fun tearDown() = Dispatchers.resetMain()
 
     private fun TestScope.viewModel(): RecordViewModel {
-        val vm = RecordViewModel(controller, settings, routes, prefs, location)
+        val vm = newViewModel()
         backgroundScope.launch(dispatcher) { vm.uiState.collect {} }
         runCurrent()
         return vm
@@ -227,6 +237,106 @@ class RecordViewModelTest {
         assertNull(vm.uiState.value.recording)
     }
 
+    @Test fun discardCanBeUndoneWithinTheWindow() = runTest(dispatcher) {
+        controller.stateFlow.value = recordingSnapshot(status = RecordingStatus.PAUSED)
+        val vm = viewModel()
+        val events = events(vm)
+        vm.requestDiscard()
+        vm.confirmDiscard()
+        runCurrent()
+        assertNull("hidden at once", vm.uiState.value.recording)
+        assertEquals(RecordPhase.PreStart, vm.uiState.value.phase)
+        assertEquals(listOf<RecordEvent>(RecordEvent.Discarded), events)
+        advanceTimeBy(RecordViewModel.UNDO_WINDOW_MS - 1)
+        assertTrue("not deleted during the undo window", controller.calls.isEmpty())
+        vm.undoDiscard()
+        advanceUntilIdle()
+        assertTrue("never deleted", controller.calls.isEmpty())
+        assertTrue(vm.uiState.value.recording!!.isPaused)
+    }
+
+    @Test fun discardIsCommittedWhenTheWindowCloses() = runTest(dispatcher) {
+        controller.stateFlow.value = recordingSnapshot(status = RecordingStatus.PAUSED)
+        val vm = viewModel()
+        vm.confirmDiscard()
+        advanceTimeBy(RecordViewModel.UNDO_WINDOW_MS + 1)
+        runCurrent()
+        assertEquals(listOf("discard"), controller.calls)
+        vm.undoDiscard()
+        runCurrent()
+        assertNull("too late to undo", vm.uiState.value.recording)
+    }
+
+    @Test fun startingAgainCommitsAPendingDiscardFirst() = runTest(dispatcher) {
+        controller.stateFlow.value = recordingSnapshot(status = RecordingStatus.PAUSED)
+        val vm = viewModel()
+        vm.confirmDiscard()
+        runCurrent()
+        vm.start()
+        runCurrent()
+        assertEquals(listOf("discard", "start"), controller.calls)
+        assertNotNull(vm.uiState.value.recording)
+    }
+
+    @Test fun closingTheScreenCommitsAPendingDiscardAtOnce() = runTest(dispatcher) {
+        controller.stateFlow.value = recordingSnapshot(status = RecordingStatus.PAUSED)
+        val store = ViewModelStore()
+        val factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T = newViewModel() as T
+        }
+        val vm = ViewModelProvider(store, factory)[RecordViewModel::class.java]
+        vm.confirmDiscard()
+        runCurrent()
+        assertTrue(controller.calls.isEmpty())
+        store.clear()
+        runCurrent()
+        // A later Record screen must not show a recording that a stale timer deletes seconds afterwards.
+        assertEquals(listOf("discard"), controller.calls)
+        advanceUntilIdle()
+        assertEquals("deleted once", listOf("discard"), controller.calls)
+    }
+
+    @Test fun batteryPromptShowsUntilExemptOrDismissed() = runTest(dispatcher) {
+        battery.exempt = false
+        val vm = viewModel()
+        vm.refreshBatteryExemption()
+        runCurrent()
+        assertTrue(vm.uiState.value.showBatteryPrompt)
+        battery.exempt = true
+        vm.refreshBatteryExemption()
+        runCurrent()
+        assertFalse("granted: never asked again", vm.uiState.value.showBatteryPrompt)
+        battery.exempt = false
+        vm.refreshBatteryExemption()
+        vm.dismissBatteryPrompt()
+        advanceUntilIdle()
+        assertFalse("dismissed for good", vm.uiState.value.showBatteryPrompt)
+        assertTrue(prefs.state.value.batteryPromptDismissed)
+    }
+
+    @Test fun missingVoiceWarnsOnlyWhileCuesAreOn() = runTest(dispatcher) {
+        val vm = viewModel()
+        speech.status.value = SpeechStatus.LANGUAGE_MISSING
+        runCurrent()
+        assertTrue(vm.uiState.value.speechWarning)
+        vm.toggleAudioCues()
+        advanceUntilIdle()
+        assertFalse(vm.uiState.value.speechWarning)
+    }
+
+    @Test fun turningOnAutoPauseForAWalkExplainsTheCatch() = runTest(dispatcher) {
+        val vm = viewModel()
+        val events = events(vm)
+        vm.selectSport(SportType.WALK)
+        advanceUntilIdle()
+        vm.toggleAutoPause()
+        advanceUntilIdle()
+        runCurrent()
+        assertTrue(settings.state.value.autoPauseEnabled(SportType.WALK))
+        assertTrue(events.single() is RecordEvent.Message)
+    }
+
     @Test fun interruptedRecordingCanBeResumed() = runTest(dispatcher) {
         controller.interruptedFlow.value = InterruptedRecording(SportType.RUN, Instant.EPOCH, Instant.EPOCH)
         val vm = viewModel()
@@ -290,7 +400,7 @@ class RecordViewModelTest {
     }
 
     @Test fun startUsesTheChosenSportEvenWhenTheStateIsNotCollected() = runTest(dispatcher) {
-        val vm = RecordViewModel(controller, settings, routes, prefs, location)
+        val vm = newViewModel()
         vm.selectSport(SportType.WALK)
         vm.start()
         advanceUntilIdle()

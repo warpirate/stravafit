@@ -76,6 +76,12 @@ internal fun RecordSettingsSheet(state: RecordUiState, actions: RecordActions, o
                 checked = state.audioCues,
                 onToggle = actions.onToggleAudioCues,
             )
+            if (state.speechWarning) {
+                RecordBanner(
+                    stringResource(R.string.record_speech_missing),
+                    Modifier.fillMaxWidth().padding(horizontal = Spacing.gutter),
+                )
+            }
             SwitchRow(
                 title = stringResource(R.string.record_countdown_title),
                 body = stringResource(R.string.record_countdown_body),
@@ -88,6 +94,25 @@ internal fun RecordSettingsSheet(state: RecordUiState, actions: RecordActions, o
                 checked = state.keepScreenOn,
                 onToggle = { actions.onSetKeepScreenOn(!state.keepScreenOn) },
             )
+            if (state.sport.usesGps) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = Spacing.listRowMin)
+                        .clickable(onClick = actions.onAllowBackground)
+                        .padding(horizontal = Spacing.gutter, vertical = Spacing.m),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.record_battery_title), style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            stringResource(R.string.record_battery_settings_body),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = RidgelineTheme.colors.textSecondary,
+                        )
+                    }
+                }
+            }
         }
     }
 }

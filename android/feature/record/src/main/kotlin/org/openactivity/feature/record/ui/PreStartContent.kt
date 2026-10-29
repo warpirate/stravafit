@@ -77,6 +77,10 @@ internal fun PreStartContent(state: RecordUiState, actions: RecordActions, mapSt
                     RecenterButton(mapState, Modifier.align(Alignment.End))
                     Spacer(Modifier.height(Spacing.s))
                 }
+                if (state.showBatteryPrompt) {
+                    BatteryPrompt(actions.onAllowBackground, actions.onDismissBatteryPrompt, Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(Spacing.s))
+                }
                 GpsStatusPill(state.gps, onFix = actions.onFixLocation)
                 if (state.showSlowFixHint && state.gps.indicator == GpsIndicator.Acquiring) {
                     Spacer(Modifier.height(Spacing.s))

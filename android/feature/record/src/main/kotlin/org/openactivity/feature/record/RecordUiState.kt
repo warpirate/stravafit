@@ -116,6 +116,8 @@ data class RecordingUi(
  * @property routes saved routes for the picker; null until loaded.
  * @property recording non-null while a recording is running or paused.
  * @property interrupted a recording found in the journal after the app process died.
+ * @property showBatteryPrompt offer the battery optimisation exemption (record detail 1.4).
+ * @property speechWarning audio cues are on but the phone cannot speak them (record detail 7.5).
  */
 @Immutable
 data class RecordUiState(
@@ -136,6 +138,8 @@ data class RecordUiState(
     val sheet: RecordSheet = RecordSheet.None,
     val recording: RecordingUi? = null,
     val interrupted: InterruptedRecording? = null,
+    val showBatteryPrompt: Boolean = false,
+    val speechWarning: Boolean = false,
 ) {
     /** Start works before a fix (the track fills in once GPS locks); only the ring style changes. */
     val startButtonState: RecordButtonState
@@ -153,6 +157,9 @@ data class RecordUiState(
 sealed interface RecordEvent {
     /** The activity was saved; open it (the save screen). */
     data class ActivitySaved(val activityId: Long) : RecordEvent
+
+    /** The recording was discarded and can be brought back for a few seconds (record detail 4.4). */
+    data object Discarded : RecordEvent
 
     /** A short message, e.g. a lap summary or an error. */
     data class Message(val text: String) : RecordEvent

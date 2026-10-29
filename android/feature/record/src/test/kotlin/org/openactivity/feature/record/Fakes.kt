@@ -29,6 +29,9 @@ import org.openactivity.feature.record.data.RecordPreferences
 import org.openactivity.feature.record.data.RecordPreferencesRepository
 import org.openactivity.feature.record.location.PreStartFix
 import org.openactivity.feature.record.location.PreStartLocation
+import org.openactivity.feature.record.system.BatteryOptimization
+import org.openactivity.feature.record.system.SpeechAvailability
+import org.openactivity.core.recordingservice.audio.SpeechStatus
 import org.openactivity.geo.BoundingBox
 import org.openactivity.model.Distance
 import org.openactivity.model.Lap
@@ -148,6 +151,8 @@ class FakeRecordPreferences(initial: RecordPreferences = RecordPreferences()) : 
 
     override suspend fun setPaceMode(mode: PaceMode) = state.update { it.copy(paceMode = mode) }
 
+    override suspend fun dismissBatteryPrompt() = state.update { it.copy(batteryPromptDismissed = true) }
+
     override suspend fun addRecentSport(sport: SportType) =
         state.update { it.copy(recentSports = (listOf(sport) + it.recentSports).distinct().take(RecordPreferences.MAX_RECENT)) }
 }
@@ -177,6 +182,16 @@ class FakePreStartLocation : PreStartLocation {
     override fun fixes(): Flow<PreStartFix> = fixes
         .onStart { subscribers++ }
         .onCompletion { subscribers-- }
+}
+
+/** Battery optimisation exemption driven by the test. */
+class FakeBatteryOptimization(var exempt: Boolean = true) : BatteryOptimization {
+    override fun isExempt(): Boolean = exempt
+}
+
+/** Speech engine status driven by the test. */
+class FakeSpeechAvailability : SpeechAvailability {
+    override val status = MutableStateFlow(SpeechStatus.NOT_STARTED)
 }
 
 /** A route with two points. */

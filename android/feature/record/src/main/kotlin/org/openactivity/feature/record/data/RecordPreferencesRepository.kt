@@ -23,6 +23,9 @@ interface RecordPreferencesRepository {
 
     suspend fun setPaceMode(mode: PaceMode)
 
+    /** Stops offering the battery optimisation exemption on the Record screen. */
+    suspend fun dismissBatteryPrompt()
+
     /** Moves [sport] to the front of the recent list. */
     suspend fun addRecentSport(sport: SportType)
 }
@@ -39,6 +42,7 @@ class DataStoreRecordPreferencesRepository @Inject constructor(
             keepScreenOn = p[KEEP_SCREEN_ON] ?: false,
             recentSports = p[RECENT].orEmpty().split(SEPARATOR).mapNotNull(SportType::fromApiName),
             paceMode = p[PACE_MODE]?.let { name -> PaceMode.entries.firstOrNull { it.name == name } } ?: PaceMode.SPLIT,
+            batteryPromptDismissed = p[BATTERY_DISMISSED] ?: false,
         )
     }
 
@@ -54,6 +58,10 @@ class DataStoreRecordPreferencesRepository @Inject constructor(
         store.edit { it[PACE_MODE] = mode.name }
     }
 
+    override suspend fun dismissBatteryPrompt() {
+        store.edit { it[BATTERY_DISMISSED] = true }
+    }
+
     override suspend fun addRecentSport(sport: SportType) {
         store.edit { p ->
             val current = p[RECENT].orEmpty().split(SEPARATOR).mapNotNull(SportType::fromApiName)
@@ -66,6 +74,7 @@ class DataStoreRecordPreferencesRepository @Inject constructor(
         private val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         private val RECENT = stringPreferencesKey("recent_sports")
         private val PACE_MODE = stringPreferencesKey("pace_mode")
+        private val BATTERY_DISMISSED = booleanPreferencesKey("battery_prompt_dismissed")
         private const val SEPARATOR = ","
 
         /** [sport] first, then the others in order, without duplicates, capped at [RecordPreferences.MAX_RECENT]. */
