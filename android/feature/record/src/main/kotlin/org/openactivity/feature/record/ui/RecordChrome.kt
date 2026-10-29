@@ -201,7 +201,7 @@ internal fun BatteryPrompt(onAllow: () -> Unit, onDismiss: () -> Unit, modifier:
             )
             Spacer(Modifier.width(Spacing.s))
             Column(Modifier.weight(1f).padding(vertical = Spacing.s)) {
-                Text(stringResource(R.string.record_battery_title), style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                Text(stringResource(R.string.record_battery_title), style = MaterialTheme.typography.labelLarge, maxLines = 2)
                 Text(
                     stringResource(R.string.record_battery_body),
                     style = RidgelineTheme.text.caption,

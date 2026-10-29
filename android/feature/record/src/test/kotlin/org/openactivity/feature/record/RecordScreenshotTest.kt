@@ -107,6 +107,17 @@ class RecordScreenshotTest {
         RecordContent(recording(RecordingStatus.AUTO_PAUSED), RecordActions())
     }
 
+    @Test fun waitingForGps() = snap("record_prestart_waiting_gps_light", dark = false) {
+        RecordContent(preStart.copy(phase = RecordPhase.WaitingForGps, gps = GpsUi(GpsIndicator.Acquiring)), RecordActions())
+    }
+
+    // Landscape: the panel sits beside the map instead of squeezing it into a strip.
+    @Config(sdk = [34], qualifiers = "w891dp-h411dp-xxhdpi")
+    @Test fun recordingLandscape() = snap("record_recording_landscape_light", dark = false) { RecordContent(recording(), RecordActions()) }
+
+    @Config(sdk = [34], qualifiers = "w891dp-h411dp-xxhdpi")
+    @Test fun preStartLandscape() = snap("record_prestart_landscape_dark", dark = true) { RecordContent(preStart, RecordActions()) }
+
     private fun snap(name: String, dark: Boolean, content: @Composable () -> Unit) {
         compose.setContent {
             CompositionLocalProvider(LocalInspectionMode provides true) {

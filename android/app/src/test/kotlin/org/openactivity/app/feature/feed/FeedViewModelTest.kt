@@ -66,7 +66,7 @@ class FeedViewModelTest {
         assertEquals(listOf(2L, 1L), cards.map { it.id })
         val first = cards.first()
         assertEquals("Asha Rao", first.athleteName)
-        assertEquals("10 min ago · Pune", first.meta)
+        assertEquals("Today at 14:50 · Pune", first.meta)
         assertEquals("Only you", first.visibilityLabel)
         assertEquals(listOf("8.02", "5:12", "41:40"), first.stats.map { it.value })
         assertNotNull(first.route)
