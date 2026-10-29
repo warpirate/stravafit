@@ -23,6 +23,9 @@ typealias RecordRoute = org.openactivity.feature.record.navigation.RecordDestina
 /** Saved route detail (maps-routes): map, elevation profile, record/export/delete. */
 @Serializable data class RouteDetailRoute(val routeId: Long)
 
+/** A suggested loop near the athlete (route suggestions): map, profile, save/record/export. */
+@Serializable data class SuggestedRouteRoute(val suggestionId: String)
+
 /** Edit the local profile: name, location, photo. */
 @Serializable data object EditProfileRoute
 

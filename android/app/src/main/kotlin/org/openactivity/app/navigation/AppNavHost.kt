@@ -17,6 +17,7 @@ import org.openactivity.app.feature.groups.GroupsScreen
 import org.openactivity.app.feature.me.MeScreen
 import org.openactivity.app.feature.profile.EditProfileScreen
 import org.openactivity.app.feature.route.RouteDetailScreen
+import org.openactivity.app.feature.route.SuggestedRouteScreen
 import org.openactivity.app.feature.settings.LicensesScreen
 import org.openactivity.app.feature.settings.SettingsScreen
 import org.openactivity.core.designsystem.theme.RidgelineTheme
@@ -40,7 +41,7 @@ import org.openactivity.feature.shareexport.shareExportScreen
 /**
  * The app navigation graph. Every destination is registered exactly once: the four tabs (feed,
  * explore, groups, me), record, settings, save/edit, activity detail, share & export, route detail,
- * file import, edit profile and licences. First-run onboarding is shown by `MainActivity` before
+ * suggested route, file import, edit profile and licences. First-run onboarding is shown by `MainActivity` before
  * this graph exists.
  */
 @Composable
@@ -48,6 +49,7 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
     val motion = RidgelineTheme.motion
     val exportProvider = rememberExportActivityProvider()
     val openActivity: (Long) -> Unit = { id -> navController.navigateToActivityDetail(id) }
+    val openSuggestion: (String) -> Unit = { id -> navController.navigate(SuggestedRouteRoute(id)) { launchSingleTop = true } }
     NavHost(
         navController = navController,
         startDestination = FeedRoute,
@@ -60,10 +62,14 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
                 onRecord = { navController.openRecorder() },
                 onOpenActivity = openActivity,
                 onShareActivity = { id -> navController.navigateToShareExport(id.toString()) },
+                onOpenSuggestion = openSuggestion,
             )
         }
         composable<ExploreRoute> {
-            ExploreScreen(onOpenRoute = { id -> navController.navigate(RouteDetailRoute(id)) { launchSingleTop = true } })
+            ExploreScreen(
+                onOpenRoute = { id -> navController.navigate(RouteDetailRoute(id)) { launchSingleTop = true } },
+                onOpenSuggestion = openSuggestion,
+            )
         }
         composable<GroupsRoute> {
             GroupsScreen(onShowYourActivities = { navController.switchTab(FeedRoute) })
@@ -103,6 +109,12 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
         }
         composable<RouteDetailRoute> {
             RouteDetailScreen(
+                onNavigateUp = dropUnlessResumed { navController.popBackStack() },
+                onRecordRoute = { routeId -> navController.openRecorder(routeId) },
+            )
+        }
+        composable<SuggestedRouteRoute> {
+            SuggestedRouteScreen(
                 onNavigateUp = dropUnlessResumed { navController.popBackStack() },
                 onRecordRoute = { routeId -> navController.openRecorder(routeId) },
             )

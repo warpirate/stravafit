@@ -50,6 +50,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.openactivity.app.ui.LocalMessenger
 import org.openactivity.app.ui.RecordingStatusViewModel
+import org.openactivity.app.feature.suggest.RouteSuggestionsViewModel
+import org.openactivity.app.feature.suggest.SuggestedRoutesSection
+import org.openactivity.app.feature.suggest.SuggestionActions
+import org.openactivity.app.feature.suggest.SuggestionsStatus
+import org.openactivity.app.feature.suggest.SuggestionsUiState
+import org.openactivity.app.feature.suggest.rememberSuggestionActions
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -73,8 +80,12 @@ fun FeedScreen(
     onRecord: () -> Unit,
     onOpenActivity: (Long) -> Unit,
     onShareActivity: (Long) -> Unit = {},
+    onOpenSuggestion: (String) -> Unit = {},
     viewModel: FeedViewModel = hiltViewModel(),
+    suggestionsViewModel: RouteSuggestionsViewModel = hiltViewModel(),
 ) {
+    val suggestions by suggestionsViewModel.uiState.collectAsStateWithLifecycle()
+    val suggestionActions = rememberSuggestionActions(suggestionsViewModel, onOpenSuggestion)
     val feed by viewModel.uiState.collectAsStateWithLifecycle()
     val recordingStatus: RecordingStatusViewModel = hiltViewModel()
     val recording by recordingStatus.active.collectAsStateWithLifecycle()
@@ -101,6 +112,8 @@ fun FeedScreen(
                 messenger.show(SERVER_NEEDED)
             },
         ),
+        suggestions = suggestions,
+        suggestionActions = suggestionActions,
     )
 }
 
@@ -119,12 +132,19 @@ data class FeedActions(
 
 /**
  * Stateless Home screen (strava direction): "Home" with the "Following ▾" feed switcher and search,
- * messages and notifications on the right over a hairline; then edge-to-edge activity cards separated by
- * the grey `gap` band.
+ * messages and notifications on the right over a hairline; then "Suggested routes near you" (when
+ * [suggestions] is given) and edge-to-edge activity cards separated by the grey `gap` band. Pulling down
+ * routes new suggestions.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FeedContent(state: FeedUiState, actions: FeedActions, modifier: Modifier = Modifier) {
+fun FeedContent(
+    state: FeedUiState,
+    actions: FeedActions,
+    modifier: Modifier = Modifier,
+    suggestions: SuggestionsUiState? = null,
+    suggestionActions: SuggestionActions = SuggestionActions(),
+) {
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     var pendingDelete by rememberSaveable { mutableStateOf<Long?>(null) }
     Scaffold(
@@ -143,7 +163,12 @@ fun FeedContent(state: FeedUiState, actions: FeedActions, modifier: Modifier = M
             }
         },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+        PullToRefreshBox(
+            isRefreshing = suggestions?.isRefreshing == true && suggestions.cards.isNotEmpty(),
+            onRefresh = suggestionActions.onRefresh,
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentAlignment = Alignment.TopCenter,
+        ) {
             LazyColumn(
                 modifier = Modifier.widthIn(max = Spacing.feedMaxWidth).fillMaxWidth(),
                 contentPadding = PaddingValues(bottom = Spacing.l),
@@ -151,6 +176,9 @@ fun FeedContent(state: FeedUiState, actions: FeedActions, modifier: Modifier = M
             ) {
                 if (state.sports.isNotEmpty()) {
                     item(key = "sports") { SportFilter(state.sports, state.sportFilter, actions.onSelectSport) }
+                }
+                if (suggestions != null && suggestions.status != SuggestionsStatus.Disabled) {
+                    item(key = "suggestions") { SuggestedRoutesSection(suggestions, suggestionActions) }
                 }
                 when {
                     state.isLoading -> items(SKELETON_COUNT) { ActivityCardSkeleton(Modifier.background(MaterialTheme.colorScheme.surface)) }
