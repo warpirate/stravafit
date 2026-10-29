@@ -56,5 +56,11 @@ SPDX-License-Identifier = "AGPL-3.0-or-later"
 [[annotations]]
 path = ["android/core/designsystem/src/main/res/font/**"]
 precedence = "override"
-SPDX-FileCopyrightText = ["2018 The Manrope Project Authors", "2017 The Barlow Project Authors"]
+SPDX-FileCopyrightText = ["2018 The Manrope Project Authors", "2017 The Barlow Project Authors", "2022 The Figtree Project Authors"]
+SPDX-License-Identifier = "OFL-1.1"
+
+[[annotations]]
+path = ["docs/design-directions/strava/compose/res/font/**", "docs/design-directions/strava/compose/assets/licenses/**", "android/core/designsystem/src/main/assets/licenses/OFL-Figtree.txt"]
+precedence = "override"
+SPDX-FileCopyrightText = "2022 The Figtree Project Authors"
 SPDX-License-Identifier = "OFL-1.1"

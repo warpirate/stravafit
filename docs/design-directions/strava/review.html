@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>StravaFit Strava Review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEEEF0;--surface:#FFFFFF;--text:#242428;--text-2:#45454E;--muted:#6D6D78;--hair:#E5E5EA;
+  --accent:#FC5200;--accent-text:#CC3D00;--frame-ring:rgba(0,0,0,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#000000;--surface:#1C1C1F;--text:#F2F2F4;--text-2:#D2D2D8;--muted:#A3A3AD;--hair:#2E2E34;
+    --accent-text:#FF6A2B;--frame-ring:#2E2E34;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#000000;--surface:#1C1C1F;--text:#F2F2F4;--text-2:#D2D2D8;--muted:#A3A3AD;--hair:#2E2E34;
+  --accent-text:#FF6A2B;--frame-ring:#2E2E34;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:Figtree,system-ui,sans-serif;font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.num{font-feature-settings:"tnum" 1;font-variant-numeric:tabular-nums}
+header{background:var(--surface);border-bottom:1px solid var(--hair);padding:20px 16px 18px}
+.wrap{max-width:1240px;margin:0 auto}
+h1{font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+header p{color:var(--text-2);margin-top:6px;max-width:68ch}
+.tog{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+.tog button{font:600 14px Figtree,sans-serif;height:34px;padding:0 14px;border-radius:999px;border:1px solid var(--hair);background:var(--surface);color:var(--text);cursor:pointer}
+.tog button[aria-pressed="true"]{background:var(--text);color:var(--surface);border-color:var(--text)}
+section{background:var(--surface);margin-top:8px;padding:20px 16px}
+h2{font-size:19px;font-weight:700;letter-spacing:-.2px;line-height:1.25}
+.sub{color:var(--muted);font-size:13px;margin-top:2px}
+.row{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding:14px 0 6px;-webkit-overflow-scrolling:touch}
+.row.dark-row{background:#000;margin:12px -16px 0;padding:14px 16px 10px;scroll-padding-inline:16px}
+.row.dark-row figcaption{color:#F2F2F4}
+.row.dark-row figcaption span{color:#A3A3AD}
+figure{flex:none;width:clamp(200px,62vw,240px);scroll-snap-align:start}
+figure a{display:block;border-radius:18px;overflow:hidden;box-shadow:0 0 0 1px var(--frame-ring),0 6px 18px rgba(0,0,0,.12)}
+.dark-row figure a{box-shadow:0 0 0 1px #2E2E34}
+figure img{display:block;width:100%;height:auto;aspect-ratio:390/844;background:#888}
+figcaption{font-size:14px;font-weight:600;margin-top:8px}
+figcaption span{display:block;font-size:12px;font-weight:500;color:var(--muted)}
+.lbl{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:14px}
+.dark-row + .lbl{margin-top:14px}
+.pal{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:12px}
+.sw{border:1px solid var(--hair);border-radius:8px;overflow:hidden;background:var(--surface)}
+.sw i{display:block;height:44px;border-bottom:1px solid var(--hair)}
+.sw div{padding:6px 8px 8px;font-size:12px;line-height:1.3}
+.sw b{display:block;font-size:13px;font-weight:700}
+.sw code{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:var(--text-2)}
+.cols{display:grid;grid-template-columns:1fr;gap:20px;margin-top:4px}
+@media (min-width:860px){.cols{grid-template-columns:1fr 1fr}}
+.type{margin-top:12px;border-top:1px solid var(--hair)}
+.type>div{display:flex;align-items:baseline;gap:12px;padding:10px 0;border-bottom:1px solid var(--hair);overflow:hidden}
+.type .meta{flex:none;width:118px;font-size:12px;color:var(--muted);line-height:1.3}
+.type .meta b{display:block;color:var(--text);font-weight:700;font-size:13px}
+.type .s{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.unit{font-size:.65em;font-weight:600;letter-spacing:0;margin-left:2px}
+ul.notes{margin:10px 0 0 18px;color:var(--text-2)}
+ul.notes li{margin:4px 0}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.chips span{font-size:13px;font-weight:600;border:1px solid var(--hair);border-radius:999px;padding:5px 12px;color:var(--text-2)}
+a.l{color:var(--accent-text);font-weight:600;text-decoration:none}
+footer{padding:20px 16px 40px;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>StravaFit, “strava” direction</h1>
+  <p>Final design (ADR-014): the look and feel of the Strava Android app in our own drawing. Orange <span class="num">#FC5200</span>, Figtree, flat edge-to-edge cards, shadows only over maps. Every icon, avatar and map is ours, and the social action is High-five. Shipped through GitHub releases.</p>
+  <div class="tog" role="group" aria-label="Page theme">
+    <button data-t="auto" aria-pressed="true">Follow device</button>
+    <button data-t="light" aria-pressed="false">Light page</button>
+    <button data-t="dark" aria-pressed="false">Dark page</button>
+  </div>
+</div></header>
+
+<main class="wrap">
+<section>
+  <h2>Screens</h2>
+  <p class="sub">7 screens, each in light and dark (14 frames, 390×844, rendered at 2×). Swipe the rows sideways. Tap a frame to open its live HTML.</p>
+  <p class="lbl">Light</p>
+  <div class="row" id="light"></div>
+  <p class="lbl">Dark</p>
+  <div class="row dark-row" id="dark"></div>
+</section>
+
+<section>
+  <h2>Palette</h2>
+  <div class="cols">
+    <div><p class="lbl">Light</p><div class="pal" id="pl"></div></div>
+    <div><p class="lbl">Dark</p><div class="pal" id="pd"></div></div>
+  </div>
+  <p class="lbl">Map</p>
+  <div class="pal" id="pm"></div>
+</section>
+
+<section>
+  <h2>Type: Figtree</h2>
+  <p class="sub">SIL OFL 1.1, weights 400 / 500 / 600 / 700 / 800. Every number uses tabular figures (<code>tnum</code>), and units sit at 65% of the value size in weight 600.</p>
+  <div class="chips"><span style="font-weight:400">Regular 400</span><span style="font-weight:500">Medium 500</span><span style="font-weight:600">SemiBold 600</span><span style="font-weight:700">Bold 700</span><span style="font-weight:800">ExtraBold 800</span></div>
+  <div class="type" id="type"></div>
+</section>
+
+<section>
+  <h2>Shape, space, elevation</h2>
+  <ul class="notes">
+    <li>4pt grid: 4, 8, 12, 16, 20, 24, 32. The screen gutter is 16. Feed cards run edge to edge with an 8px <code>gap</code> band between them.</li>
+    <li>Radii: 0 for cards, maps and photos; 4 for buttons and inputs; 8 for thumbnails; 16 for the tops of sheets and panels; full for avatars, chips, round buttons and Record.</li>
+    <li>Heights: status bar 30, top bar 52, bottom nav 60 plus a 20 gesture area, action row 48, touch targets at least 44.</li>
+    <li>Surfaces are flat. Only chips, round buttons, the search pill and sheets over a map get a shadow. Start, Stop and Finish get only a 1px neutral shadow, never a glow.</li>
+    <li>Small orange text always uses <code>accent-text</code>. White on <span class="num">#FC5200</span> appears only as an icon or a label of at least 19px/800.</li>
+  </ul>
+  <p style="margin-top:12px">Files: <a class="l" href="tokens.json">tokens.json</a> · <a class="l" href="compose/Theme.kt">compose/</a> · <a class="l" href="README.md">README.md</a> · <a class="l" href="telegram-light.png">telegram-light.png</a> · <a class="l" href="telegram-dark.png">telegram-dark.png</a></p>
+</section>
+</main>
+<footer class="wrap">StravaFit · design direction “strava” · ADR-014</footer>
+
+<script>
+const screens=[["home","Home feed","Following"],["maps","Maps","Heatmap, suggested routes"],["record","Record","Before start"],["record-live","Recording","Live stats over map"],["record-paused","Paused","Resume / Finish"],["activity","Activity detail","Splits, pace chart"],["you","You","Progress"]];
+for(const t of ["light","dark"]){
+  const row=document.getElementById(t);
+  row.innerHTML=screens.map(([f,n,s])=>`<figure><a href="${f}-${t}.html" aria-label="${n}, ${t}"><img loading="lazy" src="${f}-${t}.png" alt="${n} screen, ${t} theme" width="390" height="844"></a><figcaption>${n}<span>${s}</span></figcaption></figure>`).join("");
+}
+const L=[["bg / surface","#FFFFFF","Screen, cards, nav"],["gap","#EEEEF0","Band between cards"],["surface-2","#F5F5F7","Sunken wells"],["text","#242428","Titles, values"],["text-2","#45454E","Body"],["muted","#6D6D78","Labels, meta"],["hair","#E5E5EA","Dividers"],["hair-strong","#CBCBD3","Outlines"],["accent","#FC5200","Fills, route, Record"],["accent-press","#E04A00","Pressed"],["accent-text","#CC3D00","Small orange text"],["paused","#C43B00","Paused strip"],["ok","#16884A","GPS ready"],["hr","#E0245E","Heart rate"],["loc","#2F74F0","Location"],["chart-line","#3C78D8","Pace line"],["chart-elev","#E3E3E8","Elevation"],["bar","#C3CCD8","Split bars"],["gold","#D6A01E","Medal 1"],["silver","#9DA5AF","Medal 2"],["bronze","#C98A55","Medal 3"]];
+const D=[["bg","#121214","Behind app bars"],["gap","#000000","Band between cards"],["surface","#1C1C1F","Cards, nav, sheets"],["surface-2","#242428","Wells"],["raised / float","#2A2A2F","Over maps, dialogs"],["sheet over map","#232327","Maps sheet"],["text","#F2F2F4","Titles, values"],["text-2","#D2D2D8","Body"],["muted","#A3A3AD","Labels, meta"],["hair","#2E2E34","Dividers"],["hair-strong","#43434B","Outlines"],["accent","#FC5200","Fills, route, Record"],["accent-text","#FF6A2B","Small orange text"],["paused","#C43B00","Paused strip"],["ok","#3CC47A","GPS ready"],["hr","#FF5C8A","Heart rate"],["loc","#4C8DFF","Location"],["chart-line","#6FA2F5","Pace line"],["chart-elev","#2C2C33","Elevation"],["bar","#424B59","Split bars"],["gold","#E7B43A","Medal 1"],["silver","#B4BBC4","Medal 2"]];
+const M=[["land","#F2F1EC","#1A1C20"],["built","#ECEAE3","#1D2025"],["park","#CFE5BF","#18291E"],["water","#A7D0EA","#11314A"],["road","#FFFFFF","#2B2F36"],["major-case","#C7C0B2","#262A30"],["arterial","#FCE7B0","#4B4535"],["rail","#B4B0A6","#454A53"],["label","#5A5B61","#A2A6B0"],["heat","#EE3F0A","#FF6A12"],["heat-core","#C42600","#FFC46B"],["route","#FC5200","#FC5200"]];
+const sw=(n,h,r)=>`<div class="sw"><i style="background:${h}"></i><div><b>${n}</b><code>${h}</code><br>${r}</div></div>`;
+document.getElementById("pl").innerHTML=L.map(a=>sw(...a)).join("");
+document.getElementById("pd").innerHTML=D.map(a=>sw(...a)).join("");
+document.getElementById("pm").innerHTML=M.map(([n,l,d])=>`<div class="sw"><i style="background:linear-gradient(90deg,${l} 50%,${d} 50%)"></i><div><b>${n}</b><code>${l} · ${d}</code></div></div>`).join("");
+const T=[["display","84/1.0 · 800","font:800 clamp(52px,16vw,84px)/1 Figtree;letter-spacing:-2.5px","44:18",1],["stat-xl","52/1.05 · 700","font:700 52px/1.05 Figtree;letter-spacing:-1px","8.27",1],["stat-l","26/1.15 · 700","font:700 26px/1.15 Figtree;letter-spacing:-.02em",'32.4<span class="unit">km</span>',1],["title-xl","22/1.2 · 800","font:800 22px/1.2 Figtree","Riverside half before the heat"],["top-bar","21/1.2 · 700","font:700 21px/1.2 Figtree;letter-spacing:-.2px","Home"],["stat-m","20/1.2 · 700","font:700 20px/1.2 Figtree;letter-spacing:-.02em",'5:28<span class="unit">/km</span>',1],["title-l","19/1.25 · 700","font:700 19px/1.25 Figtree;letter-spacing:-.2px","Suggested routes"],["title-m","15/1.25 · 700","font:700 15px/1.25 Figtree","Ananya Kulkarni"],["body","15/1.45 · 400","font:400 15px/1.45 Figtree","Legs felt fresh till 15k, then the humidity won."],["meta","13/1.35 · 400","font:400 13px/1.35 Figtree;color:var(--muted)","Today at 6:12 AM · Pune, Maharashtra"],["label","12/1.3 · 500","font:500 12px/1.3 Figtree;color:var(--muted)","Moving Time · Elev Gain · Avg Heart Rate"],["nav","11/1.2 · 600","font:600 11px/1.2 Figtree;letter-spacing:.1px","Home  Maps  Record  Groups  You"]];
+document.getElementById("type").innerHTML=T.map(([n,m,s,x,num])=>`<div><span class="meta"><b>${n}</b>${m}</span><span class="s${num?' num':''}" style="${s}">${x}</span></div>`).join("");
+const btns=document.querySelectorAll(".tog button");
+function setT(t){ if(t==="auto")document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme",t);
+  btns.forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.t===t))); try{localStorage.setItem("sf-review-theme",t)}catch(e){} }
+btns.forEach(b=>b.addEventListener("click",()=>setT(b.dataset.t)));
+try{const s=localStorage.getItem("sf-review-theme"); if(s)setT(s)}catch(e){}
+</script>
+</body>
+</html>

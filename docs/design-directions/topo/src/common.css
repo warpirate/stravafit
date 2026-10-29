@@ -1,0 +1,68 @@
+/* ===== Topo direction — shared tokens ===== */
+:root{
+  --paper:#F3EEE2;      /* app background, survey paper */
+  --paper-2:#E9E2D1;    /* inset / map margin / table zebra */
+  --paper-3:#DDD3BC;    /* pressed, dividers on paper-2 */
+  --rule:#CDBF9F;       /* hairline rules */
+  --ink:#1B1E19;        /* primary text */
+  --ink-2:#4B4F45;      /* secondary text (7.4:1 on paper) */
+  --ink-3:#6E6A5C;      /* tertiary / labels (4.9:1 on paper) */
+  --forest:#173527;     /* brand, chrome bars */
+  --forest-2:#24503A;   /* forest hover, chart secondary */
+  --moss:#7E9467;       /* park fill stroke, positive delta */
+  --signal:#F2C315;     /* hi-vis yellow: record, live, PR */
+  --route:#C2262E;      /* alpine red: routes, primary action on paper */
+  --route-ink:#9C1B23;  /* red text on paper (6.6:1) */
+  --contour:#B49A70;    /* contour lines */
+  --contour-idx:#9A7C4D;/* index contours */
+  --water:#AFCBCB;
+  --water-ink:#4C7F86;
+  --park:#CFD8B4;
+  --street:#FBF8F0;
+  --grid:#8FA9B5;       /* survey grid (blue) */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px;
+  --r0:0; --r1:2px; --r2:4px; --r-pill:999px;
+  --f-serif:'Newsreader', Georgia, serif;
+  --f-num:'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --f-ui:'Archivo', 'Helvetica Neue', sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#2A2C27}
+body{font-family:var(--f-ui);color:var(--ink);-webkit-font-smoothing:antialiased;
+  display:flex;gap:40px;padding:40px;align-items:flex-start}
+.phone{width:390px;height:844px;background:var(--paper);position:relative;overflow:hidden;flex:none;
+  display:flex;flex-direction:column}
+.phone .scroll{flex:1;overflow:hidden;position:relative}
+.cap{font-family:var(--f-num);font-weight:600;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.num{font-family:var(--f-num);font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.005em;line-height:.95}
+.u{font-family:var(--f-num);font-weight:500;font-size:.5em;color:var(--ink-3);letter-spacing:.02em;margin-left:2px}
+.serif{font-family:var(--f-serif)}
+.ital{font-family:var(--f-serif);font-style:italic}
+.coord{font-family:var(--f-num);font-weight:500;font-size:11px;letter-spacing:.08em;color:var(--ink-3);font-variant-numeric:tabular-nums}
+
+/* status bar */
+.sb{height:28px;display:flex;align-items:center;justify-content:space-between;padding:0 20px 0 22px;
+  font-family:var(--f-ui);font-weight:600;font-size:13px;flex:none;position:relative;z-index:5}
+.sb .ic{display:flex;gap:6px;align-items:center}
+.sb.dark{color:var(--paper)}
+/* gesture bar */
+.gn{height:20px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--forest)}
+.gn i{width:108px;height:4px;border-radius:2px;background:rgba(243,238,226,.7)}
+.gn.light{background:var(--paper)} .gn.light i{background:var(--ink)}
+
+/* bottom nav */
+.nav{height:64px;flex:none;background:var(--forest);display:grid;grid-template-columns:1fr 1fr 84px 1fr 1fr;
+  align-items:center;position:relative;color:#C9D2C3}
+.nav a{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;font-weight:500;letter-spacing:.02em}
+.nav a.on{color:var(--paper)}
+.nav a.on::after{content:"";width:18px;height:2px;background:var(--signal);margin-top:1px}
+.nav svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.rec{position:absolute;left:50%;top:-20px;transform:translateX(-50%);width:72px;height:72px}
+.rec .btn{position:absolute;inset:8px;border-radius:50%;background:var(--signal);display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 0 4px var(--forest)}
+.rec .btn b{width:18px;height:18px;border-radius:50%;background:var(--route);box-shadow:0 0 0 3px var(--forest)}
+.rec small{position:absolute;bottom:-11px;left:0;right:0;text-align:center;font:600 10px/1 var(--f-num);letter-spacing:.16em;color:var(--signal)}
+
+/* icon base */
+.i{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.hr{height:1px;background:var(--rule)}

@@ -8,7 +8,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.unit.dp
 
-/** Spacing scale (4 dp base) and layout constants (`space.*` tokens). */
+/** Spacing scale (4 dp grid: 4 8 12 16 20 24 32) and layout constants (`space.*` tokens). */
 @Immutable
 object Spacing {
     val none = 0.dp
@@ -20,37 +20,102 @@ object Spacing {
     val xl = 20.dp
     val xxl = 24.dp
     val x3 = 32.dp
+    // Above the strava scale; kept for existing layouts.
     val x4 = 40.dp
     val x5 = 48.dp
     val x6 = 64.dp
 
-    /** Horizontal screen gutter below 600 dp width. */
+    /** Screen gutter. */
     val gutter = 16.dp
 
-    /** Horizontal screen gutter at 600 dp and wider. */
+    /** Gutter at 600 dp and wider (not in the strava spec, which is phone-only). */
     val gutterWide = 20.dp
-    val cardPadding = 16.dp
-    val cardGap = 8.dp
-    val statGap = 12.dp
-    val listRowMin = 56.dp
-    val touchMin = 48.dp
 
-    /** Maximum feed width above 840 dp. */
+    /** Card horizontal padding. */
+    val cardPadding = 16.dp
+
+    /** `gap` band between edge-to-edge feed cards. */
+    val cardGap = 8.dp
+
+    /** Space between stat columns in a stat row; no dividers. */
+    val statGap = 34.dp
+
+    /** Feed card header to title. */
+    val titleGap = 10.dp
+
+    /** Map labels keep this far from the frame side edges. */
+    val mapLabelInset = 14.dp
+    val listRowMin = 56.dp
+
+    /** Minimum touch target. */
+    val touchMin = 44.dp
+
+    /** Maximum feed width on large screens. */
     val feedMaxWidth = 640.dp
 }
 
-/** Elevation levels. Light mode renders soft shadows; dark mode uses M3 tonal elevation. */
-object Elevation {
-    val level0 = 0.dp
-    val level1 = 1.dp
-    val level2 = 3.dp
-    val level3 = 6.dp
-    val level4 = 8.dp
+/** Fixed component sizes (`size.*` tokens). */
+@Immutable
+object Sizes {
+    val statusBar = 30.dp
+    val topAppBar = 52.dp
+    /** Plus [gestureArea] below it. */
+    val bottomNav = 60.dp
+    val gestureArea = 20.dp
+    val actionRow = 48.dp
+    val splitsRow = 25.dp
+    val tabRow = 46.dp
+    val tabIndicator = 3.dp
+    val icon = 24.dp
+    /** High-five, comment and share in the action row, drawn at 1.6 stroke. */
+    val iconAction = 22.dp
+    val avatarFeed = 40.dp
+    /** Facepile: overlap −7 dp with a 2 dp ring in the surface colour. */
+    val avatarFacepile = 24.dp
+    val facepileOverlap = 7.dp
+    /** Feed carousel and activity map hero. */
+    val feedMedia = 236.dp
+    val pageDot = 6.dp
+    val notificationDot = 9.dp
+    val chip = 34.dp
+    val selectorPill = 40.dp
+    val floatButton = 44.dp
+    val sportCircle = 48.dp
+    val recordSecondary = 56.dp
+    /** Start, Resume, Finish. */
+    val recordStart = 96.dp
+    val recordStop = 84.dp
+    val pausedStrip = 34.dp
+    val routeThumbWidth = 252.dp
+    val routeThumbHeight = 88.dp
+    val hairline = 1.dp
+    val activeRing = 2.dp
 }
 
 /**
- * Motion durations in milliseconds. When [reduced] is true every animation collapses to an
- * instant change, honouring both the system animator scale and the in-app switch.
+ * Elevation. Surfaces are flat; only things floating over a map get a shadow
+ * (light: 0 1 2 / .16 + 0 3 10 / .10; dark: heavier black). No tonal tint.
+ */
+object Elevation {
+    val level0 = 0.dp
+    /** Cards: flat. */
+    val level1 = 0.dp
+    /** Start / Stop / Finish: a 1 dp neutral shadow, never an orange glow. */
+    val level2 = 1.dp
+    /** Chips, round buttons, search pill over maps. */
+    val level3 = 3.dp
+    /** Sheets and the record panel over a map. */
+    val level4 = 6.dp
+
+    val flat = level0
+    val recordButton = level2
+    val float = level3
+    val sheet = level4
+}
+
+/**
+ * Motion durations in milliseconds. The strava mockups are static and define no motion; these are
+ * carried over unchanged. When [reduced] is true every animation collapses to an instant change.
  */
 @Immutable
 data class RidgelineMotion(
