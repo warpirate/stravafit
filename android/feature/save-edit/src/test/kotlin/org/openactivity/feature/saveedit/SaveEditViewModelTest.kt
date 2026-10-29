@@ -169,6 +169,19 @@ class SaveEditViewModelTest {
     }
 
     @Test
+    fun `closing the save screen of a new activity offers save or discard instead of keeping it`(): Unit = runBlocking {
+        val id = stored()
+        val vm = vm(id, isNew = true)
+        vm.editing()
+        vm.onBack()
+        assertEquals(SaveEditDialog.LEAVE_NEW_ACTIVITY, vm.editing().dialog)
+        assertNull(kotlinx.coroutines.withTimeoutOrNull(200) { vm.effects.first() })
+        vm.confirmDialog()
+        assertEquals(SaveEditEffect.Discarded, withTimeout(10_000) { vm.effects.first() })
+        assertNull(activities.observeActivity(id).first())
+    }
+
+    @Test
     fun `a double tap on back closes the screen only once`(): Unit = runBlocking {
         val vm = vm(stored(), isNew = false)
         vm.editing()

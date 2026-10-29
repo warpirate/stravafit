@@ -124,8 +124,12 @@ fun RecordRoute(
                 }
             },
             onStart = {
-                startWhenReady = true
-                permissions.request()
+                if (viewModel.uiState.value.phase == RecordPhase.WaitingForGps) {
+                    viewModel.startWithoutFix()
+                } else {
+                    startWhenReady = true
+                    permissions.request()
+                }
             },
             onCancelCountdown = viewModel::cancelCountdown,
             onPause = viewModel::pause,

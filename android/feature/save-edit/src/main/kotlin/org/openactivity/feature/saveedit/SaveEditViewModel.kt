@@ -215,7 +215,9 @@ class SaveEditViewModel internal constructor(
     /** Back pressed: leaves at once when nothing changed, otherwise asks first. */
     fun onBack() {
         val state = _uiState.value
-        if (state is SaveEditUiState.Editing && state.dirty) {
+        if (state is SaveEditUiState.Editing && state.isNew) {
+            editing { it.copy(dialog = SaveEditDialog.LEAVE_NEW_ACTIVITY) }
+        } else if (state is SaveEditUiState.Editing && state.dirty) {
             editing { it.copy(dialog = SaveEditDialog.DISCARD_CHANGES) }
         } else {
             close()
@@ -235,7 +237,7 @@ class SaveEditViewModel internal constructor(
     fun confirmDialog() {
         val state = _uiState.value as? SaveEditUiState.Editing ?: return
         when (state.dialog) {
-            SaveEditDialog.DISCARD_ACTIVITY -> discardActivity()
+            SaveEditDialog.DISCARD_ACTIVITY, SaveEditDialog.LEAVE_NEW_ACTIVITY -> discardActivity()
             SaveEditDialog.DISCARD_CHANGES -> {
                 editing { it.copy(dialog = null) }
                 close()

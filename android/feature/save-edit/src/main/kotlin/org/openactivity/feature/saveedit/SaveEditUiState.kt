@@ -75,6 +75,12 @@ enum class SaveEditDialog {
 
     /** Leave without saving changed fields. */
     DISCARD_CHANGES,
+
+    /**
+     * Close (X or Back) on the Save screen of a just-recorded activity: closing must not quietly keep it,
+     * so the athlete chooses Save or Discard (or carries on editing).
+     */
+    LEAVE_NEW_ACTIVITY,
 }
 
 /** One-shot effects. */

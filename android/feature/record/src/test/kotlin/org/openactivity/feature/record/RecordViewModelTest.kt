@@ -433,7 +433,22 @@ class RecordViewModelTest {
         val vm = viewModel()
         vm.start()
         runCurrent()
+        vm.startWithoutFix()
+        advanceUntilIdle()
+        assertNotNull(controller.started)
+    }
+
+    @Test fun permissionFlowFinishingAgainKeepsWaitingForAFix() = runTest(dispatcher) {
+        // Start while location was denied: granting location and then answering the notification prompt
+        // both end the permission flow. Neither may start a recording without a position.
+        val vm = viewModel()
         vm.start()
+        runCurrent()
+        vm.start()
+        advanceUntilIdle()
+        assertNull(controller.started)
+        assertEquals(RecordPhase.WaitingForGps, vm.uiState.value.phase)
+        gpsReady()
         advanceUntilIdle()
         assertNotNull(controller.started)
     }

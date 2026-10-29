@@ -67,6 +67,7 @@ data class SaveEditActions(
     val onRemovePhoto: (String) -> Unit = {},
     val onDiscard: () -> Unit = {},
     val onConfirmDialog: () -> Unit = {},
+    val onSaveFromDialog: () -> Unit = {},
     val onDismissDialog: () -> Unit = {},
 )
 
@@ -107,6 +108,10 @@ fun SaveEditScreen(navigation: SaveEditNavigation, viewModel: SaveEditViewModel 
             onRemovePhoto = viewModel::removePhoto,
             onDiscard = viewModel::requestDiscard,
             onConfirmDialog = viewModel::confirmDialog,
+            onSaveFromDialog = {
+                viewModel.dismissDialog()
+                viewModel.save()
+            },
             onDismissDialog = viewModel::dismissDialog,
         ),
     )
@@ -171,7 +176,7 @@ fun SaveEditContent(
                         SaveEditForm(state, actions)
                     }
                     if (state.sportPickerOpen) SportPickerSheet(state.form.sport, actions.onSport, actions.onCloseSportPicker)
-                    state.dialog?.let { ConfirmDialog(it, actions.onConfirmDialog, actions.onDismissDialog) }
+                    state.dialog?.let { ConfirmDialog(it, actions.onConfirmDialog, actions.onDismissDialog, actions.onSaveFromDialog) }
                     if (state.saving) CircularProgressIndicator(Modifier.align(Alignment.Center))
                 }
             }
@@ -180,7 +185,7 @@ fun SaveEditContent(
 }
 
 @Composable
-private fun ConfirmDialog(dialog: SaveEditDialog, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+private fun ConfirmDialog(dialog: SaveEditDialog, onConfirm: () -> Unit, onDismiss: () -> Unit, onSave: () -> Unit) {
     val (title, body, confirm) = when (dialog) {
         SaveEditDialog.DISCARD_ACTIVITY -> Triple(
             "Discard this activity?",
@@ -188,13 +193,23 @@ private fun ConfirmDialog(dialog: SaveEditDialog, onConfirm: () -> Unit, onDismi
             "Discard",
         )
         SaveEditDialog.DISCARD_CHANGES -> Triple("Discard changes?", "Your edits haven’t been saved.", "Discard")
+        SaveEditDialog.LEAVE_NEW_ACTIVITY -> Triple(
+            "Save this activity?",
+            "Save it to your feed, or discard the recording for good.",
+            "Discard",
+        )
     }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = { Text(body) },
-        confirmButton = { TextButton(onClick = onConfirm) { Text(confirm, color = MaterialTheme.colorScheme.error) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(if (dialog == SaveEditDialog.DISCARD_CHANGES) "Keep editing" else "Cancel") } },
+        confirmButton = {
+            androidx.compose.foundation.layout.Row {
+                TextButton(onClick = onConfirm) { Text(confirm, color = MaterialTheme.colorScheme.error) }
+                if (dialog == SaveEditDialog.LEAVE_NEW_ACTIVITY) TextButton(onClick = onSave) { Text("Save") }
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(if (dialog == SaveEditDialog.DISCARD_ACTIVITY) "Cancel" else "Keep editing") } },
         modifier = Modifier.fillMaxWidth(),
     )
 }

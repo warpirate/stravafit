@@ -222,13 +222,10 @@ class RecordViewModel @Inject constructor(
      * on, the timer starts after 3 seconds unless [cancelCountdown] runs first.
      */
     fun start() {
+        // Already waiting for a fix: the permission flow finishing again (location granted, then the
+        // notification answer) must not turn the wait into a start without a position. Only the athlete's
+        // explicit tap does that, through [startWithoutFix].
         val phase = local.value.phase
-        if (phase == RecordPhase.WaitingForGps) {
-            // A second tap while waiting means "start anyway, without a fix".
-            countdownJob?.cancel()
-            countdownJob = viewModelScope.launch { startSequence() }
-            return
-        }
         if (phase != RecordPhase.PreStart) return
         if (controller.state.value.isActive && !local.value.discardPending) return
         countdownJob = viewModelScope.launch {
@@ -239,6 +236,13 @@ class RecordViewModel @Inject constructor(
             }
             startSequence()
         }
+    }
+
+    /** A tap on Start while waiting for GPS: "start anyway, without a fix". */
+    fun startWithoutFix() {
+        if (local.value.phase != RecordPhase.WaitingForGps) return
+        countdownJob?.cancel()
+        countdownJob = viewModelScope.launch { startSequence() }
     }
 
     private fun needsFix(state: RecordUiState): Boolean =
