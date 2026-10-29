@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Single public entry point. Caddy obtains and renews TLS certificates for
+# $DOMAIN automatically (ports 80/443 must reach this host). Use DOMAIN=localhost
+# for a local trial with Caddy's internal CA.
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# Self-hosted base map tiles (PMTiles), cacheable for a day.
+	handle_path /tiles/* {
+		header Cache-Control "public, max-age=86400"
+		reverse_proxy tiles:8080
+	}
+
+	# Supabase API gateway: /auth/v1, /rest/v1, /storage/v1, /realtime/v1, /functions/v1.
+	# Studio (the admin dashboard) is NOT exposed here on purpose; reach it
+	# through an SSH tunnel to the host instead.
+	handle {
+		reverse_proxy api-gw:8000
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+}
