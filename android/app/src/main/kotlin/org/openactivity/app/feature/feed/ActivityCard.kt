@@ -144,7 +144,11 @@ private fun VisibilityTag(label: String) {
 
 @Composable
 private fun HighFiveCount(count: Int) {
-    val text = if (count == 1) "1 high-five" else "$count high-fives"
+    val text = when (count) {
+        0 -> "No high-fives yet"
+        1 -> "1 high-five"
+        else -> "$count high-fives"
+    }
     Row(
         Modifier.clearAndSetSemantics { contentDescription = text },
         verticalAlignment = Alignment.CenterVertically,

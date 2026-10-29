@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -53,11 +54,16 @@ class MeViewModel @Inject constructor(
 
     private val selection = MutableStateFlow(Selection())
     private val progressSport = selection.map { it.sport }.distinctUntilChanged()
-    private val year: Int get() = LocalDate.now(clock).year
+
+    /**
+     * The current year, read again whenever collection restarts (the screen comes back after the
+     * sharing timeout), so the year totals roll over without restarting the app.
+     */
+    private val currentYear: Flow<Int> = flow { emit(LocalDate.now(clock).year) }
 
     private val progress: Flow<Progress> = combine(
         progressSport.flatMapLatest { sport -> activityRepository.observeWeeklyTotals(WEEKS, sport?.let { setOf(it) }) },
-        activityRepository.observeYearTotals(year),
+        currentYear.flatMapLatest(activityRepository::observeYearTotals),
         activityRepository.observeAllTimeTotals(),
         progressSport.flatMapLatest(::bestEfforts),
     ) { weekly, yearTotals, allTime, bests -> Progress(weekly, yearTotals, allTime, bests) }

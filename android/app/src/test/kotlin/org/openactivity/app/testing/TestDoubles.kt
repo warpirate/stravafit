@@ -264,7 +264,11 @@ fun routeDetail(
     elevationGain: Double = 45.0,
 ): RouteDetail {
     val step = distanceMeters / (points.size - 1).coerceAtLeast(1)
-    val routePoints = points.mapIndexed { i, p -> RoutePoint(p.latitude, p.longitude, 550.0 + i * 7.5 - (if (i > 3) (i - 3) * 9.0 else 0.0), i * step) }
+    // One climb and descent whose height matches the stated gain and loss.
+    val last = (points.size - 1).coerceAtLeast(1)
+    val routePoints = points.mapIndexed { i, p ->
+        RoutePoint(p.latitude, p.longitude, 550.0 + elevationGain * kotlin.math.sin(kotlin.math.PI * i / last), i * step)
+    }
     return RouteDetail(
         SavedRoute(
             id = id,

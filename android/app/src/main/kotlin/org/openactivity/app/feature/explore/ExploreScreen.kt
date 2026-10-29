@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,13 +34,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.openactivity.app.ui.LocalMessenger
 import org.openactivity.app.ui.common.NO_FILE_PICKER_MESSAGE
+import org.openactivity.app.ui.common.PlannedRouteMap
 import org.openactivity.app.ui.common.icon
 import org.openactivity.app.ui.common.launchOrElse
 import org.openactivity.core.designsystem.component.EmptyState
@@ -52,9 +51,6 @@ import org.openactivity.core.designsystem.component.TopBarAction
 import org.openactivity.core.designsystem.theme.RidgelineTheme
 import org.openactivity.core.designsystem.theme.Spacing
 import org.openactivity.core.fileimport.ImportDocumentsContract
-import org.openactivity.core.map.compose.RidgelineMap
-import org.openactivity.core.map.compose.rememberMapState
-import org.openactivity.core.map.overlay.MapOverlays
 import org.openactivity.core.map.thumbnail.RouteMapThumbnail
 
 /** Explore tab, connected to [ExploreViewModel]. */
@@ -136,19 +132,11 @@ fun ExploreContent(state: ExploreUiState, actions: ExploreActions, modifier: Mod
 
 @Composable
 private fun ExploreMap(selected: RouteCardUi?) {
-    val mapState = rememberMapState()
-    LaunchedEffect(selected?.id) {
-        val points = selected?.points.orEmpty()
-        if (points.size >= 2) mapState.fitTo(points)
-    }
-    RidgelineMap(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(MAP_RATIO)
-            .clip(MaterialTheme.shapes.large),
-        state = mapState,
-        overlays = MapOverlays(plannedRoute = selected?.points.orEmpty()),
-        textureMode = true,
+    PlannedRouteMap(
+        points = selected?.points.orEmpty(),
+        contentDescription = selected?.let { "Map showing ${it.name}" } ?: "Map",
+        aspectRatio = MAP_RATIO,
+        animateFit = true,
     )
 }
 

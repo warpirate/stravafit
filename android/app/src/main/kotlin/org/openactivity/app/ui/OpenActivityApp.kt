@@ -24,23 +24,25 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
+import org.openactivity.app.LaunchRequest
 import org.openactivity.app.navigation.AppBottomBar
 import org.openactivity.app.navigation.AppNavHost
 import org.openactivity.app.navigation.TopLevelDestination
+import org.openactivity.feature.activitydetail.navigateToActivityDetail
 import org.openactivity.feature.record.navigation.navigateToRecord
 
 /**
  * App shell: one scaffold with the bottom bar and a snackbar host around the nav host.
  * The bottom bar shows only on tab roots; Record and Settings are full screen.
  *
- * @param openRecorderRequested true to open the recorder (from the recording notification).
- * @param onRecorderOpened called once the recorder has been opened for that request.
+ * @param launchRequest a pending request from a notification tap: open the recorder or an activity.
+ * @param onLaunchRequestHandled called once [launchRequest] has been navigated to.
  */
 @Composable
 fun OpenActivityApp(
     navController: NavHostController = rememberNavController(),
-    openRecorderRequested: Boolean = false,
-    onRecorderOpened: () -> Unit = {},
+    launchRequest: LaunchRequest? = null,
+    onLaunchRequestHandled: () -> Unit = {},
 ) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -52,12 +54,14 @@ fun OpenActivityApp(
             }
         }
     }
-    // The recording notification asks for the recorder (EXTRA_OPEN_RECORDING).
-    LaunchedEffect(openRecorderRequested) {
-        if (openRecorderRequested) {
-            navController.navigateToRecord()
-            onRecorderOpened()
+    // The recording notifications ask for the recorder or for the activity just saved.
+    LaunchedEffect(launchRequest) {
+        when (launchRequest) {
+            null -> return@LaunchedEffect
+            LaunchRequest.OpenRecorder -> navController.navigateToRecord()
+            is LaunchRequest.OpenActivity -> navController.navigateToActivityDetail(launchRequest.id)
         }
+        onLaunchRequestHandled()
     }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentTab = backStackEntry?.destination?.currentTab()
