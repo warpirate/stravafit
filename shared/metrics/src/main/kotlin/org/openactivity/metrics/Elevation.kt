@@ -52,6 +52,14 @@ public class ElevationAccumulator(
 
     /** Adds one altitude sample; `NaN` and infinite values are ignored. */
     public fun add(altitude: Double) {
+        add(altitude, hysteresisMeters)
+    }
+
+    /**
+     * Adds one altitude sample using [hysteresis] for this step instead of [hysteresisMeters]; lets callers
+     * widen the band when the source reports poor vertical accuracy.
+     */
+    public fun add(altitude: Double, hysteresis: Double) {
         if (!altitude.isFinite()) return
         ring[next] = altitude
         next = (next + 1) % medianWindow
@@ -63,10 +71,10 @@ public class ElevationAccumulator(
             return
         }
         val delta = m - reference
-        if (delta >= hysteresisMeters && delta > 0.0) {
+        if (delta >= hysteresis && delta > 0.0) {
             gain += delta
             reference = m
-        } else if (-delta >= hysteresisMeters && delta < 0.0) {
+        } else if (-delta >= hysteresis && delta < 0.0) {
             loss += -delta
             reference = m
         }
