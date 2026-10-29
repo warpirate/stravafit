@@ -26,12 +26,14 @@ enum class PaceMode {
  * @property keepScreenOn keep the display awake while the Record screen shows a recording ("Screen display").
  * @property recentSports most recent first, at most [MAX_RECENT].
  * @property paceMode what the pace field shows for pace sports.
+ * @property batteryPromptDismissed the athlete said "Not now" to the battery optimisation prompt.
  */
 data class RecordPreferences(
     val countdown: Boolean = false,
     val keepScreenOn: Boolean = false,
     val recentSports: List<SportType> = emptyList(),
     val paceMode: PaceMode = PaceMode.SPLIT,
+    val batteryPromptDismissed: Boolean = false,
 ) {
     companion object {
         /** Recent sports kept for the picker's chip row. */

@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -31,10 +32,14 @@ import org.openactivity.core.datastore.AppSettings
 import org.openactivity.core.recordingservice.InterruptedRecording
 import org.openactivity.core.recordingservice.RecordingController
 import org.openactivity.core.recordingservice.RecordingUiSnapshot
+import org.openactivity.core.recordingservice.audio.SpeechStatus
+import org.openactivity.core.recordingservice.di.RecordingScope
 import org.openactivity.feature.record.data.RecordPreferences
 import org.openactivity.feature.record.data.RecordPreferencesRepository
 import org.openactivity.feature.record.format.RecordFormat
 import org.openactivity.feature.record.location.PreStartLocation
+import org.openactivity.feature.record.system.BatteryOptimization
+import org.openactivity.feature.record.system.SpeechAvailability
 import org.openactivity.model.SportType
 import javax.inject.Inject
 
@@ -44,6 +49,11 @@ import javax.inject.Inject
  *
  * Location is only watched while the screen is collected, a GPS sport is selected and nothing is being
  * recorded (the recording service has its own subscription then).
+ *
+ * Discard can be undone for [UNDO_WINDOW_MS] (record detail 4.4): the recording is hidden at once but only
+ * thrown away when the window closes. That last step runs in the application-lifetime `appScope`, so it
+ * still happens if the screen is closed meanwhile; if the process dies first, the journal keeps the
+ * recording and it is offered as interrupted on the next launch, so nothing is lost by accident.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -53,6 +63,9 @@ class RecordViewModel @Inject constructor(
     private val routeRepository: RouteRepository,
     private val preferences: RecordPreferencesRepository,
     private val location: PreStartLocation,
+    private val battery: BatteryOptimization,
+    speech: SpeechAvailability,
+    @RecordingScope private val appScope: CoroutineScope,
     savedStateHandle: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
 
@@ -62,11 +75,16 @@ class RecordViewModel @Inject constructor(
         val chosenSport: SportType? = null,
         val chosenRouteId: Long? = null,
         val sheet: RecordSheet = RecordSheet.None,
+        /** Discard was confirmed and can still be undone; the recording is hidden meanwhile. */
+        val discardPending: Boolean = false,
+        /** The app is exempt from battery optimisation; re-read whenever the screen resumes. */
+        val batteryExempt: Boolean = true,
     )
 
     private val local = MutableStateFlow(Local(chosenRouteId = savedStateHandle.get<Long>(ARG_ROUTE_ID)))
     private val eventChannel = Channel<RecordEvent>(Channel.BUFFERED)
     private var countdownJob: Job? = null
+    private var discardJob: Job? = null
 
     /** One-shot effects: navigation after save, lap toasts, errors. */
     val events: Flow<RecordEvent> = eventChannel.receiveAsFlow()
@@ -74,16 +92,22 @@ class RecordViewModel @Inject constructor(
     private val settings = settingsRepository.settings.onStart { emit(AppSettings()) }.distinctUntilChanged()
     private val prefs = preferences.preferences.onStart { emit(RecordPreferences()) }.distinctUntilChanged()
 
+    /** The controller's recording, or idle while a discard is pending (as far as the screen goes, it is gone). */
+    private val recordingState: Flow<RecordingUiSnapshot> =
+        combine(controller.state, local.map { it.discardPending }.distinctUntilChanged()) { rec, pending ->
+            if (pending) RecordingUiSnapshot.idle(rec.units) else rec
+        }
+
     private val sport: Flow<SportType> =
-        combine(local, settings, controller.state) { l, s, rec -> effectiveSport(l, s, rec) }.distinctUntilChanged()
+        combine(local, settings, recordingState) { l, s, rec -> effectiveSport(l, s, rec) }.distinctUntilChanged()
 
     private val gpsReading: Flow<GpsReading?> =
-        combine(sport, controller.state.map { it.isActive }) { s, active -> s.usesGps && !active }
+        combine(sport, recordingState.map { it.isActive }) { s, active -> s.usesGps && !active }
             .distinctUntilChanged()
             .flatMapLatest { wanted -> if (wanted) GpsReading.watch(location.fixes(), SLOW_FIX_HINT_MS) else flowOf(null) }
 
     private val routeChoice: Flow<RouteChoice?> =
-        combine(local.map { it.chosenRouteId }, controller.state.map { it.routeId }) { chosen, recording -> recording ?: chosen }
+        combine(local.map { it.chosenRouteId }, recordingState.map { it.routeId }) { chosen, recording -> recording ?: chosen }
             .distinctUntilChanged()
             .flatMapLatest { id ->
                 if (id == null) flowOf(null) else routeRepository.observeRoute(id).map { it?.toChoice() }
@@ -97,9 +121,13 @@ class RecordViewModel @Inject constructor(
         local,
         settings,
         prefs,
-        controller.state,
+        recordingState,
         controller.interruptedRecording,
     ) { l, s, p, rec, interrupted -> baseState(l, s, p, rec, interrupted) }
+        .combine(speech.status) { state, status ->
+            // Only warn while cues are on: a missing voice does not matter otherwise.
+            state.copy(speechWarning = state.audioCues && status in SPEECH_PROBLEMS)
+        }
 
     /** The screen state. Collect it with the lifecycle so location stops when the screen does. */
     val uiState: StateFlow<RecordUiState> = combine(base, gpsReading, routes, routeChoice) { state, reading, list, route ->
@@ -132,13 +160,28 @@ class RecordViewModel @Inject constructor(
     /** Draws route [id] on the map and follows it once recording; null removes it. */
     fun selectRoute(id: Long?) = local.update { it.copy(chosenRouteId = id, sheet = RecordSheet.None) }
 
-    /** Flips auto-pause for the selected sport (stored per sport). */
+    /**
+     * Flips auto-pause for the selected sport (stored per sport). Turning it on for a walk or hike explains
+     * that slow speeds can pause and restart the timer often (record detail 6.5).
+     */
     fun toggleAutoPause() {
         launchSafely(SETTINGS_ERROR) {
             val sport = currentSport()
             val current = settingsRepository.settings.first().autoPauseEnabled(sport)
             settingsRepository.setAutoPause(sport, !current)
+            if (!current && sport in SLOW_SPORTS) eventChannel.send(RecordEvent.Message(SLOW_SPORT_AUTO_PAUSE_HINT))
         }
+    }
+
+    /** Re-reads the battery optimisation exemption; call when the screen resumes (it may have changed). */
+    fun refreshBatteryExemption() {
+        val exempt = battery.isExempt()
+        local.update { it.copy(batteryExempt = exempt) }
+    }
+
+    /** "Not now" on the battery prompt: it is not offered again on this device. */
+    fun dismissBatteryPrompt() {
+        launchSafely(SETTINGS_ERROR) { preferences.dismissBatteryPrompt() }
     }
 
     /** Flips spoken audio cues. */
@@ -169,8 +212,11 @@ class RecordViewModel @Inject constructor(
      * on, the timer starts after 3 seconds unless [cancelCountdown] runs first.
      */
     fun start() {
-        if (local.value.phase != RecordPhase.PreStart || controller.state.value.isActive) return
+        if (local.value.phase != RecordPhase.PreStart) return
+        if (controller.state.value.isActive && !local.value.discardPending) return
         countdownJob = viewModelScope.launch {
+            // A new start closes the undo window: the discarded recording goes for good first.
+            commitPendingDiscard()
             if (preferences.preferences.first().countdown) {
                 for (left in COUNTDOWN_SECONDS downTo 1) {
                     local.update { it.copy(phase = RecordPhase.Countdown(left), sheet = RecordSheet.None) }
@@ -259,12 +305,48 @@ class RecordViewModel @Inject constructor(
     /** Asks to confirm discarding. */
     fun requestDiscard() = local.update { it.copy(sheet = RecordSheet.DiscardConfirm) }
 
-    /** Throws the recording away for good. */
+    /**
+     * Discards the recording: it disappears at once and is deleted when the undo window closes, unless
+     * [undoDiscard] runs first.
+     */
     fun confirmDiscard() {
-        local.update { it.copy(sheet = RecordSheet.None, chosenRouteId = null) }
-        launchSafely("Couldn't discard the activity.") {
+        if (local.value.discardPending || !controller.state.value.isActive) {
+            local.update { it.copy(sheet = RecordSheet.None) }
+            return
+        }
+        local.update { it.copy(sheet = RecordSheet.None, discardPending = true) }
+        discardJob = appScope.launch {
+            delay(UNDO_WINDOW_MS)
+            discardNow()
+        }
+        viewModelScope.launch { eventChannel.send(RecordEvent.Discarded) }
+    }
+
+    /** Brings back a recording discarded less than [UNDO_WINDOW_MS] ago, still paused. */
+    fun undoDiscard() {
+        if (!local.value.discardPending) return
+        discardJob?.cancel()
+        discardJob = null
+        local.update { it.copy(discardPending = false) }
+    }
+
+    private suspend fun commitPendingDiscard() {
+        if (!local.value.discardPending) return
+        discardJob?.cancel()
+        discardJob = null
+        discardNow()
+    }
+
+    private suspend fun discardNow() {
+        try {
             controller.discard()
-            eventChannel.send(RecordEvent.Message("Activity discarded"))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // The journal still holds it, so it comes back as an interrupted recording that can be discarded.
+            eventChannel.trySend(RecordEvent.Message("Couldn't discard the activity."))
+        } finally {
+            local.update { it.copy(discardPending = false, chosenRouteId = null) }
         }
     }
 
@@ -349,6 +431,7 @@ class RecordViewModel @Inject constructor(
             sheet = if (recording == null && l.sheet in RECORDING_SHEETS) RecordSheet.None else l.sheet,
             recording = recording,
             interrupted = interrupted.takeIf { !rec.isActive },
+            showBatteryPrompt = recording == null && sport.usesGps && !l.batteryExempt && !p.batteryPromptDismissed,
         )
     }
 
@@ -367,5 +450,12 @@ class RecordViewModel @Inject constructor(
         private const val COMMAND_ERROR = "That didn't work. The recording carries on."
         private const val RESUME_ERROR = "Couldn't resume the interrupted recording."
         private val RECORDING_SHEETS = setOf(RecordSheet.Finish, RecordSheet.DiscardConfirm)
+
+        /** Record detail 4.4 asks for Undo during at least 5 s; this matches a long snackbar. */
+        const val UNDO_WINDOW_MS = 10_000L
+        private val SPEECH_PROBLEMS = setOf(SpeechStatus.LANGUAGE_MISSING, SpeechStatus.UNAVAILABLE)
+        private val SLOW_SPORTS = setOf(SportType.WALK, SportType.HIKE)
+        private const val SLOW_SPORT_AUTO_PAUSE_HINT =
+            "At walking pace, auto-pause can stop and restart the timer often. Pause by hand if it gets in the way."
     }
 }

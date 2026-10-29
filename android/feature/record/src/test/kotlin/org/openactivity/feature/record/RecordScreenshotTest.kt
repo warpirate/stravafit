@@ -67,6 +67,10 @@ class RecordScreenshotTest {
         )
     }
 
+    @Test fun preStartBatteryPrompt() = snap("record_prestart_battery_light", dark = false) {
+        RecordContent(preStart.copy(showBatteryPrompt = true), RecordActions())
+    }
+
     @Test fun preStartNoPermission() = snap("record_prestart_permission_dark", dark = true) {
         RecordContent(preStart.copy(gps = GpsUi(GpsIndicator.NoPermission), location = null), RecordActions())
     }

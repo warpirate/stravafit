@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.feature.record.ui
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.BatteryAlert
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.GpsNotFixed
 import androidx.compose.material.icons.rounded.GpsOff
@@ -18,6 +22,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -158,6 +163,45 @@ internal fun RecordBanner(
             Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(Spacing.s))
             Text(text, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+/**
+ * Offers the battery optimisation exemption before the first recording (record detail 1.4): some phones
+ * stop recordings with the screen off otherwise. Hidden for good once granted or dismissed.
+ */
+@Composable
+internal fun BatteryPrompt(onAllow: () -> Unit, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shadowElevation = 3.dp,
+    ) {
+        Column(Modifier.padding(start = Spacing.m, end = Spacing.s, top = Spacing.m)) {
+            Row(verticalAlignment = Alignment.Top) {
+                Icon(
+                    Icons.Rounded.BatteryAlert,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = RidgelineTheme.colors.onWarningContainer,
+                )
+                Spacer(Modifier.width(Spacing.s))
+                Column(Modifier.weight(1f).padding(end = Spacing.s)) {
+                    Text(stringResource(R.string.record_battery_title), style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        stringResource(R.string.record_battery_body),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = RidgelineTheme.colors.textSecondary,
+                    )
+                }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.record_not_now)) }
+                TextButton(onClick = onAllow) { Text(stringResource(R.string.record_battery_allow)) }
+            }
         }
     }
 }

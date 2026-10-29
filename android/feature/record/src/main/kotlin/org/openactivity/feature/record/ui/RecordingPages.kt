@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.feature.record.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -111,6 +112,8 @@ private fun MetricOverlayCard(metrics: LiveMetrics, paceTappable: Boolean, onCyc
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surface,
         shadowElevation = 4.dp,
+        // Shadows barely show on a dark map; the hairline keeps the card's edge visible there.
+        border = BorderStroke(1.dp, RidgelineTheme.colors.hairline),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(Modifier.padding(vertical = Spacing.m).height(IntrinsicSize.Min)) {

@@ -4,7 +4,9 @@ package org.openactivity.feature.record.ui
 import android.content.Intent
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -14,6 +16,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -25,6 +28,8 @@ import org.openactivity.feature.record.GpsIndicator
 import org.openactivity.feature.record.RecordEvent
 import org.openactivity.feature.record.RecordPhase
 import org.openactivity.feature.record.RecordViewModel
+import org.openactivity.feature.record.R
+import org.openactivity.feature.record.system.batteryExemptionIntent
 
 /**
  * The Record screen connected to [RecordViewModel]: permissions in context on the first Start (location,
@@ -54,10 +59,18 @@ fun RecordRoute(
         startWhenReady = false
     })
 
+    val discardedText = stringResource(R.string.record_discarded)
+    val undoLabel = stringResource(R.string.record_undo)
     LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
             when (event) {
                 is RecordEvent.ActivitySaved -> currentOnSaved(event.activityId)
+                RecordEvent.Discarded -> {
+                    snackbar.currentSnackbarData?.dismiss()
+                    // Long matches the view model's undo window (record detail 4.4: at least 5 s).
+                    val result = snackbar.showSnackbar(discardedText, actionLabel = undoLabel, duration = SnackbarDuration.Long)
+                    if (result == SnackbarResult.ActionPerformed) viewModel.undoDiscard()
+                }
                 is RecordEvent.Message -> {
                     snackbar.currentSnackbarData?.dismiss()
                     snackbar.showSnackbar(event.text)
@@ -68,6 +81,8 @@ fun RecordRoute(
     // Android 12+ refuses to start the foreground service from the background, so never let a countdown
     // finish while the screen is not visible.
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.cancelCountdown() }
+    // The exemption may have been granted in the system dialog or in settings meanwhile.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshBatteryExemption() }
     BackHandler(enabled = state.phase is RecordPhase.Countdown) { viewModel.cancelCountdown() }
     KeepScreenOn(enabled = state.isRecording && state.keepScreenOn)
     ShowOverLockScreen(enabled = state.isRecording)
@@ -115,6 +130,11 @@ fun RecordRoute(
             onResumeInterrupted = viewModel::resumeInterrupted,
             onSaveInterrupted = viewModel::saveInterrupted,
             onDiscardInterrupted = viewModel::discardInterrupted,
+            onAllowBackground = {
+                runCatching { context.startActivity(batteryExemptionIntent(context)) }
+                    .onFailure { viewModel.dismissBatteryPrompt() }
+            },
+            onDismissBatteryPrompt = viewModel::dismissBatteryPrompt,
         )
     }
     RecordContent(state = state, actions = actions, modifier = modifier, snackbarHostState = snackbar)

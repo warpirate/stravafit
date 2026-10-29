@@ -30,4 +30,6 @@ data class RecordActions(
     val onResumeInterrupted: () -> Unit = {},
     val onSaveInterrupted: () -> Unit = {},
     val onDiscardInterrupted: () -> Unit = {},
+    val onAllowBackground: () -> Unit = {},
+    val onDismissBatteryPrompt: () -> Unit = {},
 )

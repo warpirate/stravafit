@@ -46,6 +46,12 @@
     <string name="record_screen_on_title">Screen always on</string>
     <string name="record_screen_on_body">Keep the screen awake while this screen shows a recording. Uses more battery.</string>
     <string name="record_countdown_cancel">Tap to cancel</string>
+    <string name="record_speech_missing">Your phone has no voice for its language, so cues stay silent. Install one in the system text-to-speech settings.</string>
+    <string name="record_battery_title">Keep recording with the screen off</string>
+    <string name="record_battery_body">Some phones stop apps in the background to save battery. Let this app run so your track has no gaps.</string>
+    <string name="record_battery_settings_body">Exempt the app from battery optimisation so the phone never stops a recording.</string>
+    <string name="record_battery_allow">Allow</string>
+    <string name="record_not_now">Not now</string>
 
     <!-- Recording -->
     <string name="record_status_recording">Rec</string>
@@ -72,7 +78,9 @@
     <string name="record_discard">Discard</string>
     <string name="record_cancel">Cancel</string>
     <string name="record_discard_title">Discard this activity?</string>
-    <string name="record_discard_body">The recording is deleted from this phone. This can\'t be undone.</string>
+    <string name="record_discard_body">The recording is deleted from this phone. You can undo this for a few seconds.</string>
+    <string name="record_discarded">Activity discarded</string>
+    <string name="record_undo">Undo</string>
     <string name="record_interrupted_title">Recover activity in progress?</string>
     <string name="record_interrupted_body">A %1$s started %2$s stopped when the app was closed. Resume it, save it as it is, or discard it.</string>
 </resources>
