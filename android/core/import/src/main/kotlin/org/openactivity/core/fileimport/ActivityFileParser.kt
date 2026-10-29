@@ -153,16 +153,20 @@ public class ActivityFileParser @Inject constructor() {
         private const val MAX_TITLE = 120
 
         /**
-         * Key shared by every file of one recording: the start second plus the first position rounded to
-         * about 10 m. Formats round positions and times differently, so neither the content hash nor
-         * point counts can match a FIT against its GPX export; start time and place can. Files without a
-         * start time fall back to the content hash.
+         * Key shared by every file of one recording: the time and place of the first sample that has both,
+         * with the position rounded to about 10 m. Formats round positions and times differently, so
+         * neither the content hash nor point counts can match a FIT against its GPX export; time and place
+         * can. The first *positioned* sample is used rather than the declared start because watches log
+         * samples (and set the session start) before the GPS fix, and most converters drop those
+         * position-less samples from GPX. Indoor files use [start]; files without any time fall back to
+         * the content hash.
          */
         public fun dedupeKey(start: Instant?, points: List<ImportedPoint>, contentHash: String): String {
-            if (start == null) return "content:$contentHash"
-            val first = points.firstOrNull { it.hasPosition }
-            val place = first?.let { String.format(Locale.ROOT, "%.4f,%.4f", it.latitude, it.longitude) } ?: "indoor"
-            return "v1:" + sha256("${start.epochSecond}|$place".toByteArray(Charsets.UTF_8)).take(32)
+            val anchor = points.firstOrNull { it.hasPosition && it.time != null }
+            val anchorTime = anchor?.time ?: start ?: points.firstNotNullOfOrNull { it.time }
+                ?: return "content:$contentHash"
+            val place = anchor?.let { String.format(Locale.ROOT, "%.4f,%.4f", it.latitude, it.longitude) } ?: "indoor"
+            return "v1:" + sha256("${anchorTime.epochSecond}|$place".toByteArray(Charsets.UTF_8)).take(32)
         }
 
         internal fun detectFormat(fileName: String, bytes: ByteArray): ImportFormat? {

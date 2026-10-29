@@ -140,6 +140,44 @@ class ActivityFileParserTest {
     }
 
     @Test
+    fun `a watch file with samples before the gps fix matches its gpx export`() {
+        val start = Instant.parse("2026-06-02T06:30:00Z")
+        // The watch logs 5 s without a fix (and declares the session start then); GPX keeps only fixes.
+        val records = List(30) { i ->
+            val fixed = i >= 5
+            FitRecord(
+                timestamp = start.plusSeconds(i.toLong()),
+                latitude = if (fixed) 47.37 + i * 1e-4 else null,
+                longitude = if (fixed) 8.54 else null,
+                heartRate = 120,
+            )
+        }
+        val fitBytes = FitActivityEncoder().encode(
+            FitActivity(
+                fileId = FitFileId(timeCreated = start),
+                records = records,
+                sessions = listOf(
+                    FitSession(
+                        timestamp = start.plusSeconds(29), startTime = start, sport = FitSport.RUNNING,
+                        totalElapsedTime = 29.0, totalTimerTime = 29.0, totalDistance = 280.0,
+                    ),
+                ),
+            ),
+        )
+        val gpx = buildString {
+            append("<gpx version=\"1.1\" creator=\"x\" xmlns=\"http://www.topografix.com/GPX/1/1\"><trk><trkseg>")
+            records.filter { it.latitude != null }.forEach {
+                append("<trkpt lat=\"${it.latitude}\" lon=\"${it.longitude}\"><time>${it.timestamp}</time></trkpt>")
+            }
+            append("</trkseg></trk></gpx>")
+        }
+        val fromFit = parseBytes("watch.fit", fitBytes).single()
+        val fromGpx = parseBytes("export.gpx", gpx.toByteArray()).single()
+        assertEquals(start, fromFit.startTime)
+        assertEquals(fromFit.dedupeKey, fromGpx.dedupeKey)
+    }
+
+    @Test
     fun `time-less routes fall back to a content key`() {
         val activity = parse("gpx/gpx10-route-no-times.gpx").first()
         assertNull(activity.startTime)

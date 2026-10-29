@@ -6,6 +6,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
@@ -75,6 +76,13 @@ public class ActivityImporter internal constructor(
         } catch (e: IllegalArgumentException) {
             // The readers reject impossible values (out-of-range coordinates in FIT, for example).
             FileImportResult.Failure(name, ImportError(ImportErrorKind.MALFORMED, "The file contains invalid data: ${e.message}"))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // A reader bug or an unforeseen corruption must fail this file only, never the whole batch.
+            FileImportResult.Failure(name, ImportError(ImportErrorKind.MALFORMED, "The file could not be parsed: ${e.message ?: e.javaClass.simpleName}"))
+        } catch (e: OutOfMemoryError) {
+            FileImportResult.Failure(name, ImportError(ImportErrorKind.TOO_LARGE, "The file is too large to import on this device"))
         }
     }
 
