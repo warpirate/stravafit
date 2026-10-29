@@ -52,12 +52,20 @@ class RecordingPermissionRequester internal constructor(
     private val launchNotifications: () -> Unit,
     private val openSettings: () -> Unit,
     private val onReady: () -> Unit,
+    notificationsAskedBefore: Boolean = false,
+    private val onNotificationsAsked: () -> Unit = {},
 ) {
     /** The sheet being shown. */
     var step: PermissionStep by mutableStateOf(PermissionStep.IDLE)
         internal set
 
-    internal var notificationsAsked = false
+    /** The notification permission has been offered once; it is never asked again (persisted by the caller). */
+    internal var notificationsAsked = notificationsAskedBefore
+        set(value) {
+            val first = value && !field
+            field = value
+            if (first) onNotificationsAsked()
+        }
 
     /** True when precise location is already granted. */
     val hasLocation: Boolean get() = snapshot().preciseLocation
@@ -136,6 +144,8 @@ fun rememberRecordingPermissionRequester(onReady: () -> Unit): RecordingPermissi
             },
             openSettings = { context.startActivity(appSettingsIntent(context)) },
             onReady = { currentOnReady() },
+            notificationsAskedBefore = notificationsAskedBefore(context),
+            onNotificationsAsked = { markNotificationsAsked(context) },
         )
         self
     }
@@ -181,6 +191,7 @@ fun appSettingsIntent(context: Context): Intent =
 
 private const val PREFS = "recording_permissions"
 private const val KEY_LOCATION_ASKED = "location_asked"
+private const val KEY_NOTIFICATIONS_ASKED = "notifications_asked"
 
 // Before the first request shouldShowRequestPermissionRationale is false too, so remember that we asked.
 private fun locationAskedBefore(context: Context): Boolean =
@@ -188,6 +199,14 @@ private fun locationAskedBefore(context: Context): Boolean =
 
 private fun markLocationAsked(context: Context) {
     context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_LOCATION_ASKED, true).apply()
+}
+
+// Record detail 1.3: the notification permission is offered once, not on every Start.
+private fun notificationsAskedBefore(context: Context): Boolean =
+    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_NOTIFICATIONS_ASKED, false)
+
+private fun markNotificationsAsked(context: Context) {
+    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_NOTIFICATIONS_ASKED, true).apply()
 }
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {

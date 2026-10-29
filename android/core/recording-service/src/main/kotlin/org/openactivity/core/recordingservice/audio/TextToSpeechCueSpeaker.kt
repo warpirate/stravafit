@@ -82,6 +82,8 @@ class TextToSpeechCueSpeaker @Inject constructor(
      */
     @Synchronized
     override fun shutdown() {
+        // A missing engine is re-checked on the next recording: the athlete may have installed one since.
+        if (_status.value == SpeechStatus.UNAVAILABLE) _status.value = SpeechStatus.NOT_STARTED
         if (inFlight.get() > 0 || (tts != null && pending.isNotEmpty())) {
             shutdownWhenIdle = true
         } else {

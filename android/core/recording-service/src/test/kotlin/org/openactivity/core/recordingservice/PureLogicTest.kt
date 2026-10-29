@@ -13,6 +13,7 @@ import org.openactivity.core.recordingservice.notification.NotificationFormat
 import org.openactivity.core.recordingservice.permission.PermissionSnapshot
 import org.openactivity.core.recordingservice.permission.PermissionStep
 import org.openactivity.core.recordingservice.permission.RecordingPermissionFlow
+import org.openactivity.core.recordingservice.permission.RecordingPermissionRequester
 import org.openactivity.model.SportType
 import org.openactivity.model.UnitSystem
 import org.openactivity.recording.RecordingEngine
@@ -108,5 +109,33 @@ class PureLogicTest {
         assertEquals(PermissionStep.NOTIFICATION_RATIONALE, RecordingPermissionFlow.afterLocationResult(located))
         assertEquals(PermissionStep.LOCATION_SETTINGS, RecordingPermissionFlow.afterLocationResult(none.copy(canAskLocation = false)))
         assertEquals(PermissionStep.IDLE, RecordingPermissionFlow.afterLocationResult(none))
+    }
+
+    @Test
+    fun `notification permission is offered once, across requesters`() {
+        var persisted = false
+        var ready = 0
+        fun requester() = RecordingPermissionRequester(
+            snapshot = {
+                PermissionSnapshot(preciseLocation = true, notifications = false, canAskLocation = true, shouldAskNotifications = !persisted)
+            },
+            launchLocation = {},
+            launchNotifications = {},
+            openSettings = {},
+            onReady = { ready++ },
+            notificationsAskedBefore = persisted,
+            onNotificationsAsked = { persisted = true },
+        )
+        val first = requester()
+        first.request()
+        assertEquals(PermissionStep.NOTIFICATION_RATIONALE, first.step)
+        first.dismiss() // "Not now" still counts as asked and starts the recording
+        assertTrue(persisted)
+        assertEquals(1, ready)
+
+        val second = requester() // e.g. the Record screen opened again later
+        second.request()
+        assertEquals(PermissionStep.IDLE, second.step)
+        assertEquals(2, ready)
     }
 }
