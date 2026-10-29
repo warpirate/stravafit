@@ -174,7 +174,7 @@ public class ShareExportViewModel(
     public fun writeDocument(file: ExportedFile, destination: Uri) {
         viewModelScope.launch {
             try {
-                gallery.writeToDocument(destination, file.file.readBytes())
+                gallery.copyToDocument(file.file, destination)
                 _effects.send(ShareEffect.Message(R.string.share_export_saved_document, listOf(file.displayName)))
             } catch (e: CancellationException) {
                 throw e
@@ -195,7 +195,12 @@ public class ShareExportViewModel(
         if (next == current) return
         val loaded = activity ?: return
         updateContent { content ->
-            val previous = (content.preview as? PreviewState.Ready)?.bitmap
+            // Keep showing the last finished image while renders are superseded in quick succession.
+            val previous = when (val preview = content.preview) {
+                is PreviewState.Ready -> preview.bitmap
+                is PreviewState.Rendering -> preview.previous
+                else -> null
+            }
             content.copy(spec = next, preview = PreviewState.Rendering(previous), formats = formats(loaded, next))
         }
         spec.value = next

@@ -18,8 +18,11 @@ import javax.inject.Inject
  * Builds that have one declare it in the app manifest:
  *
  * ```xml
- * <meta-data android:name="org.openactivity.export.STORY_SOURCE_APPLICATION" android:value="1234567890" />
+ * <meta-data android:name="org.openactivity.export.STORY_SOURCE_APPLICATION" android:value="@string/story_app_id" />
  * ```
+ *
+ * The value must be a string resource: a literal number of 15+ digits (as Facebook App IDs are) is
+ * compiled into a float meta-data value and loses digits, so such values are rejected.
  *
  * Without it, the story image is sent to Instagram with a normal share intent instead.
  */
@@ -32,7 +35,8 @@ public class ShareLauncher @Inject constructor(@ApplicationContext private val a
     /** The Facebook App ID declared in the manifest, or `null` when the build has none. */
     public fun storySourceApplication(): String? = try {
         val info = appContext.packageManager.getApplicationInfo(appContext.packageName, PackageManager.GET_META_DATA)
-        info.metaData?.get(META_STORY_SOURCE_APPLICATION)?.toString()?.trim()?.ifEmpty { null }
+        @Suppress("DEPRECATION")
+        storyAppIdFrom(info.metaData?.get(META_STORY_SOURCE_APPLICATION))
     } catch (_: PackageManager.NameNotFoundException) {
         null
     }
@@ -91,5 +95,15 @@ public class ShareLauncher @Inject constructor(@ApplicationContext private val a
     public companion object {
         /** Manifest meta-data key holding the Facebook App ID for story stickers. */
         public const val META_STORY_SOURCE_APPLICATION: String = "org.openactivity.export.STORY_SOURCE_APPLICATION"
+
+        /**
+         * The App ID held by a meta-data [value]: strings (from a string resource) and integers are
+         * accepted; floats are not, because a long numeric literal loses precision when compiled.
+         */
+        internal fun storyAppIdFrom(value: Any?): String? = when (value) {
+            is String -> value.trim().ifEmpty { null }
+            is Int, is Long -> value.toString()
+            else -> null
+        }
     }
 }

@@ -2,6 +2,7 @@
 package org.openactivity.feature.shareexport.ui
 
 import android.Manifest
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +31,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +60,7 @@ import org.openactivity.feature.shareexport.ShareAction
 import org.openactivity.feature.shareexport.ShareEffect
 import org.openactivity.feature.shareexport.ShareExportUiState
 import org.openactivity.feature.shareexport.ShareExportViewModel
+import java.io.File
 
 /** User actions of the stateless [ShareExportScreen]. */
 internal data class ShareExportActions(
@@ -85,7 +89,9 @@ public fun ShareExportScreenHost(viewModel: ShareExportViewModel, onClose: () ->
     val context = LocalContext.current
     val launcher = remember(context) { ShareLauncher(context.applicationContext) }
     val snackbar = remember { SnackbarHostState() }
-    var pendingDocument by remember { mutableStateOf<ExportedFile?>(null) }
+    // The save dialog is another Activity: this one may be recreated (rotation, process death) before
+    // the result arrives, so the file waiting for its destination is kept in saved state.
+    var pendingDocument by rememberSaveable(stateSaver = PendingFileSaver) { mutableStateOf<ExportedFile?>(null) }
 
     val createDocument = rememberLauncherForActivityResult(CreateDocumentForFile()) { uri ->
         val file = pendingDocument
@@ -287,3 +293,13 @@ private fun ActionButtons(state: ShareExportUiState.Content, actions: ShareExpor
         )
     }
 }
+
+/** Saves an [ExportedFile] as plain strings so it survives Activity recreation. */
+private val PendingFileSaver: Saver<ExportedFile?, Any> = Saver(
+    save = { file -> file?.let { arrayListOf(it.file.path, it.uri.toString(), it.displayName, it.mimeType) } ?: arrayListOf<String>() },
+    restore = { saved ->
+        @Suppress("UNCHECKED_CAST")
+        val parts = saved as List<String>
+        if (parts.size == 4) ExportedFile(File(parts[0]), Uri.parse(parts[1]), parts[2], parts[3]) else null
+    },
+)

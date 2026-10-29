@@ -64,6 +64,16 @@ public class GallerySaver @Inject constructor(@ApplicationContext private val co
             uri
         }
 
+    /**
+     * Streams [source] (an export file) to [destination], a document URI returned by
+     * `ACTION_CREATE_DOCUMENT`. Reading and writing both happen on the IO dispatcher.
+     */
+    public suspend fun copyToDocument(source: java.io.File, destination: Uri): Unit = withContext(Dispatchers.IO) {
+        val out = context.contentResolver.openOutputStream(destination, "wt")
+            ?: throw IOException("Cannot write to $destination")
+        out.use { sink -> source.inputStream().use { it.copyTo(sink) } }
+    }
+
     /** Writes [bytes] to [destination], a document URI returned by `ACTION_CREATE_DOCUMENT`. */
     public suspend fun writeToDocument(destination: Uri, bytes: ByteArray): Unit = withContext(Dispatchers.IO) {
         val out = context.contentResolver.openOutputStream(destination, "wt")
