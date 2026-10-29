@@ -110,6 +110,9 @@ class MeViewModel @Inject constructor(
             },
             query = selected.query,
             activitySport = selected.activitySport,
+            weekRange = weekRange(),
+            weekDays = weekDays(activities, sport, timeOnly),
+            todayIndex = LocalDate.now(clock).dayOfWeek.value - 1,
             activities = activities
                 .filter { selected.activitySport == null || it.sport == selected.activitySport }
                 .filter { matches(it, selected.query) }
@@ -119,6 +122,29 @@ class MeViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), MeUiState())
 
     fun selectTab(tab: MeTab) = selection.update { it.copy(tab = tab) }
+
+    private fun weekStart(): LocalDate = LocalDate.now(clock).with(java.time.DayOfWeek.MONDAY)
+
+    private fun weekRange(): String {
+        val start = weekStart()
+        val format = java.time.format.DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
+        return "${format.format(start)} – ${format.format(start.plusDays(6))}"
+    }
+
+    /** Volume per day of the current week (distance, or time without GPS), relative to the busiest day. */
+    private fun weekDays(activities: List<SavedActivity>, sport: SportType?, timeOnly: Boolean): List<Float> {
+        val start = weekStart()
+        val values = DoubleArray(DAYS_PER_WEEK)
+        for (a in activities) {
+            if (sport != null && a.sport != sport) continue
+            val day = a.startTime.atZone(clock.zone).toLocalDate()
+            val index = java.time.temporal.ChronoUnit.DAYS.between(start, day)
+            if (index !in 0 until DAYS_PER_WEEK) continue
+            values[index.toInt()] += if (timeOnly || a.distanceMeters <= 0.0) a.movingTime.inWholeSeconds / 60.0 else a.distanceMeters / 1000.0
+        }
+        val max = values.maxOrNull()?.takeIf { it > 0.0 } ?: return List(DAYS_PER_WEEK) { 0f }
+        return values.map { (it / max).toFloat() }
+    }
 
     /** Progress for one sport, or all sports with null. */
     fun selectSport(sport: SportType?) = selection.update { it.copy(sport = sport) }
@@ -166,6 +192,7 @@ class MeViewModel @Inject constructor(
     )
 
     internal companion object {
+        private const val DAYS_PER_WEEK = 7
         private const val STOP_TIMEOUT_MS = 5_000L
 
         /** Weeks in the progress chart (profile-progress C2, "3M" = 12 weeks). */

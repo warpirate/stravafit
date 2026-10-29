@@ -29,7 +29,7 @@ internal object ProgressFormat {
         if (includeCount) add(Stat("Activities", formatter.count(totals.count)))
         if (!timeOnly) add(formatter.distance(totals.distanceMeters).toStat("Distance"))
         add(Stat("Time", UnitFormatter.compactDuration(totals.movingTime.inWholeSeconds)))
-        if (!timeOnly) add(formatter.elevation(totals.elevationGainMeters).toStat("Elev gain"))
+        if (!timeOnly) add(formatter.elevation(totals.elevationGainMeters).toStat("Elev Gain"))
     }
 
     /** Twelve bars of distance, or of moving time when [timeOnly]. */
@@ -42,12 +42,15 @@ internal object ProgressFormat {
             formatter.distance(value).let { "${it.value} ${it.unit}" to "${it.value} ${it.spokenUnit}" }
         }
         val (maxShown, maxSpoken) = label(max)
-        val (_, currentSpoken) = label(values.lastOrNull() ?: 0.0)
+        val (currentShown, currentSpoken) = label(values.lastOrNull() ?: 0.0)
+        val (averageShown, _) = label(if (values.isEmpty()) 0.0 else values.average())
         return WeeklyChartUi(
             fractions = values.map { if (max > 0) (it / max).toFloat() else 0f },
             maxLabel = maxShown,
             summary = "Last ${values.size} weeks. This week $currentSpoken, busiest week $maxSpoken.",
             metric = if (timeOnly) "Time" else "Distance",
+            currentLabel = currentShown,
+            averageLabel = averageShown,
         )
     }
 

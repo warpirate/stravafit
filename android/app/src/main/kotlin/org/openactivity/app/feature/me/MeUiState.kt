@@ -33,6 +33,10 @@ data class WeeklyChartUi(
     val maxLabel: String,
     val summary: String,
     val metric: String,
+    /** This week's value with its unit ("32.4 km"), for the callout on the last point. */
+    val currentLabel: String = "",
+    /** Average per week over the chart ("28.7 km"). */
+    val averageLabel: String = "",
 )
 
 /** One row of the activities list. */
@@ -77,4 +81,10 @@ data class MeUiState(
     val query: String = "",
     val activitySport: SportType? = null,
     val activities: List<ActivityRowUi> = emptyList(),
+    /** "26 Oct – 1 Nov": the current week. */
+    val weekRange: String = "",
+    /** Training log: one entry per day Monday to Sunday, 0..1 relative to the busiest day (0 = rest). */
+    val weekDays: List<Float> = emptyList(),
+    /** Index of today in [weekDays]. */
+    val todayIndex: Int = -1,
 )

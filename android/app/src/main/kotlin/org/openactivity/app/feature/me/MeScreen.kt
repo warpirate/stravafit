@@ -1,6 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.feature.me
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import org.openactivity.app.ui.common.ProfileAvatar
+import org.openactivity.core.designsystem.component.StatValue
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -100,18 +116,33 @@ data class MeActions(
     val onRecord: () -> Unit = {},
 )
 
-/** Stateless Me tab: profile header, then the Progress or Activities sub-tab. */
+/**
+ * Stateless You tab (strava direction): a small avatar, "You", search and settings in the top bar;
+ * Progress / Activities tabs; then sections on the grey gap band.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MeContent(state: MeUiState, actions: MeActions, modifier: Modifier = Modifier) {
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     Scaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = RidgelineTheme.colors.gap,
         contentWindowInsets = WindowInsets(0),
         topBar = {
-            RidgelineTopAppBar(title = "Me", scrollBehavior = scrollBehavior) {
-                TopBarAction(Icons.Rounded.Settings, "Settings", actions.onOpenSettings)
+            RidgelineTopAppBar(
+                title = "You",
+                scrollBehavior = scrollBehavior,
+                hairline = false,
+                leading = state.header?.let { header ->
+                    {
+                        Box(Modifier.clickable(onClickLabel = "Edit profile", onClick = actions.onEditProfile)) {
+                            ProfileAvatar(header.name, header.photoPath, size = 36.dp)
+                        }
+                    }
+                },
+            ) {
+                TopBarAction(Icons.Rounded.Search, "Search activities", onClick = { actions.onSelectTab(MeTab.Activities) })
+                TopBarAction(Icons.Outlined.Settings, "Settings", actions.onOpenSettings)
             }
         },
     ) { padding ->
@@ -124,13 +155,6 @@ fun MeContent(state: MeUiState, actions: MeActions, modifier: Modifier = Modifie
                 if (state.isLoading || header == null) {
                     item { ActivityCardSkeleton(Modifier.padding(Spacing.gutter)) }
                     return@LazyColumn
-                }
-                item(key = "header") {
-                    ProfileHeader(
-                        header,
-                        onEditProfile = actions.onEditProfile,
-                        modifier = Modifier.padding(horizontal = Spacing.gutter, vertical = Spacing.s),
-                    )
                 }
                 item(key = "tabs") { MeTabs(state.tab, actions.onSelectTab) }
                 when {
@@ -160,25 +184,25 @@ private fun NoActivities(onRecord: () -> Unit) {
 private fun MeTabs(selected: MeTab, onSelect: (MeTab) -> Unit) {
     TabRow(
         selectedTabIndex = selected.ordinal,
-        containerColor = MaterialTheme.colorScheme.background,
-        contentColor = MaterialTheme.colorScheme.onBackground,
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
         indicator = { positions ->
             TabRowDefaults.PrimaryIndicator(
                 Modifier.tabIndicatorOffset(positions[selected.ordinal]),
-                width = 64.dp,
+                width = positions[selected.ordinal].width,
                 height = 3.dp,
-                color = MaterialTheme.colorScheme.primary,
+                color = RidgelineTheme.colors.accent,
+                shape = RectangleShape,
             )
         },
         divider = { HorizontalDivider(color = RidgelineTheme.colors.hairline) },
-        modifier = Modifier.padding(top = Spacing.s),
     ) {
         MeTab.entries.forEach { tab ->
             Tab(
                 selected = tab == selected,
                 onClick = { onSelect(tab) },
-                text = { Text(tab.label, style = MaterialTheme.typography.titleSmall) },
-                unselectedContentColor = RidgelineTheme.colors.textSecondary,
+                text = { Text(tab.label, style = RidgelineTheme.text.tab) },
+                unselectedContentColor = RidgelineTheme.colors.textMuted,
             )
         }
     }
@@ -199,65 +223,178 @@ private fun SportChips(sports: List<SportType>, selected: SportType?, allLabel: 
     }
 }
 
-private fun LazyListScope.progressItems(state: MeUiState, actions: MeActions) {
-    item(key = "sports") { SportChips(state.sports, state.selectedSport, "All sports", actions.onSelectSport) }
-    item(key = "week") {
-        RidgelineCard(Modifier.padding(horizontal = Spacing.gutter)) {
-            Text("This week", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(Spacing.m))
-            StatGrid(state.thisWeek, columns = 2)
-            state.weeklyChart?.let {
-                Spacer(Modifier.height(Spacing.l))
-                WeeklyChart(it)
+/** Circular outlined sport buttons; tapping the selected one again shows all sports. */
+@Composable
+private fun SportCircles(sports: List<SportType>, selected: SportType?, onSelect: (SportType?) -> Unit) {
+    Row(
+        Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.gutter, vertical = Spacing.l),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.l),
+    ) {
+        sports.take(MAX_SPORT_CIRCLES).forEach { sport ->
+            val isSelected = sport == selected
+            Surface(
+                onClick = { onSelect(if (isSelected) null else sport) },
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = if (isSelected) RidgelineTheme.colors.accent else MaterialTheme.colorScheme.onSurface,
+                border = BorderStroke(if (isSelected) 2.dp else 1.5.dp, if (isSelected) RidgelineTheme.colors.accent else RidgelineTheme.colors.borderStrong),
+                modifier = Modifier.size(SPORT_CIRCLE).semantics {
+                    contentDescription = sport.label
+                    this.selected = isSelected
+                },
+            ) {
+                Box(contentAlignment = Alignment.Center) { Icon(sport.icon, contentDescription = null) }
             }
         }
     }
-    item(key = "stats-header") {
-        SectionHeader(
-            "${state.selectedSport?.label ?: "All sports"} totals",
-            modifier = Modifier.padding(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.m),
-        )
-    }
-    item(key = "stats") {
-        RidgelineCard(Modifier.padding(horizontal = Spacing.gutter)) {
-            Text("${state.year}", style = MaterialTheme.typography.titleSmall, color = RidgelineTheme.colors.textSecondary)
-            Spacer(Modifier.height(Spacing.m))
-            StatGrid(state.yearToDate, columns = 2)
-            Spacer(Modifier.height(Spacing.l))
-            HorizontalDivider(color = RidgelineTheme.colors.hairline)
-            Spacer(Modifier.height(Spacing.l))
-            Text("All time", style = MaterialTheme.typography.titleSmall, color = RidgelineTheme.colors.textSecondary)
-            Spacer(Modifier.height(Spacing.m))
-            StatGrid(state.allTime, columns = 2)
-        }
-    }
-    state.bestEffortsTitle?.let { title ->
-        item(key = "bests-header") {
-            SectionHeader(title, modifier = Modifier.padding(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.m))
-        }
-        item(key = "bests") { BestEffortsTable(state.bestEfforts, actions.onOpenActivity) }
-    }
+}
+
+/** A white section on the gap band. */
+@Composable
+private fun Section(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier.fillMaxWidth().padding(top = Spacing.s).background(MaterialTheme.colorScheme.surface),
+        content = content,
+    )
 }
 
 @Composable
+private fun SectionTitle(title: String, action: String? = null, onAction: () -> Unit = {}) {
+    Row(Modifier.fillMaxWidth().padding(start = Spacing.gutter, end = Spacing.xs, top = Spacing.l), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+        if (action != null) TextButton(onClick = onAction) { Text(action, color = RidgelineTheme.colors.accentText) }
+    }
+}
+
+private fun LazyListScope.progressItems(state: MeUiState, actions: MeActions) {
+    item(key = "week") {
+        Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)) {
+            if (state.sports.size > 1) {
+                SportCircles(state.sports, state.selectedSport, actions.onSelectSport)
+            } else {
+                Spacer(Modifier.height(Spacing.l))
+            }
+            Column(Modifier.padding(horizontal = Spacing.gutter).padding(bottom = Spacing.l)) {
+                Text(
+                    listOf("This week", state.weekRange).filter { it.isNotEmpty() }.joinToString(" · "),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = RidgelineTheme.colors.textSecondary,
+                )
+                Spacer(Modifier.height(Spacing.s))
+                val big = state.thisWeek.filter { it.label != "Activities" }.take(3)
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.x3)) {
+                    big.forEach { StatValue(it, valueStyle = RidgelineTheme.text.statL) }
+                }
+                state.weeklyChart?.let {
+                    Spacer(Modifier.height(Spacing.m))
+                    WeeklyChart(it)
+                }
+            }
+        }
+    }
+    if (state.weekDays.size == DAYS) {
+        item(key = "log") {
+            Section {
+                SectionTitle("Training log")
+                TrainingLog(state.weekDays, state.todayIndex)
+            }
+        }
+    }
+    state.bestEffortsTitle?.let { title ->
+        item(key = "bests") {
+            Section {
+                SectionTitle(title)
+                BestEffortsTable(state.bestEfforts, actions.onOpenActivity)
+            }
+        }
+    }
+    item(key = "stats") {
+        Section {
+            SectionTitle("${state.selectedSport?.label ?: "All sports"} totals")
+            Column(Modifier.padding(Spacing.gutter)) {
+                Text("${state.year}", style = MaterialTheme.typography.titleSmall, color = RidgelineTheme.colors.textSecondary)
+                Spacer(Modifier.height(Spacing.m))
+                StatGrid(state.yearToDate, columns = 2)
+                Spacer(Modifier.height(Spacing.l))
+                HorizontalDivider(color = RidgelineTheme.colors.hairline)
+                Spacer(Modifier.height(Spacing.l))
+                Text("All time", style = MaterialTheme.typography.titleSmall, color = RidgelineTheme.colors.textSecondary)
+                Spacer(Modifier.height(Spacing.m))
+                StatGrid(state.allTime, columns = 2)
+            }
+        }
+    }
+}
+
+/** Monday to Sunday: a dot per day sized by volume (a tiny grey dot on rest days); today in bold. */
+@Composable
+private fun TrainingLog(days: List<Float>, todayIndex: Int) {
+    val labels = listOf("M", "T", "W", "T", "F", "S", "S")
+    Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.s, vertical = Spacing.l)) {
+        days.forEachIndexed { i, f ->
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.size(LOG_DOT_MAX), contentAlignment = Alignment.Center) {
+                    val d = if (f > 0f) LOG_DOT_MIN + (LOG_DOT_MAX - LOG_DOT_MIN) * f else 6.dp
+                    Box(
+                        Modifier
+                            .size(d)
+                            .background(if (f > 0f) RidgelineTheme.colors.accent else RidgelineTheme.colors.borderStrong, CircleShape),
+                    )
+                }
+                Spacer(Modifier.height(Spacing.s))
+                Text(
+                    labels[i],
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (i == todayIndex) MaterialTheme.colorScheme.onSurface else RidgelineTheme.colors.textMuted,
+                    fontWeight = if (i == todayIndex) FontWeight.Bold else FontWeight.Normal,
+                )
+            }
+        }
+    }
+}
+
+private const val DAYS = 7
+private const val MAX_SPORT_CIRCLES = 6
+private val SPORT_CIRCLE = 48.dp
+private val LOG_DOT_MIN = 18.dp
+private val LOG_DOT_MAX = 40.dp
+
+@Composable
 private fun BestEffortsTable(efforts: List<BestEffortUi>, onOpenActivity: (Long) -> Unit) {
-    RidgelineCard(Modifier.padding(horizontal = Spacing.gutter), contentPadding = Spacing.none) {
-        efforts.forEachIndexed { index, effort ->
-            if (index > 0) HorizontalDivider(Modifier.padding(start = Spacing.l), color = RidgelineTheme.colors.hairline)
+    Column(Modifier.padding(horizontal = Spacing.gutter).padding(bottom = Spacing.s)) {
+        efforts.forEach { effort ->
+            HorizontalDivider(color = RidgelineTheme.colors.hairline)
             Row(
                 Modifier
                     .fillMaxWidth()
                     .heightIn(min = Spacing.listRowMin)
                     .clickable { onOpenActivity(effort.activityId) }
-                    .padding(horizontal = Spacing.l, vertical = Spacing.s),
+                    .padding(vertical = Spacing.m),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(effort.label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(effort.time, style = RidgelineTheme.text.statS)
-                    Text(effort.date, style = RidgelineTheme.text.caption, color = RidgelineTheme.colors.textMuted)
-                }
+                Medal(rank = 1)
+                Spacer(Modifier.width(Spacing.l))
+                Text(effort.label, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                Text(effort.time, style = RidgelineTheme.text.statS)
+                Spacer(Modifier.width(Spacing.l))
+                Text(effort.date, style = MaterialTheme.typography.bodyMedium, color = RidgelineTheme.colors.textMuted)
             }
+        }
+    }
+}
+
+/** Our own ribbon-medal glyph: a gold disc with the rank (every row here is a personal best, rank 1). */
+@Composable
+private fun Medal(rank: Int) {
+    val color = when (rank) {
+        1 -> RidgelineTheme.colors.medalGold
+        2 -> RidgelineTheme.colors.medalSilver
+        else -> RidgelineTheme.colors.medalBronze
+    }
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(width = 10.dp, height = 6.dp).background(RidgelineTheme.colors.accent))
+        Box(Modifier.size(22.dp).background(color, CircleShape), contentAlignment = Alignment.Center) {
+            Text("$rank", style = RidgelineTheme.text.caption, color = RidgelineTheme.colors.onMedal, fontWeight = FontWeight.Bold)
         }
     }
 }
