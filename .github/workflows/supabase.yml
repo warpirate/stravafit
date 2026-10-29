@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Backend database checks (blueprint §12): start the local Supabase stack,
+# apply every migration plus seed from scratch, run pgTAP tests (RLS and SQL
+# functions), and lint the schema. Runs only when backend files change.
+name: Supabase
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/supabase.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/supabase.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Directory that contains the `supabase/` project folder.
+  SUPABASE_WORKDIR: backend
+
+jobs:
+  db:
+    name: Migrations, pgTAP tests and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Check for a Supabase project
+        id: project
+        shell: bash
+        run: |
+          if [ -f "$SUPABASE_WORKDIR/supabase/config.toml" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No $SUPABASE_WORKDIR/supabase/config.toml yet; skipping database checks."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Supabase CLI
+        if: steps.project.outputs.present == 'true'
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Services not needed for database tests are skipped to save time.
+      - name: Start local Supabase stack
+        if: steps.project.outputs.present == 'true'
+        run: supabase --workdir "$SUPABASE_WORKDIR" start --exclude studio,imgproxy,logflare,vector
+
+      - name: Reset database (apply migrations and seed)
+        if: steps.project.outputs.present == 'true'
+        run: supabase --workdir "$SUPABASE_WORKDIR" db reset
+
+      - name: Run pgTAP tests
+        if: steps.project.outputs.present == 'true'
+        run: supabase --workdir "$SUPABASE_WORKDIR" test db
+
+      - name: Lint database schema
+        if: steps.project.outputs.present == 'true'
+        run: supabase --workdir "$SUPABASE_WORKDIR" db lint --level warning --fail-on error
+
+      - name: Stop local Supabase stack
+        if: always() && steps.project.outputs.present == 'true'
+        run: supabase --workdir "$SUPABASE_WORKDIR" stop --no-backup
