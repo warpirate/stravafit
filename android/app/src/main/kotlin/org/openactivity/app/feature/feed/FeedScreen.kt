@@ -1,6 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.feature.feed
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.automirrored.outlined.Chat
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.remember
+import org.openactivity.core.designsystem.component.TopBarAction
+import org.openactivity.core.designsystem.theme.RidgelineTheme
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,7 +60,12 @@ import org.openactivity.model.SportType
 
 /** Feed tab, connected to [FeedViewModel]. */
 @Composable
-fun FeedScreen(onRecord: () -> Unit, onOpenActivity: (Long) -> Unit, viewModel: FeedViewModel = hiltViewModel()) {
+fun FeedScreen(
+    onRecord: () -> Unit,
+    onOpenActivity: (Long) -> Unit,
+    onShareActivity: (Long) -> Unit = {},
+    viewModel: FeedViewModel = hiltViewModel(),
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val messenger = LocalMessenger.current
     LaunchedEffect(state.message) {
@@ -65,6 +82,8 @@ fun FeedScreen(onRecord: () -> Unit, onOpenActivity: (Long) -> Unit, viewModel: 
             onOpenActivity = onOpenActivity,
             onDeleteActivity = viewModel::delete,
             onRecord = onRecord,
+            onShareActivity = onShareActivity,
+            onNotAvailable = messenger::show,
         ),
     )
 }
@@ -76,9 +95,16 @@ data class FeedActions(
     val onOpenActivity: (Long) -> Unit = {},
     val onDeleteActivity: (Long) -> Unit = {},
     val onRecord: () -> Unit = {},
+    val onShareActivity: (Long) -> Unit = {},
+    /** Search, messages, notifications and high-fives need a server account; this explains that. */
+    val onNotAvailable: (String) -> Unit = {},
 )
 
-/** Stateless Feed screen: scope switch, sport filter, then skeletons, an empty state, or the cards. */
+/**
+ * Stateless Home screen (strava direction): "Home" with the "Following ▾" feed switcher and search,
+ * messages and notifications on the right over a hairline; then edge-to-edge activity cards separated by
+ * the grey `gap` band.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeedContent(state: FeedUiState, actions: FeedActions, modifier: Modifier = Modifier) {
@@ -86,25 +112,42 @@ fun FeedContent(state: FeedUiState, actions: FeedActions, modifier: Modifier = M
     var pendingDelete by rememberSaveable { mutableStateOf<Long?>(null) }
     Scaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = RidgelineTheme.colors.gap,
         contentWindowInsets = WindowInsets(0),
-        topBar = { RidgelineTopAppBar(title = "Feed", scrollBehavior = scrollBehavior) },
+        topBar = {
+            RidgelineTopAppBar(
+                title = "Home",
+                scrollBehavior = scrollBehavior,
+                titleTrailing = { ScopeSwitch(state.scope, actions.onSelectScope) },
+            ) {
+                TopBarAction(Icons.Rounded.Search, "Search", onClick = { actions.onNotAvailable(SERVER_NEEDED) })
+                TopBarAction(Icons.AutoMirrored.Outlined.Chat, "Messages", onClick = { actions.onNotAvailable(SERVER_NEEDED) })
+                TopBarAction(Icons.Outlined.Notifications, "Notifications", onClick = { actions.onNotAvailable(SERVER_NEEDED) })
+            }
+        },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
             LazyColumn(
                 modifier = Modifier.widthIn(max = Spacing.feedMaxWidth).fillMaxWidth(),
-                contentPadding = PaddingValues(start = Spacing.gutter, end = Spacing.gutter, bottom = Spacing.l),
+                contentPadding = PaddingValues(bottom = Spacing.l),
                 verticalArrangement = Arrangement.spacedBy(Spacing.cardGap),
             ) {
-                item(key = "scope") { ScopeSwitch(state.scope, actions.onSelectScope) }
                 if (state.scope == FeedScope.You && state.sports.isNotEmpty()) {
                     item(key = "sports") { SportFilter(state.sports, state.sportFilter, actions.onSelectSport) }
                 }
                 when {
-                    state.isLoading -> items(SKELETON_COUNT) { ActivityCardSkeleton() }
+                    state.isLoading -> items(SKELETON_COUNT) { ActivityCardSkeleton(Modifier.background(MaterialTheme.colorScheme.surface)) }
                     state.isEmpty -> item(key = "empty") { FeedEmpty(state, actions) }
                     else -> items(state.cards, key = { it.id }) { card ->
-                        ActivityCard(card, ActivityCardActions(onOpen = actions.onOpenActivity, onDelete = { pendingDelete = it }))
+                        ActivityCard(
+                            card,
+                            ActivityCardActions(
+                                onOpen = actions.onOpenActivity,
+                                onDelete = { pendingDelete = it },
+                                onShare = actions.onShareActivity,
+                                onHighFive = { actions.onNotAvailable(OWN_HIGH_FIVE) },
+                            ),
+                        )
                     }
                 }
             }
@@ -122,12 +165,33 @@ fun FeedContent(state: FeedUiState, actions: FeedActions, modifier: Modifier = M
 }
 
 private const val SKELETON_COUNT = 3
+private const val SERVER_NEEDED = "Needs a server account. That is coming soon."
+private const val OWN_HIGH_FIVE = "High-fives come from the people who follow you."
 
+/** "Following ▾": the feed switcher next to the title. */
 @Composable
 private fun ScopeSwitch(selected: FeedScope, onSelect: (FeedScope) -> Unit) {
-    Row(Modifier.padding(bottom = Spacing.xs), horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        FeedScope.entries.forEach { scope ->
-            RidgelineFilterChip(scope.label, selected = scope == selected, onClick = { onSelect(scope) })
+    var open by remember { mutableStateOf(false) }
+    Box {
+        Row(
+            Modifier
+                .clickable(onClickLabel = "Switch feed") { open = true }
+                .padding(vertical = Spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(selected.label, style = RidgelineTheme.text.tab, color = RidgelineTheme.colors.textSecondary)
+            Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = null, tint = RidgelineTheme.colors.textSecondary)
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            FeedScope.entries.forEach { scope ->
+                DropdownMenuItem(
+                    text = { Text(scope.label) },
+                    onClick = {
+                        open = false
+                        onSelect(scope)
+                    },
+                )
+            }
         }
     }
 }
@@ -136,8 +200,10 @@ private fun ScopeSwitch(selected: FeedScope, onSelect: (FeedScope) -> Unit) {
 private fun SportFilter(sports: List<SportType>, selected: SportType?, onSelect: (SportType?) -> Unit) {
     Row(
         Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
             .horizontalScroll(rememberScrollState())
-            .padding(bottom = Spacing.xs),
+            .padding(horizontal = Spacing.gutter, vertical = Spacing.s),
         horizontalArrangement = Arrangement.spacedBy(Spacing.s),
     ) {
         RidgelineFilterChip("All sports", selected = selected == null, onClick = { onSelect(null) })
@@ -149,7 +215,7 @@ private fun SportFilter(sports: List<SportType>, selected: SportType?, onSelect:
 
 @Composable
 private fun FeedEmpty(state: FeedUiState, actions: FeedActions) {
-    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface), contentAlignment = Alignment.Center) {
         when {
             state.scope == FeedScope.Following -> EmptyState(
                 icon = Icons.Rounded.CloudOff,

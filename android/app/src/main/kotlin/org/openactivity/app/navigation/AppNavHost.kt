@@ -56,7 +56,11 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
         exitTransition = { fadeOut(tween(motion.exit(motion.short))) },
     ) {
         composable<FeedRoute> {
-            FeedScreen(onRecord = { navController.openRecorder() }, onOpenActivity = openActivity)
+            FeedScreen(
+                onRecord = { navController.openRecorder() },
+                onOpenActivity = openActivity,
+                onShareActivity = { id -> navController.navigateToShareExport(id.toString()) },
+            )
         }
         composable<ExploreRoute> {
             ExploreScreen(onOpenRoute = { id -> navController.navigate(RouteDetailRoute(id)) { launchSingleTop = true } })

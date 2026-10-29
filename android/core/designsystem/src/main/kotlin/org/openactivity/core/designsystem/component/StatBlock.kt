@@ -66,7 +66,8 @@ fun statText(stat: Stat, valueStyle: TextStyle, unitScale: Float, unitColor: and
     }
 
 /**
- * A single stat: an uppercase muted label above a numeric value. Merged into one semantics node.
+ * A single stat: a Title Case muted label (12/500) above a numeric value, as on every strava screen.
+ * Merged into one semantics node.
  */
 @Composable
 fun StatValue(
@@ -77,8 +78,8 @@ fun StatValue(
     val colors = RidgelineTheme.colors
     Column(modifier.clearAndSetSemantics { contentDescription = stat.spoken }) {
         Text(
-            text = stat.label.uppercase(),
-            style = RidgelineTheme.text.overline,
+            text = stat.label,
+            style = RidgelineTheme.text.caption,
             color = colors.textMuted,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

@@ -14,13 +14,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.Dp
+import org.openactivity.core.designsystem.theme.CardShape
 import org.openactivity.core.designsystem.theme.Elevation
 import org.openactivity.core.designsystem.theme.RidgelineTheme
 import org.openactivity.core.designsystem.theme.Spacing
 
 /**
- * Standard Ridgeline card: `surface` fill, 16 dp radius, elevation level 1 (soft shadow in light
- * mode, tonal lift in dark mode).
+ * Standard card (strava direction): `surface` fill, square corners, flat. Lists separate cards with
+ * the `gap` band rather than shadows or rounded insets.
  *
  * @param onClick makes the whole card clickable when not null.
  * @param contentPadding inner padding; pass 0 dp for edge-to-edge media.
@@ -41,9 +42,9 @@ fun RidgelineCard(
         Column(Modifier.fillMaxWidth().padding(contentPadding), content = content)
     }
     if (onClick != null) {
-        ElevatedCard(onClick, modifier, shape = MaterialTheme.shapes.large, colors = colors, elevation = elevation, content = inner)
+        ElevatedCard(onClick, modifier, shape = CardShape, colors = colors, elevation = elevation, content = inner)
     } else {
-        ElevatedCard(modifier, shape = MaterialTheme.shapes.large, colors = colors, elevation = elevation, content = inner)
+        ElevatedCard(modifier, shape = CardShape, colors = colors, elevation = elevation, content = inner)
     }
 }
 

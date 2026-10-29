@@ -19,6 +19,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -53,6 +54,7 @@ fun RouteMapThumbnail(
     aspectRatio: Float = 2f,
     style: MapStyleKind = MapStyleKind.default(isMapThemeDark()),
     loader: RouteThumbnailLoader? = rememberRouteThumbnailLoader(),
+    shape: Shape = MaterialTheme.shapes.small,
 ) {
     val palette = mapPalette()
     val density = LocalDensity.current.density
@@ -61,7 +63,7 @@ fun RouteMapThumbnail(
         modifier
             .fillMaxWidth()
             .aspectRatio(aspectRatio)
-            .clip(MaterialTheme.shapes.small)
+            .clip(shape)
             .background(RidgelineTheme.colors.mapLand)
             .semantics { this.contentDescription = contentDescription },
     ) {

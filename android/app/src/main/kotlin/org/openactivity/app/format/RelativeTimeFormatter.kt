@@ -2,7 +2,6 @@
 package org.openactivity.app.format
 
 import java.time.Clock
-import java.time.Duration
 import java.time.Instant
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -11,9 +10,8 @@ import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 /**
- * Activity timestamps per home-feed detail 2.2:
- * - under 1 h: "N min ago"
- * - today: "Today at h:mm"
+ * Activity timestamps (strava direction):
+ * - today: "Today at h:mm" (also within the last hour)
  * - yesterday: "Yesterday at h:mm"
  * - within 7 days: weekday and time ("Monday at 7:02")
  * - older: "d MMM · h:mm", with the year only when it is not the current year.
@@ -33,11 +31,6 @@ class RelativeTimeFormatter(
     fun format(instant: Instant): String {
         val now = ZonedDateTime.now(clock)
         val then = instant.atZone(clock.zone)
-        val age = Duration.between(then, now)
-        if (!age.isNegative && age < Duration.ofHours(1)) {
-            val minutes = age.toMinutes().coerceAtLeast(1)
-            return "$minutes min ago"
-        }
         val days = ChronoUnit.DAYS.between(then.toLocalDate(), now.toLocalDate())
         val clockTime = time.format(then)
         return when {

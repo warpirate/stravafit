@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.core.designsystem.component
 
+import org.openactivity.core.designsystem.theme.Spacing
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
@@ -38,28 +44,46 @@ fun RidgelineTopAppBar(
     modifier: Modifier = Modifier,
     onNavigateUp: (() -> Unit)? = null,
     scrollBehavior: TopAppBarScrollBehavior? = null,
+    titleTrailing: (@Composable () -> Unit)? = null,
+    leading: (@Composable () -> Unit)? = null,
+    hairline: Boolean = true,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    TopAppBar(
-        title = { Text(title, style = MaterialTheme.typography.titleLarge) },
-        modifier = modifier,
-        navigationIcon = {
-            if (onNavigateUp != null) {
-                IconButton(onClick = onNavigateUp) {
-                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Navigate up")
+    Column(modifier) {
+        TopAppBar(
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (leading != null) {
+                        leading()
+                        Spacer(Modifier.width(Spacing.m))
+                    }
+                    Text(title, style = MaterialTheme.typography.titleLarge)
+                    if (titleTrailing != null) {
+                        Spacer(Modifier.width(Spacing.m))
+                        titleTrailing()
+                    }
                 }
-            }
-        },
-        actions = actions,
-        scrollBehavior = scrollBehavior,
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.background,
-            scrolledContainerColor = MaterialTheme.colorScheme.surface,
-            titleContentColor = MaterialTheme.colorScheme.onBackground,
-            actionIconContentColor = RidgelineTheme.colors.textSecondary,
-            navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
-        ),
-    )
+            },
+            navigationIcon = {
+                if (onNavigateUp != null) {
+                    IconButton(onClick = onNavigateUp) {
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Navigate up")
+                    }
+                }
+            },
+            actions = actions,
+            scrollBehavior = scrollBehavior,
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+                scrolledContainerColor = MaterialTheme.colorScheme.surface,
+                titleContentColor = MaterialTheme.colorScheme.onSurface,
+                actionIconContentColor = MaterialTheme.colorScheme.onSurface,
+                navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+            ),
+        )
+        // strava direction: a hairline sits under every top bar.
+        if (hairline) HorizontalDivider(color = RidgelineTheme.colors.hairline)
+    }
 }
 
 /**

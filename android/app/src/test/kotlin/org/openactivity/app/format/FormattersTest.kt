@@ -72,9 +72,10 @@ class RelativeTimeFormatterTest {
     private fun ago(duration: Duration): Instant = now.toInstant() - duration
 
     @Test
-    fun `under an hour shows minutes ago`() {
-        assertEquals("48 min ago", format24.format(ago(Duration.ofMinutes(48))))
-        assertEquals("1 min ago", format24.format(ago(Duration.ofSeconds(5))))
+    fun `recent activities show the clock time like older ones today`() {
+        // strava direction: "Today at 6:12 AM", never "7 min ago".
+        assertEquals("Today at 14:12", format24.format(ago(Duration.ofMinutes(48))))
+        assertEquals("Today at 14:59", format24.format(ago(Duration.ofSeconds(5))))
     }
 
     @Test
