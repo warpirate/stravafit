@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -82,6 +83,10 @@ fun SecondaryButton(
             .loadingSemantics(loading),
         enabled = enabled && !loading,
         shape = MaterialTheme.shapes.medium,
+        colors = ButtonDefaults.filledTonalButtonColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ),
         contentPadding = ButtonPadding,
     ) {
         ButtonContent(text = text, loading = loading, leadingIcon = leadingIcon)
