@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.feature.activitydetail.ui
 
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
+import org.openactivity.core.designsystem.component.Stat
+import org.openactivity.core.designsystem.component.StatValue
+import org.openactivity.feature.activitydetail.EffortRow
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -60,23 +69,29 @@ internal fun DetailBody(content: DetailContent) {
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = Spacing.x4),
     ) {
-        item(key = "header") { Header(content) }
         item(key = "map") {
             if (content.hasRoute) {
+                // Full-bleed hero map; the back, share and more buttons float over it.
                 DetailMap(
                     route = content.route,
                     speeds = content.routeSpeeds,
                     marker = marker,
                     focus = focus,
-                    modifier = Modifier.padding(horizontal = Spacing.gutter, vertical = Spacing.s),
+                    height = HERO_MAP_HEIGHT,
+                    shape = RectangleShape,
                 )
             } else {
+                Spacer(Modifier.statusBarsPadding().height(TOP_BUTTONS_CLEARANCE))
                 NoRouteNote(Modifier.padding(horizontal = Spacing.gutter, vertical = Spacing.s))
             }
         }
+        item(key = "header") { Header(content) }
         item(key = "stats") {
-            Column(Modifier.padding(horizontal = Spacing.gutter, vertical = Spacing.m)) {
-                StatGrid(content.stats, columns = 3)
+            Column(Modifier.padding(horizontal = Spacing.gutter, vertical = Spacing.s)) {
+                StatTable(content.stats.filter { it.value != null })
+                content.efforts.firstOrNull { it.isPersonalBest }?.let { pr ->
+                    PrRow(pr, more = content.efforts.count { it.isPersonalBest } - 1)
+                }
                 content.notes.forEach { note ->
                     Text(
                         note,
@@ -153,26 +168,32 @@ internal fun DetailBody(content: DetailContent) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Header(content: DetailContent) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = Spacing.gutter, vertical = Spacing.s)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = Spacing.gutter).padding(top = Spacing.l, bottom = Spacing.s)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
-                Modifier.size(32.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+                Modifier.size(44.dp).clip(CircleShape).background(RidgelineTheme.colors.accentArea),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(sportIcon(content.sport), null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(18.dp))
+                Icon(sportIcon(content.sport), null, tint = RidgelineTheme.colors.accent, modifier = Modifier.size(24.dp))
             }
-            Text(
-                content.startedAt,
-                style = MaterialTheme.typography.bodyMedium,
-                color = RidgelineTheme.colors.textSecondary,
-                modifier = Modifier.padding(start = Spacing.s),
-            )
+            Column(Modifier.padding(start = Spacing.m)) {
+                Text(content.sportName, style = MaterialTheme.typography.titleSmall)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(sportIcon(content.sport), null, tint = RidgelineTheme.colors.textMuted, modifier = Modifier.size(14.dp))
+                    Text(
+                        content.startedAt,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = RidgelineTheme.colors.textMuted,
+                        modifier = Modifier.padding(start = Spacing.xs),
+                    )
+                }
+            }
         }
-        Spacer(Modifier.height(Spacing.s))
+        Spacer(Modifier.height(Spacing.m))
         Text(content.title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })
         if (content.description.isNotBlank()) {
             Spacer(Modifier.height(Spacing.xs))
-            Text(content.description, style = MaterialTheme.typography.bodyLarge)
+            Text(content.description, style = MaterialTheme.typography.bodyLarge, color = RidgelineTheme.colors.textSecondary)
         }
         Spacer(Modifier.height(Spacing.s))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
@@ -182,6 +203,50 @@ private fun Header(content: DetailContent) {
         }
     }
 }
+
+/** Stats three to a row, rows separated by horizontal hairlines, Title Case labels, no vertical dividers. */
+@Composable
+private fun StatTable(stats: List<Stat>) {
+    Column(Modifier.fillMaxWidth()) {
+        stats.chunked(STAT_COLUMNS).forEach { row ->
+            HorizontalDivider(color = RidgelineTheme.colors.hairline)
+            Row(Modifier.fillMaxWidth().padding(vertical = Spacing.m)) {
+                row.forEach { StatValue(it, Modifier.weight(1f), RidgelineTheme.text.statM) }
+                repeat(STAT_COLUMNS - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+        HorizontalDivider(color = RidgelineTheme.colors.hairline)
+    }
+}
+
+/** "PR · Half marathon   1:56:12   +3 more" with a gold medal. */
+@Composable
+private fun PrRow(effort: EffortRow, more: Int) {
+    Column {
+        Row(Modifier.fillMaxWidth().padding(vertical = Spacing.m), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(22.dp).background(RidgelineTheme.colors.medalGold, CircleShape), contentAlignment = Alignment.Center) {
+                Text("1", style = RidgelineTheme.text.caption, color = RidgelineTheme.colors.onMedal, fontWeight = FontWeight.Bold)
+            }
+            Text(
+                buildAnnotatedString {
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("PR") }
+                    append(" · ${effort.name}")
+                },
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f).padding(start = Spacing.m),
+            )
+            Text(effort.result, style = RidgelineTheme.text.statS)
+            if (more > 0) {
+                Text("+$more more", style = MaterialTheme.typography.bodyLarge, color = RidgelineTheme.colors.accentText, modifier = Modifier.padding(start = Spacing.m))
+            }
+        }
+        HorizontalDivider(color = RidgelineTheme.colors.hairline)
+    }
+}
+
+private const val STAT_COLUMNS = 3
+private val HERO_MAP_HEIGHT = 300.dp
+private val TOP_BUTTONS_CLEARANCE = 64.dp
 
 @Composable
 private fun Tag(icon: ImageVector?, text: String) {

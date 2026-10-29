@@ -36,12 +36,13 @@ internal fun DetailMap(
     focus: List<LatLng>?,
     modifier: Modifier = Modifier,
     height: Dp = 260.dp,
+    shape: androidx.compose.ui.graphics.Shape = androidx.compose.material3.MaterialTheme.shapes.medium,
 ) {
-    val shapeModifier = modifier.fillMaxWidth().height(height).clip(androidx.compose.material3.MaterialTheme.shapes.medium)
+    val shapeModifier = modifier.fillMaxWidth().height(height).clip(shape)
     if (LocalInspectionMode.current) {
         BoxWithConstraints(shapeModifier) {
             // Match the box exactly so the offline drawing fills it.
-            RouteMapThumbnail(points = route, contentDescription = "Route map", aspectRatio = maxWidth / maxHeight, loader = null)
+            RouteMapThumbnail(points = route, contentDescription = "Route map", aspectRatio = maxWidth / maxHeight, loader = null, shape = shape)
         }
         return
     }

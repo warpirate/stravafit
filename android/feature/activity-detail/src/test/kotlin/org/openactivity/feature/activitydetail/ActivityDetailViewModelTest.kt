@@ -62,7 +62,7 @@ class ActivityDetailViewModelTest : RepositoryBackedTest() {
         assertTrue(c.startedAt.startsWith("Yesterday at"))
         assertTrue(c.muted)
         assertEquals(7, c.perceivedExertion)
-        assertEquals(listOf("Distance", "Moving time", "Avg pace", "Elev gain", "Elapsed time", "Avg HR", "Max HR"), c.stats.map { it.label })
+        assertEquals(listOf("Distance", "Avg Pace", "Moving Time", "Elev Gain", "Elapsed Time", "Avg Heart Rate", "Max Heart Rate"), c.stats.map { it.label })
         assertTrue(c.hasRoute)
         assertNotNull(c.chart?.seriesFor(org.openactivity.feature.activitydetail.chart.ChartMetric.HEART_RATE))
         assertTrue(c.splits.size >= 4)

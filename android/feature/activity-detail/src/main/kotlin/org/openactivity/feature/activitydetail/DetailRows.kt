@@ -61,21 +61,21 @@ object DetailRows {
     fun stats(activity: SavedActivity, units: UnitSystem, hasElevation: Boolean): List<Stat> = buildList {
         val distance = DetailFormat.distance(activity.distanceMeters, units)
         add(Stat("Distance", distance.value, distance.unit, distance.spokenUnit))
-        add(Stat("Moving time", DetailFormat.duration(activity.movingTime)))
         val speed = DetailFormat.speed(activity.averageSpeedMps, activity.sport, units)
-        add(Stat(if (activity.sport.displaysPace) "Avg pace" else "Avg speed", speed?.value, speed?.unit, speed?.spokenUnit))
+        add(Stat(if (activity.sport.displaysPace) "Avg Pace" else "Avg Speed", speed?.value, speed?.unit, speed?.spokenUnit))
+        add(Stat("Moving Time", DetailFormat.duration(activity.movingTime)))
         if (hasElevation) {
             val gain = DetailFormat.elevation(activity.elevationGainMeters, units)
-            add(Stat("Elev gain", gain.value, gain.unit, gain.spokenUnit))
+            add(Stat("Elev Gain", gain.value, gain.unit, gain.spokenUnit))
         }
-        add(Stat("Elapsed time", DetailFormat.duration(activity.elapsedTime)))
+        add(Stat("Elapsed Time", DetailFormat.duration(activity.elapsedTime)))
         if (!activity.sport.displaysPace) {
             val max = DetailFormat.speed(activity.maxSpeedMps, activity.sport, units)
-            if (max != null) add(Stat("Max speed", max.value, max.unit, max.spokenUnit))
+            if (max != null) add(Stat("Max Speed", max.value, max.unit, max.spokenUnit))
         }
-        activity.averageHeartRate?.let { val hr = DetailFormat.heartRate(it); add(Stat("Avg HR", hr.value, hr.unit, hr.spokenUnit)) }
-        activity.maxHeartRate?.let { val hr = DetailFormat.heartRate(it.toDouble()); add(Stat("Max HR", hr.value, hr.unit, hr.spokenUnit)) }
-        activity.averagePower?.let { add(Stat("Avg power", it.roundToInt().toString(), "W", "watts")) }
+        activity.averageHeartRate?.let { val hr = DetailFormat.heartRate(it); add(Stat("Avg Heart Rate", hr.value, hr.unit, hr.spokenUnit)) }
+        activity.maxHeartRate?.let { val hr = DetailFormat.heartRate(it.toDouble()); add(Stat("Max Heart Rate", hr.value, hr.unit, hr.spokenUnit)) }
+        activity.averagePower?.let { add(Stat("Avg Power", it.roundToInt().toString(), "W", "watts")) }
         activity.averageCadence?.let { add(Stat("Cadence", it.roundToInt().toString(), if (activity.sport.isRideLike) "rpm" else "spm")) }
     }
 

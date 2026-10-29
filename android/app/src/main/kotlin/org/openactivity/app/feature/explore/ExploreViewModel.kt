@@ -18,6 +18,8 @@ import org.openactivity.app.format.UnitFormatter
 import org.openactivity.app.ui.common.decodeRoute
 import org.openactivity.core.data.model.SavedRoute
 import org.openactivity.core.data.repository.RouteRepository
+import org.openactivity.app.ui.common.toStat
+import org.openactivity.core.designsystem.component.Stat
 import org.openactivity.model.LatLng
 import org.openactivity.model.SportType
 import java.util.Locale
@@ -31,6 +33,8 @@ data class RouteCardUi(
     val details: String,
     val sport: SportType?,
     val points: List<LatLng>,
+    /** Distance, Elev Gain and Est. Time for the route card. */
+    val stats: List<Stat> = emptyList(),
 )
 
 /**
@@ -129,6 +133,11 @@ class ExploreViewModel @Inject constructor(
             details = details(this, formatter),
             sport = sport,
             points = decodeRoute(polyline).orEmpty(),
+            stats = listOf(
+                formatter.distance(distanceMeters).toStat("Distance"),
+                formatter.elevation(elevationGainMeters).toStat("Elev Gain"),
+                Stat("Est. Time", UnitFormatter.compactDuration(RouteEstimates.estimatedSeconds(distanceMeters, elevationGainMeters, sport))),
+            ),
         )
     }
 }

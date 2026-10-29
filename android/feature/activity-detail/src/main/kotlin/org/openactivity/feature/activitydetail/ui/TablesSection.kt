@@ -158,7 +158,7 @@ private fun TableHeader(unit: String, speed: String, elev: String?, hr: String?)
     Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.xs, vertical = Spacing.xs)) {
         HeaderText(unit, Modifier.width(UNIT_COL))
         HeaderText(speed, Modifier.width(SPEED_COL))
-        Box(Modifier.weight(1f))
+        HeaderText("Relative pace", Modifier.weight(1f))
         if (elev != null) HeaderText(elev, Modifier.width(SMALL_COL))
         if (hr != null) HeaderText(hr, Modifier.width(SMALL_COL))
     }
@@ -167,7 +167,7 @@ private fun TableHeader(unit: String, speed: String, elev: String?, hr: String?)
 
 @Composable
 private fun HeaderText(text: String, modifier: Modifier) {
-    Text(text.uppercase(), style = RidgelineTheme.text.overline, color = RidgelineTheme.colors.textMuted, modifier = modifier)
+    Text(text, style = RidgelineTheme.text.caption, color = RidgelineTheme.colors.textMuted, modifier = modifier)
 }
 
 @Composable

@@ -1,6 +1,30 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.feature.activitydetail.ui
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.automirrored.outlined.Comment
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.outlined.PanTool
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Surface
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
+import org.openactivity.core.designsystem.theme.RidgelineTheme
+import org.openactivity.core.designsystem.theme.Spacing
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -99,7 +123,10 @@ fun ActivityDetailScreen(
     )
 }
 
-/** Stateless detail screen: top bar with overflow menu, the activity body, dialogs. */
+/**
+ * Stateless detail screen (strava direction): a full-bleed hero map with floating round back, share and
+ * more buttons, the activity body, and a bottom bar with high-five and comment counts and share.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActivityDetailContent(
@@ -109,15 +136,10 @@ fun ActivityDetailContent(
 ) {
     val content = state as? ActivityDetailUiState.Content
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentWindowInsets = WindowInsets(0),
         snackbarHost = { SnackbarHost(snackbar) },
-        topBar = {
-            RidgelineTopAppBar(
-                title = content?.activity?.sportName ?: "Activity",
-                onNavigateUp = actions.onBack,
-                actions = { if (content != null) DetailMenu(actions) },
-            )
-        },
+        bottomBar = { if (content != null) SocialBar(actions.onShare) },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             when (state) {
@@ -138,6 +160,52 @@ fun ActivityDetailContent(
                     }
                 }
             }
+            Row(
+                Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = Spacing.gutter, vertical = Spacing.s),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                FloatingRound(Icons.AutoMirrored.Rounded.ArrowBack, "Navigate up", actions.onBack)
+                Spacer(Modifier.weight(1f))
+                if (content != null) DetailMenu(actions)
+            }
+        }
+    }
+}
+
+/** 44 dp round button floating over the hero map. */
+@Composable
+private fun FloatingRound(icon: androidx.compose.ui.graphics.vector.ImageVector, description: String, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = RidgelineTheme.colors.float,
+        contentColor = RidgelineTheme.colors.onFloat,
+        shadowElevation = 3.dp,
+        modifier = Modifier.size(44.dp).semantics { contentDescription = description },
+    ) {
+        Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = null) }
+    }
+}
+
+/** High-five count, comment count and share. Counts stay 0 until activities are shared to a server. */
+@Composable
+private fun SocialBar(onShare: () -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.navigationBarsPadding()) {
+            HorizontalDivider(color = RidgelineTheme.colors.hairline)
+            Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.weight(1f), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.PanTool, contentDescription = "High-fives", modifier = Modifier.size(22.dp))
+                    Text("0", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(start = Spacing.s))
+                }
+                Row(Modifier.weight(1f), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.AutoMirrored.Outlined.Comment, contentDescription = "Comments", modifier = Modifier.size(22.dp))
+                    Text("0", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(start = Spacing.s))
+                }
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    IconButton(onClick = onShare) { Icon(Icons.Outlined.Share, contentDescription = "Share") }
+                }
+            }
         }
     }
 }
@@ -145,9 +213,10 @@ fun ActivityDetailContent(
 @Composable
 private fun DetailMenu(actions: DetailActions) {
     var open by rememberSaveable { mutableStateOf(false) }
-    IconButton(onClick = actions.onShare) { Icon(Icons.Rounded.IosShare, contentDescription = "Share") }
+    FloatingRound(Icons.Outlined.Share, "Share", actions.onShare)
+    Spacer(Modifier.width(Spacing.m))
     Box {
-        IconButton(onClick = { open = true }) { Icon(Icons.Rounded.MoreVert, contentDescription = "More options") }
+        FloatingRound(Icons.Rounded.MoreHoriz, "More options") { open = true }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             MenuItem("Edit activity", Icons.Rounded.Edit) { open = false; actions.onEdit() }
             MenuItem("Share & export", Icons.Rounded.IosShare) { open = false; actions.onShare() }
