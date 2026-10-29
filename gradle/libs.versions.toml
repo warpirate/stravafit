@@ -23,6 +23,7 @@ espresso = "3.6.1"
 roborazzi = "1.39.0" # WP app-shell
 play-services-location = "21.3.0" # WP data-service
 androidx-test-core = "1.6.1" # WP data-service
+maplibre = "11.13.5" # WP maps
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -76,6 +77,7 @@ roborazzi-compose = { module = "io.github.takahirom.roborazzi:roborazzi-compose"
 roborazzi-junit-rule = { module = "io.github.takahirom.roborazzi:roborazzi-junit-rule", version.ref = "roborazzi" } # WP app-shell
 play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "play-services-location" } # WP data-service
 androidx-test-core = { module = "androidx.test:core", version.ref = "androidx-test-core" } # WP data-service
+maplibre-android-sdk = { module = "org.maplibre.gl:android-sdk", version.ref = "maplibre" } # WP maps
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

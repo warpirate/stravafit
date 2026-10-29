@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<resources>
+    <string name="map_style_standard">Standard</string>
+    <string name="map_style_outdoor">Outdoor</string>
+    <string name="map_style_dark">Dark</string>
+    <string name="map_recenter">Centre on my location</string>
+    <string name="map_following">Following your location</string>
+    <string name="map_attribution_label">Map data: %1$s</string>
+    <string name="map_thumbnail_offline">Route preview (map unavailable offline)</string>
+    <string name="map_thumbnail_osm">© OpenStreetMap</string>
+</resources>

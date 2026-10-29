@@ -40,4 +40,5 @@ includeIfPresent(
     ":android:core:location", // WP data-service
     ":android:core:data", // WP data-service
     ":android:core:recording-service", // WP data-service
+    ":android:core:map", // WP maps
 )
