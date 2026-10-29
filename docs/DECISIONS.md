@@ -17,6 +17,7 @@ Binding decisions for the open-source Strava alternative. Every doc, the bluepri
 | 011 | 2026-10-29 | Two Android flavors: `gms` (Play) and `foss` (F-Droid, no Google services). | Accepted |
 | 012 | 2026-10-29 | Maps: MapLibre Native + self-hosted Protomaps PMTiles (OSM); on-device routing with BRouter. | Accepted |
 | 013 | 2026-10-29 | Feed is chronological by default; any ranked mode is opt-in and its signals are documented in-app. | Accepted |
+| 014 | 2026-10-29 | Distribution: GitHub releases only (no Play Store plan). Visual design deliberately follows Strava's look and feel (white/dark themes, orange accent, layout, density). We still draw our own logo, icons and illustrations; no copied proprietary assets. Supersedes the "no orange" rule in the design system and makes ADR-004's rename optional. | Accepted |
 
 ## Notes
 
