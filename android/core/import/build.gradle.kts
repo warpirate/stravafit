@@ -42,7 +42,8 @@ dependencies {
     implementation(project(":lib:fit"))
 
     implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.activity.ktx)
+    // api: ImportDocumentsContract is public and extends ActivityResultContracts.OpenMultipleDocuments.
+    api(libs.androidx.activity.ktx)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
