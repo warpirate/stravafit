@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.format
 
-import org.openactivity.app.model.UnitSystem
+import org.openactivity.model.UnitSystem
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.text.NumberFormat
@@ -21,8 +21,8 @@ class UnitFormatter(private val units: UnitSystem, private val locale: Locale = 
     /** "8.02 km" below 100 units, "123.4 km" below 1,000, then whole units ("1,204 km"). */
     fun distance(meters: Double): Measure {
         val (amount, unit, spoken) = when (units) {
-            UnitSystem.Metric -> Triple(meters / METERS_PER_KM, "km", "kilometres")
-            UnitSystem.Imperial -> Triple(meters / METERS_PER_MILE, "mi", "miles")
+            UnitSystem.METRIC -> Triple(meters / METERS_PER_KM, "km", "kilometres")
+            UnitSystem.IMPERIAL -> Triple(meters / METERS_PER_MILE, "mi", "miles")
         }
         // Pick the precision from the value as it will be shown, so 99.996 km reads "100.0 km"
         // rather than "100.00 km", and 999.96 km reads "1,000 km".
@@ -36,37 +36,49 @@ class UnitFormatter(private val units: UnitSystem, private val locale: Locale = 
 
     /** Swim distance in whole metres or yards. */
     fun swimDistance(meters: Double): Measure = when (units) {
-        UnitSystem.Metric -> Measure(integer(meters), "m", "metres")
-        UnitSystem.Imperial -> Measure(integer(meters / METERS_PER_YARD), "yd", "yards")
+        UnitSystem.METRIC -> Measure(integer(meters), "m", "metres")
+        UnitSystem.IMPERIAL -> Measure(integer(meters / METERS_PER_YARD), "yd", "yards")
     }
 
     /** Pace per kilometre or mile, e.g. "5:12" "/km". */
     fun pace(meters: Double, seconds: Long): Measure? {
         if (meters <= 0.0 || seconds <= 0) return null
         val perUnit = when (units) {
-            UnitSystem.Metric -> seconds / (meters / METERS_PER_KM)
-            UnitSystem.Imperial -> seconds / (meters / METERS_PER_MILE)
+            UnitSystem.METRIC -> seconds / (meters / METERS_PER_KM)
+            UnitSystem.IMPERIAL -> seconds / (meters / METERS_PER_MILE)
         }
-        val unit = if (units == UnitSystem.Metric) "/km" else "/mi"
-        val spoken = if (units == UnitSystem.Metric) "per kilometre" else "per mile"
+        val unit = if (units == UnitSystem.METRIC) "/km" else "/mi"
+        val spoken = if (units == UnitSystem.METRIC) "per kilometre" else "per mile"
         return Measure(minutesSeconds(perUnit.roundToLong()), unit, spoken)
     }
 
     /** Swim pace per 100 m or 100 yd. */
     fun swimPace(meters: Double, seconds: Long): Measure? {
         if (meters <= 0.0 || seconds <= 0) return null
-        val unitMeters = if (units == UnitSystem.Metric) HUNDRED_METERS else HUNDRED_METERS * METERS_PER_YARD
+        val unitMeters = if (units == UnitSystem.METRIC) HUNDRED_METERS else HUNDRED_METERS * METERS_PER_YARD
         val perHundred = seconds / (meters / unitMeters)
-        val unit = if (units == UnitSystem.Metric) "/100m" else "/100yd"
-        val spoken = if (units == UnitSystem.Metric) "per 100 metres" else "per 100 yards"
+        val unit = if (units == UnitSystem.METRIC) "/100m" else "/100yd"
+        val spoken = if (units == UnitSystem.METRIC) "per 100 metres" else "per 100 yards"
         return Measure(minutesSeconds(perHundred.roundToLong()), unit, spoken)
     }
 
     /** Elevation in metres or feet, grouped ("1,102 m"). */
     fun elevation(meters: Double): Measure = when (units) {
-        UnitSystem.Metric -> Measure(integer(meters), "m", "metres")
-        UnitSystem.Imperial -> Measure(integer(meters / METERS_PER_FOOT), "ft", "feet")
+        UnitSystem.METRIC -> Measure(integer(meters), "m", "metres")
+        UnitSystem.IMPERIAL -> Measure(integer(meters / METERS_PER_FOOT), "ft", "feet")
     }
+
+    /** Speed in km/h or mph with one decimal, e.g. "24.3" "km/h". Null when not moving. */
+    fun speed(metersPerSecond: Double): Measure? {
+        if (metersPerSecond <= 0.0 || !metersPerSecond.isFinite()) return null
+        return when (units) {
+            UnitSystem.METRIC -> Measure(decimal(metersPerSecond * SECONDS_PER_HOUR / METERS_PER_KM, 1), "km/h", "kilometres per hour")
+            UnitSystem.IMPERIAL -> Measure(decimal(metersPerSecond * SECONDS_PER_HOUR / METERS_PER_MILE, 1), "mph", "miles per hour")
+        }
+    }
+
+    /** Short distance for radii and thresholds: "200 m" or "650 ft". */
+    fun shortDistance(meters: Double): Measure = elevation(meters)
 
     /** Integer with locale grouping. */
     fun count(value: Number): String = NumberFormat.getIntegerInstance(locale).format(value)

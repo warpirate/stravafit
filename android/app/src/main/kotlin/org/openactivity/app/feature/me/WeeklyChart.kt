@@ -22,7 +22,7 @@ import org.openactivity.core.designsystem.theme.RidgelineTheme
 import org.openactivity.core.designsystem.theme.Spacing
 
 /**
- * Twelve-week volume bars. The current week is filled primary; earlier weeks use the container
+ * Twelve-week volume bars (distance, or time for sports without GPS). The current week is filled primary; earlier weeks use the container
  * tint. A dashed hairline marks the busiest week, labelled with its distance. TalkBack reads a
  * one-sentence summary instead of individual bars.
  */
@@ -33,7 +33,7 @@ fun WeeklyChart(chart: WeeklyChartUi, modifier: Modifier = Modifier) {
     val empty = RidgelineTheme.colors.hairline
     val grid = RidgelineTheme.colors.borderStrong
     Column(modifier.clearAndSetSemantics { contentDescription = chart.summary }) {
-        Text(chart.maxLabel, style = RidgelineTheme.text.caption, color = RidgelineTheme.colors.textMuted)
+        Text("${chart.metric} · busiest ${chart.maxLabel}", style = RidgelineTheme.text.caption, color = RidgelineTheme.colors.textMuted)
         Canvas(
             Modifier
                 .fillMaxWidth()

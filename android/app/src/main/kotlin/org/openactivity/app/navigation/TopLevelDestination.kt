@@ -28,7 +28,7 @@ enum class TopLevelDestination(
 ) {
     Feed("Feed", Icons.Rounded.Home, Icons.Outlined.Home, FeedRoute, FeedRoute::class),
     Explore("Explore", Icons.Rounded.Explore, Icons.Outlined.Explore, ExploreRoute, ExploreRoute::class),
-    Record("Record", Icons.Rounded.FiberManualRecord, Icons.Rounded.FiberManualRecord, RecordRoute, RecordRoute::class),
+    Record("Record", Icons.Rounded.FiberManualRecord, Icons.Rounded.FiberManualRecord, RecordRoute(), RecordRoute::class),
     Groups("Groups", Icons.Rounded.Groups, Icons.Outlined.Groups, GroupsRoute, GroupsRoute::class),
     Me("Me", Icons.Rounded.Person, Icons.Outlined.Person, MeRoute, MeRoute::class),
     ;

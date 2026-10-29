@@ -3,40 +3,67 @@ package org.openactivity.app.ui.common
 
 import org.openactivity.app.format.Measure
 import org.openactivity.app.format.UnitFormatter
-import org.openactivity.app.model.Activity
-import org.openactivity.app.model.StatTriplet
+import org.openactivity.core.data.model.SavedActivity
 import org.openactivity.core.designsystem.component.Stat
+import org.openactivity.model.SpeedDisplay
+import org.openactivity.model.SportCategory
+import kotlin.math.roundToInt
 
 /**
  * The three card stats for [activity], chosen by sport (core-screens 1.2) and formatted in the
- * viewer's units. Unknown values become null, which renders as a dash.
+ * viewer's units. Unknown values become null, which renders as a dash, never "0".
+ *
+ * - pace sports (run, walk, hike): distance, pace, time
+ * - rides: distance, elevation gain, time
+ * - swims: distance in m/yd, pace per 100, time
+ * - other GPS sports: distance, speed, time
+ * - activities without distance (indoor): time, average heart rate, elevation or elapsed time
  */
-fun activityStats(activity: Activity, formatter: UnitFormatter): List<Stat> {
-    val distance = activity.distanceMeters
-    val time = Stat("Time", UnitFormatter.duration(activity.movingTimeSeconds))
-    return when (activity.sport.triplet) {
-        StatTriplet.DistancePaceTime -> listOf(
-            distance?.let { formatter.distance(it) }.toStat("Distance"),
-            distance?.let { formatter.pace(it, activity.movingTimeSeconds) }.toStat("Pace"),
+fun activityStats(activity: SavedActivity, formatter: UnitFormatter): List<Stat> {
+    val seconds = activity.movingTime.inWholeSeconds
+    val distance = activity.distanceMeters.takeIf { it > 0.0 }
+    val time = Stat("Time", UnitFormatter.duration(seconds))
+    if (distance == null) {
+        return listOf(
+            time,
+            Stat("Avg HR", activity.averageHeartRate?.roundToInt()?.toString(), "bpm", "beats per minute"),
+            Stat("Elapsed", UnitFormatter.duration(activity.elapsedTime.inWholeSeconds)),
+        )
+    }
+    val sport = activity.sport
+    return when {
+        sport.category == SportCategory.BIKE -> listOf(
+            formatter.distance(distance).toStat("Distance"),
+            formatter.elevation(activity.elevationGainMeters).toStat("Elev gain"),
             time,
         )
-        StatTriplet.DistanceElevationTime -> listOf(
-            distance?.let { formatter.distance(it) }.toStat("Distance"),
-            activity.elevationGainMeters?.let { formatter.elevation(it) }.toStat("Elev gain"),
+        sport.speedDisplay == SpeedDisplay.PACE -> listOf(
+            formatter.distance(distance).toStat("Distance"),
+            formatter.pace(distance, seconds).toStat("Pace"),
             time,
         )
-        StatTriplet.SwimDistancePaceTime -> listOf(
-            distance?.let { formatter.swimDistance(it) }.toStat("Distance"),
-            distance?.let { formatter.swimPace(it, activity.movingTimeSeconds) }.toStat("Pace"),
+        sport.speedDisplay == SpeedDisplay.PACE_PER_100M -> listOf(
+            formatter.swimDistance(distance).toStat("Distance"),
+            formatter.swimPace(distance, seconds).toStat("Pace"),
             time,
         )
-        StatTriplet.TimeHeartRateCalories -> listOf(
+        else -> listOf(
+            formatter.distance(distance).toStat("Distance"),
+            formatter.speed(activity.averageSpeedMps).toStat("Speed"),
             time,
-            Stat("Avg HR", activity.averageHeartRate?.toString(), "bpm", "beats per minute"),
-            Stat("Calories", activity.calories?.let { formatter.count(it) }, "kcal", "kilocalories"),
         )
     }
 }
 
-private fun Measure?.toStat(label: String): Stat =
+/**
+ * "8.02 km · 5:12 /km · 41:40": the non-empty stats on one line, for list rows. Elapsed time is
+ * left out, since a second bare duration next to moving time would be ambiguous.
+ */
+fun List<Stat>.statsLine(): String = filter { it.value != null && it.label != "Elapsed" }.joinToString(" · ") { stat ->
+    val unit = stat.unit?.let { if (it.startsWith("/")) it else " $it" }.orEmpty()
+    "${stat.value}$unit"
+}
+
+/** Converts a formatted [Measure] to a labelled [Stat]; null renders as a dash. */
+fun Measure?.toStat(label: String): Stat =
     if (this == null) Stat(label, null) else Stat(label, value, unit, spokenUnit)

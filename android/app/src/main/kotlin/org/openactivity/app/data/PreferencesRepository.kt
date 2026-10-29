@@ -1,21 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.data
 
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
+import org.openactivity.app.data.local.LocalPreferences
 import org.openactivity.app.model.Sport
 import org.openactivity.app.model.ThemeMode
-import org.openactivity.app.model.UnitSystem
 import org.openactivity.app.model.UserPreferences
+import org.openactivity.app.model.toPreference
+import org.openactivity.app.model.toSportOrNull
+import org.openactivity.app.model.toSportType
+import org.openactivity.app.model.toThemeMode
+import org.openactivity.core.data.repository.SettingsRepository
+import org.openactivity.model.UnitSystem
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Reads and writes [UserPreferences]. */
+/** Reads and writes [UserPreferences]: the app-wide values every screen renders with. */
 interface PreferencesRepository {
     val preferences: Flow<UserPreferences>
     suspend fun setUnitSystem(unitSystem: UnitSystem)
@@ -24,45 +25,32 @@ interface PreferencesRepository {
     suspend fun setLastSport(sport: Sport)
 }
 
-/** [PreferencesRepository] backed by Jetpack DataStore. Unknown stored values fall back to defaults. */
+/**
+ * [PreferencesRepository] over the single source of truth: units, theme and default sport live in
+ * the `:core:data` [SettingsRepository] (which the recording service reads too); reduced motion is
+ * an app-shell value in [LocalPreferences].
+ */
 @Singleton
-class DataStorePreferencesRepository @Inject constructor(
-    private val dataStore: DataStore<Preferences>,
+class SettingsBackedPreferencesRepository @Inject constructor(
+    private val settingsRepository: SettingsRepository,
+    private val local: LocalPreferences,
 ) : PreferencesRepository {
 
-    override val preferences: Flow<UserPreferences> = dataStore.data.map { prefs ->
-        val defaults = UserPreferences()
-        UserPreferences(
-            unitSystem = prefs[Keys.UNITS].toEnum(defaults.unitSystem),
-            themeMode = prefs[Keys.THEME].toEnum(defaults.themeMode),
-            reduceMotion = prefs[Keys.REDUCE_MOTION] ?: defaults.reduceMotion,
-            lastSport = prefs[Keys.LAST_SPORT].toEnum(defaults.lastSport),
-        )
-    }
+    override val preferences: Flow<UserPreferences> =
+        combine(settingsRepository.settings, local.reduceMotion) { settings, reduceMotion ->
+            UserPreferences(
+                unitSystem = settings.units,
+                themeMode = settings.theme.toThemeMode(),
+                reduceMotion = reduceMotion,
+                lastSport = settings.defaultSport.toSportOrNull() ?: Sport.Run,
+            )
+        }
 
-    override suspend fun setUnitSystem(unitSystem: UnitSystem) {
-        dataStore.edit { it[Keys.UNITS] = unitSystem.name }
-    }
+    override suspend fun setUnitSystem(unitSystem: UnitSystem) = settingsRepository.setUnits(unitSystem)
 
-    override suspend fun setThemeMode(themeMode: ThemeMode) {
-        dataStore.edit { it[Keys.THEME] = themeMode.name }
-    }
+    override suspend fun setThemeMode(themeMode: ThemeMode) = settingsRepository.setTheme(themeMode.toPreference())
 
-    override suspend fun setReduceMotion(enabled: Boolean) {
-        dataStore.edit { it[Keys.REDUCE_MOTION] = enabled }
-    }
+    override suspend fun setReduceMotion(enabled: Boolean) = local.setReduceMotion(enabled)
 
-    override suspend fun setLastSport(sport: Sport) {
-        dataStore.edit { it[Keys.LAST_SPORT] = sport.name }
-    }
-
-    private object Keys {
-        val UNITS = stringPreferencesKey("unit_system")
-        val THEME = stringPreferencesKey("theme_mode")
-        val REDUCE_MOTION = booleanPreferencesKey("reduce_motion")
-        val LAST_SPORT = stringPreferencesKey("last_sport")
-    }
+    override suspend fun setLastSport(sport: Sport) = settingsRepository.setDefaultSport(sport.toSportType())
 }
-
-private inline fun <reified E : Enum<E>> String?.toEnum(default: E): E =
-    this?.let { name -> enumValues<E>().firstOrNull { it.name == name } } ?: default

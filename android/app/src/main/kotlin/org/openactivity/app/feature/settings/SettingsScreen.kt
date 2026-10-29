@@ -1,77 +1,126 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.feature.settings
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Archive
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.openactivity.app.format.UnitFormatter
 import org.openactivity.app.model.ThemeMode
-import org.openactivity.app.model.UnitSystem
+import org.openactivity.app.model.label
+import org.openactivity.app.model.toThemeMode
+import org.openactivity.app.ui.LocalMessenger
+import org.openactivity.app.ui.common.label
 import org.openactivity.core.designsystem.component.OverlineHeader
-import org.openactivity.core.designsystem.component.RidgelineCard
 import org.openactivity.core.designsystem.component.RidgelineTopAppBar
 import org.openactivity.core.designsystem.theme.RidgelineTheme
 import org.openactivity.core.designsystem.theme.Spacing
+import org.openactivity.model.SportType
+import org.openactivity.model.UnitSystem
+import org.openactivity.model.Visibility
+import java.text.NumberFormat
+import java.util.Locale
 
 /** Settings screen, connected to [SettingsViewModel]. */
 @Composable
-fun SettingsScreen(onNavigateUp: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(
+    onNavigateUp: () -> Unit,
+    onEditProfile: () -> Unit,
+    onOpenLicenses: () -> Unit,
+    viewModel: SettingsViewModel = hiltViewModel(),
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val messenger = LocalMessenger.current
+    val uriHandler = LocalUriHandler.current
+    val createZip = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        uri?.let(viewModel::exportAll)
+    }
+    LaunchedEffect(state.message) {
+        state.message?.let {
+            messenger.show(it)
+            viewModel.messageShown()
+        }
+    }
     SettingsContent(
         state = state,
-        onNavigateUp = onNavigateUp,
-        onUnitSystem = viewModel::setUnitSystem,
-        onThemeMode = viewModel::setThemeMode,
-        onReduceMotion = viewModel::setReduceMotion,
+        actions = SettingsActions(
+            onNavigateUp = onNavigateUp,
+            onEditProfile = onEditProfile,
+            onUnits = viewModel::setUnits,
+            onTheme = viewModel::setTheme,
+            onReduceMotion = viewModel::setReduceMotion,
+            onDefaultSport = viewModel::setDefaultSport,
+            onAutoPause = viewModel::setAutoPause,
+            onAudioCues = viewModel::setAudioCuesEnabled,
+            onCueInterval = viewModel::setCueInterval,
+            onAnnounceAutoPause = viewModel::setAnnounceAutoPause,
+            onVisibility = viewModel::setDefaultVisibility,
+            onHideStart = viewModel::setHideStart,
+            onHideEnd = viewModel::setHideEnd,
+            onExportAll = { createZip.launch(state.exportFileName) },
+            onOpenLicenses = onOpenLicenses,
+            onOpenUrl = { runCatching { uriHandler.openUri(it) } },
+        ),
     )
 }
 
-/** Stateless settings: preferences, feed order and build information. */
+/** Callbacks for [SettingsContent]. */
+data class SettingsActions(
+    val onNavigateUp: () -> Unit = {},
+    val onEditProfile: () -> Unit = {},
+    val onUnits: (UnitSystem) -> Unit = {},
+    val onTheme: (ThemeMode) -> Unit = {},
+    val onReduceMotion: (Boolean) -> Unit = {},
+    val onDefaultSport: (SportType) -> Unit = {},
+    val onAutoPause: (SportType, Boolean) -> Unit = { _, _ -> },
+    val onAudioCues: (Boolean) -> Unit = {},
+    val onCueInterval: (Double) -> Unit = {},
+    val onAnnounceAutoPause: (Boolean) -> Unit = {},
+    val onVisibility: (Visibility) -> Unit = {},
+    val onHideStart: (Double) -> Unit = {},
+    val onHideEnd: (Double) -> Unit = {},
+    val onExportAll: () -> Unit = {},
+    val onOpenLicenses: () -> Unit = {},
+    val onOpenUrl: (String) -> Unit = {},
+)
+
+/** Stateless settings: profile, units, appearance, recording, audio cues, privacy, your data, about. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsContent(
-    state: SettingsUiState,
-    onNavigateUp: () -> Unit,
-    onUnitSystem: (UnitSystem) -> Unit,
-    onThemeMode: (ThemeMode) -> Unit,
-    onReduceMotion: (Boolean) -> Unit,
-    modifier: Modifier = Modifier,
-) {
+fun SettingsContent(state: SettingsUiState, actions: SettingsActions, modifier: Modifier = Modifier) {
+    val settings = state.settings
+    val formatter = UnitFormatter(settings.units, Locale.getDefault())
     Scaffold(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0),
-        topBar = { RidgelineTopAppBar(title = "Settings", onNavigateUp = onNavigateUp) },
+        topBar = { RidgelineTopAppBar(title = "Settings", onNavigateUp = actions.onNavigateUp) },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
             Column(
@@ -82,40 +131,59 @@ fun SettingsContent(
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(horizontal = Spacing.gutter, vertical = Spacing.s),
             ) {
+                OverlineHeader("Profile")
+                SettingsGroup {
+                    ActionRow("Edit profile", "Name, location and photo, stored on this device", actions.onEditProfile, Icons.Rounded.Person)
+                }
+
                 OverlineHeader("Units of measure")
                 SettingsGroup {
                     UnitSystem.entries.forEachIndexed { index, units ->
                         if (index > 0) RowDivider()
-                        RadioRow(units.label, selected = state.preferences.unitSystem == units) { onUnitSystem(units) }
+                        RadioRow(units.label, selected = settings.units == units) { actions.onUnits(units) }
                     }
                 }
+
                 OverlineHeader("Appearance")
                 SettingsGroup {
                     ThemeMode.entries.forEachIndexed { index, mode ->
                         if (index > 0) RowDivider()
-                        RadioRow(mode.label, selected = state.preferences.themeMode == mode) { onThemeMode(mode) }
+                        RadioRow(mode.label, selected = settings.theme.toThemeMode() == mode) { actions.onTheme(mode) }
                     }
                     RowDivider()
-                    SwitchRow(
-                        title = "Reduce motion",
-                        subtitle = "Turns off celebrations, shimmer and transitions",
-                        checked = state.preferences.reduceMotion,
-                        onCheckedChange = onReduceMotion,
+                    SwitchRow("Reduce motion", "Turns off celebrations, shimmer and transitions", state.reduceMotion, actions.onReduceMotion)
+                }
+
+                RecordingSettings(state, actions)
+                PrivacySettingsSection(state, actions, formatter)
+
+                OverlineHeader("Your data")
+                SettingsGroup {
+                    ActionRow(
+                        "Export all activities",
+                        "A ZIP with one GPX file per activity, written straight to a folder you choose",
+                        actions.onExportAll,
+                        Icons.Rounded.Archive,
+                        busy = state.isExporting,
                     )
                 }
-                OverlineHeader("Feed")
-                SettingsGroup {
-                    InfoRow("Feed order", "Latest first. Your feed is never ranked by an algorithm unless you opt in.")
-                }
+
                 OverlineHeader("About")
                 SettingsGroup {
                     InfoRow("Version", "${state.versionName} · ${state.distribution.displayName}")
                     RowDivider()
                     InfoRow("Location", state.distribution.locationBackend)
                     RowDivider()
-                    InfoRow("Licence", "Free and open source (AGPL-3.0). No ads, no subscriptions.")
+                    InfoRow("Licence", "Free and open source (AGPL-3.0). No ads, no subscriptions, no tracking.")
                     RowDivider()
-                    InfoRow("Fonts", "Manrope and Barlow Semi Condensed, SIL Open Font License 1.1")
+                    ActionRow(
+                        "Map data",
+                        "© OpenStreetMap contributors (ODbL). Map tiles by OpenFreeMap.",
+                        { actions.onOpenUrl(OSM_COPYRIGHT_URL) },
+                        Icons.Rounded.Map,
+                    )
+                    RowDivider()
+                    ActionRow("Open-source licences", "Libraries, fonts and data this app is built on", actions.onOpenLicenses, Icons.Rounded.Description)
                 }
             }
         }
@@ -123,60 +191,82 @@ fun SettingsContent(
 }
 
 @Composable
-private fun SettingsGroup(content: @Composable ColumnScope.() -> Unit) {
-    RidgelineCard(contentPadding = Spacing.none) {
-        Column(Modifier.selectableGroup(), content = content)
-    }
-}
-
-@Composable
-private fun RowDivider() {
-    HorizontalDivider(Modifier.padding(start = Spacing.l), color = RidgelineTheme.colors.hairline)
-}
-
-@Composable
-private fun RadioRow(label: String, selected: Boolean, onSelect: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = Spacing.listRowMin)
-            .selectable(selected = selected, onClick = onSelect, role = Role.RadioButton)
-            .padding(horizontal = Spacing.l),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        RadioButton(selected = selected, onClick = null)
-    }
-}
-
-@Composable
-private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = 72.dp)
-            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange)
-            .padding(horizontal = Spacing.l, vertical = Spacing.m),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = RidgelineTheme.colors.textMuted)
+private fun RecordingSettings(state: SettingsUiState, actions: SettingsActions) {
+    val settings = state.settings
+    val unit = if (settings.units == UnitSystem.METRIC) "km" else "mi"
+    OverlineHeader("Recording")
+    SettingsGroup {
+        ChipChoiceRow(
+            title = "Default sport",
+            subtitle = "Preselected on the Record screen",
+            options = SettingsUiState.SPORTS,
+            selected = settings.defaultSport,
+            label = { it.label },
+            onSelect = actions.onDefaultSport,
+        )
+        RowDivider()
+        Text(
+            "Auto-pause",
+            style = MaterialTheme.typography.titleSmall,
+            color = RidgelineTheme.colors.textSecondary,
+            modifier = Modifier.padding(start = Spacing.l, end = Spacing.l, top = Spacing.m),
+        )
+        SettingsUiState.AUTO_PAUSE_SPORTS.forEach { sport ->
+            SwitchRow(sport.label, null, settings.autoPauseEnabled(sport), { actions.onAutoPause(sport, it) })
         }
-        Spacer(Modifier.width(Spacing.m))
-        Switch(checked = checked, onCheckedChange = null)
+    }
+
+    OverlineHeader("Audio cues")
+    SettingsGroup {
+        val cues = settings.audioCues
+        SwitchRow("Spoken updates", "Distance, time and pace read out while recording", cues.enabled, actions.onAudioCues)
+        RowDivider()
+        ChipChoiceRow(
+            title = "Announce every",
+            subtitle = null,
+            options = SettingsUiState.CUE_INTERVALS,
+            selected = cues.distanceInterval,
+            label = { "${NumberFormat.getNumberInstance().format(it)} $unit" },
+            onSelect = actions.onCueInterval,
+        )
+        RowDivider()
+        SwitchRow("Announce auto-pause", "Say when the timer stops and restarts", cues.announceAutoPause, actions.onAnnounceAutoPause, enabled = cues.enabled)
     }
 }
 
 @Composable
-private fun InfoRow(title: String, value: String) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = Spacing.listRowMin)
-            .padding(horizontal = Spacing.l, vertical = Spacing.m),
-    ) {
-        Text(title, style = MaterialTheme.typography.bodyLarge)
-        Text(value, style = MaterialTheme.typography.bodySmall, color = RidgelineTheme.colors.textSecondary)
+private fun PrivacySettingsSection(state: SettingsUiState, actions: SettingsActions, formatter: UnitFormatter) {
+    val settings = state.settings
+    val radius: (Double) -> String = { if (it == 0.0) "Off" else formatter.shortDistance(it).let { m -> "${m.value} ${m.unit}" } }
+    OverlineHeader("Privacy")
+    SettingsGroup {
+        Text(
+            "Who can see new activities",
+            style = MaterialTheme.typography.titleSmall,
+            color = RidgelineTheme.colors.textSecondary,
+            modifier = Modifier.padding(start = Spacing.l, end = Spacing.l, top = Spacing.m),
+        )
+        Visibility.entries.forEach { visibility ->
+            RadioRow(visibilityLabel(visibility), selected = settings.defaultVisibility == visibility) { actions.onVisibility(visibility) }
+        }
+        RowDivider()
+        ChipChoiceRow("Hide the start", "Hidden from others on maps of new activities", SettingsUiState.HIDE_RADII, settings.privacy.hideStartMeters, radius, actions.onHideStart)
+        RowDivider()
+        ChipChoiceRow("Hide the end", null, SettingsUiState.HIDE_RADII, settings.privacy.hideEndMeters, radius, actions.onHideEnd)
+        Text(
+            "Hiding part of the map does not hide the activity: anyone who can see it still sees its stats.",
+            style = MaterialTheme.typography.bodySmall,
+            color = RidgelineTheme.colors.textMuted,
+            modifier = Modifier.padding(start = Spacing.l, end = Spacing.l, bottom = Spacing.m),
+        )
     }
 }
+
+/** Readable visibility choice. */
+fun visibilityLabel(visibility: Visibility): String = when (visibility) {
+    Visibility.EVERYONE -> "Everyone"
+    Visibility.FOLLOWERS -> "Followers"
+    Visibility.ONLY_ME -> "Only you"
+}
+
+private const val OSM_COPYRIGHT_URL = "https://www.openstreetmap.org/copyright"

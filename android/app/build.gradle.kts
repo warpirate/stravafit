@@ -94,6 +94,9 @@ dependencies {
     implementation(project(":android:core:data")) // WP data-service
     implementation(project(":android:core:recording-service")) // WP data-service
     implementation(project(":android:core:map")) // WP maps
+    implementation(project(":android:core:export")) // WP home
+    implementation(project(":android:core:import")) // WP home
+    implementation(project(":shared:polyline")) // WP home
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
@@ -125,5 +128,6 @@ dependencies {
     testImplementation(libs.roborazzi.junit.rule)
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.test.core) // WP home
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

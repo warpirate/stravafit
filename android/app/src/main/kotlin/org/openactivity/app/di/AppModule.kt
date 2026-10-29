@@ -12,18 +12,22 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import org.openactivity.app.data.CommunityRepository
-import org.openactivity.app.data.DataStorePreferencesRepository
 import org.openactivity.app.data.DeviceGpsStatusSource
-import org.openactivity.app.data.FeedRepository
 import org.openactivity.app.data.GpsStatusSource
+import org.openactivity.app.data.LocalOnboardingRepository
+import org.openactivity.app.data.LocalProfileRepository
+import org.openactivity.app.data.OnboardingRepository
 import org.openactivity.app.data.PreferencesRepository
 import org.openactivity.app.data.ProfileRepository
-import org.openactivity.app.data.RouteRepository
-import org.openactivity.app.data.SampleCommunityRepository
-import org.openactivity.app.data.SampleFeedRepository
-import org.openactivity.app.data.SampleProfileRepository
-import org.openactivity.app.data.SampleRouteRepository
+import org.openactivity.app.data.SettingsBackedPreferencesRepository
+import org.openactivity.app.data.export.ActivityArchiveExporter
+import org.openactivity.app.data.export.GpxZipArchiveExporter
+import org.openactivity.app.data.local.FileProfilePhotoStore
+import org.openactivity.app.data.local.ProfilePhotoStore
+import org.openactivity.app.data.route.FileRouteImporter
+import org.openactivity.app.data.route.GpxRouteExporter
+import org.openactivity.app.data.route.RouteExporter
+import org.openactivity.app.data.route.RouteImporter
 import org.openactivity.app.format.RelativeTimeFormatter
 import java.time.Clock
 import java.util.Locale
@@ -31,19 +35,26 @@ import javax.inject.Singleton
 
 private val Context.userPreferences: DataStore<Preferences> by preferencesDataStore(name = "user_preferences")
 
-/** Binds data sources. Sample implementations are swapped for `:core:data` ones as they land. */
+/**
+ * Binds the app-shell data sources. Activities, routes and settings come from `:core:data`; this
+ * module adds the local profile, onboarding state, file import/export and the GPS status adapter.
+ */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class DataModule {
-    @Binds abstract fun feedRepository(impl: SampleFeedRepository): FeedRepository
+    @Binds abstract fun preferencesRepository(impl: SettingsBackedPreferencesRepository): PreferencesRepository
 
-    @Binds abstract fun profileRepository(impl: SampleProfileRepository): ProfileRepository
+    @Binds abstract fun profileRepository(impl: LocalProfileRepository): ProfileRepository
 
-    @Binds abstract fun communityRepository(impl: SampleCommunityRepository): CommunityRepository
+    @Binds abstract fun onboardingRepository(impl: LocalOnboardingRepository): OnboardingRepository
 
-    @Binds abstract fun routeRepository(impl: SampleRouteRepository): RouteRepository
+    @Binds abstract fun profilePhotoStore(impl: FileProfilePhotoStore): ProfilePhotoStore
 
-    @Binds abstract fun preferencesRepository(impl: DataStorePreferencesRepository): PreferencesRepository
+    @Binds abstract fun routeImporter(impl: FileRouteImporter): RouteImporter
+
+    @Binds abstract fun routeExporter(impl: GpxRouteExporter): RouteExporter
+
+    @Binds abstract fun archiveExporter(impl: GpxZipArchiveExporter): ActivityArchiveExporter
 
     @Binds abstract fun gpsStatusSource(impl: DeviceGpsStatusSource): GpsStatusSource
 }
