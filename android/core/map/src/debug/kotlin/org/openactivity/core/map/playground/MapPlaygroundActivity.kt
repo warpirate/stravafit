@@ -31,13 +31,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.openactivity.core.designsystem.component.EmptyState
@@ -76,10 +76,12 @@ private fun MapPlaygroundScreen(viewModel: MapPlaygroundViewModel = viewModel())
     val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         viewModel.onPermission(result.values.any { it })
     }
-    LaunchedEffect(Unit) {
+    // Re-check on every start: the user may have changed the permission or location setting meanwhile.
+    LifecycleStartEffect(viewModel) {
         val granted = listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
             .any { ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED }
-        viewModel.onPermission(granted)
+        viewModel.onScreenStarted(granted)
+        onStopOrDispose { viewModel.onScreenStopped() }
     }
     val mapState = rememberMapState(initialTracking = CameraTracking.Follow)
     val style = state.style ?: MapStyleKind.default(isMapThemeDark())

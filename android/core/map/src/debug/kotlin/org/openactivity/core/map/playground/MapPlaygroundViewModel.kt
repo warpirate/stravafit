@@ -44,10 +44,24 @@ internal class MapPlaygroundViewModel(application: Application) : AndroidViewMod
     private val _state = MutableStateFlow(PlaygroundUiState())
     val state: StateFlow<PlaygroundUiState> = _state.asStateFlow()
     private var locationJob: Job? = null
+    private var visible = false
 
+    /** Records the current permission; location runs only while granted and the screen is visible. */
     fun onPermission(granted: Boolean) {
         _state.update { it.copy(hasPermission = granted) }
-        if (granted && locationJob == null) startLocation()
+        if (!granted) stopLocation() else if (visible) startLocation()
+    }
+
+    /** The screen became visible: start fixes if permitted (re-checking that location is switched on). */
+    fun onScreenStarted(granted: Boolean) {
+        visible = true
+        onPermission(granted)
+    }
+
+    /** The screen is no longer visible: stop fixes so the GPS is not held in the background. */
+    fun onScreenStopped() {
+        visible = false
+        stopLocation()
     }
 
     fun selectStyle(style: MapStyleKind) = _state.update { it.copy(style = style) }
@@ -79,13 +93,20 @@ internal class MapPlaygroundViewModel(application: Application) : AndroidViewMod
     fun clearAll() = _state.update { it.copy(planned = emptyList(), finished = null, track = emptyList(), trackSpeeds = emptyList()) }
 
     private fun startLocation() {
+        if (locationJob != null) return
         if (source.provider() == null) {
             _state.update { it.copy(locationAvailable = false) }
             return
         }
+        _state.update { it.copy(locationAvailable = true) }
         locationJob = viewModelScope.launch {
             source.fixes().collect(::onFix)
         }
+    }
+
+    private fun stopLocation() {
+        locationJob?.cancel()
+        locationJob = null
     }
 
     private fun onFix(fix: Location) {

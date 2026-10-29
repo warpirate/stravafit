@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -88,17 +89,20 @@ fun RidgelineMap(
             // Previews and screenshot tests cannot load the native renderer.
             Box(Modifier.fillMaxSize().background(RidgelineTheme.colors.mapLand))
         } else {
-            MapViewHost(
-                state = state,
-                definition = definition,
-                overlays = overlays,
-                location = location,
-                palette = palette,
-                gesturesEnabled = gesturesEnabled,
-                textureMode = textureMode,
-                onMapClick = onMapClick,
-                onMapLongClick = onMapLongClick,
-            )
+            // AndroidView only runs its factory once, so a different view mode needs a fresh host.
+            key(textureMode) {
+                MapViewHost(
+                    state = state,
+                    definition = definition,
+                    overlays = overlays,
+                    location = location,
+                    palette = palette,
+                    gesturesEnabled = gesturesEnabled,
+                    textureMode = textureMode,
+                    onMapClick = onMapClick,
+                    onMapLongClick = onMapLongClick,
+                )
+            }
         }
         MapAttribution(
             definition = definition,
@@ -124,7 +128,9 @@ private fun MapViewHost(
 ) {
     val context = LocalContext.current
     val reducedMotion by rememberUpdatedState(RidgelineTheme.motion.reduced)
-    val mapView = remember(textureMode) { createMapView(context, textureMode) }
+    // Long-lived listeners and effects read the latest state, so a caller may swap MapState instances.
+    val currentState by rememberUpdatedState(state)
+    val mapView = remember { createMapView(context, textureMode) }
     MapLifecycleEffect(mapView)
 
     var map by remember(mapView) { mutableStateOf<MapLibreMap?>(null) }
@@ -135,18 +141,17 @@ private fun MapViewHost(
     LaunchedEffect(mapView) {
         val m = mapView.awaitMap()
         m.configureDefaults()
-        val camera = state.camera
+        val camera = currentState.camera
         if (camera != null) m.jumpTo(camera) else m.jumpTo(WORLD_CAMERA)
         map = m
     }
     LaunchedEffect(map, gesturesEnabled) { map?.uiSettings?.setAllGesturesEnabled(gesturesEnabled) }
     LaunchedEffect(map, definition) {
         val m = map ?: return@LaunchedEffect
-        state.isStyleLoaded = false
         style = null
         style = m.awaitStyle(definition)
-        state.isStyleLoaded = true
     }
+    LaunchedEffect(state, style) { state.isStyleLoaded = style != null }
 
     // Overlays: plan off the main thread (GeoJSON for long tracks), apply on it.
     val renderer = remember(style) { style?.let(::OverlayRenderer) }
@@ -159,7 +164,7 @@ private fun MapViewHost(
     }
 
     // Puck and follow mode.
-    val puck = remember(map) { map?.let { m -> LocationPuck(context, m) { state.tracking = CameraTracking.Free } } }
+    val puck = remember(map) { map?.let { m -> LocationPuck(context, m) { currentState.tracking = CameraTracking.Free } } }
     DisposableEffect(puck) { onDispose { puck?.release() } }
     LaunchedEffect(puck, style, location, palette) {
         val s = style ?: return@LaunchedEffect
@@ -170,7 +175,7 @@ private fun MapViewHost(
     }
 
     // One-shot camera commands.
-    LaunchedEffect(map) {
+    LaunchedEffect(map, puck, state) {
         val m = map ?: return@LaunchedEffect
         state.commands.collect { command ->
             puck?.cancelTracking()
@@ -184,7 +189,7 @@ private fun MapViewHost(
     val longClickHandler by rememberUpdatedState(onMapLongClick)
     DisposableEffect(map) {
         val m = map ?: return@DisposableEffect onDispose { }
-        val idle = MapLibreMap.OnCameraIdleListener { m.cameraPosition.toMapCameraOrNull()?.let { state.camera = it } }
+        val idle = MapLibreMap.OnCameraIdleListener { m.cameraPosition.toMapCameraOrNull()?.let { currentState.camera = it } }
         val click = MapLibreMap.OnMapClickListener { p ->
             val h = clickHandler ?: return@OnMapClickListener false
             h(p.toModel())
