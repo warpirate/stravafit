@@ -88,6 +88,11 @@ androidComponents {
 
 dependencies {
     implementation(project(":android:core:designsystem"))
+    implementation(project(":android:core:database")) // WP data-service
+    implementation(project(":android:core:datastore")) // WP data-service
+    implementation(project(":android:core:location")) // WP data-service
+    implementation(project(":android:core:data")) // WP data-service
+    implementation(project(":android:core:recording-service")) // WP data-service
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

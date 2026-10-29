@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<resources>
+    <!-- Notification -->
+    <string name="recording_channel_name">Recording</string>
+    <string name="recording_channel_description">Shows the activity being recorded, with pause and finish controls</string>
+    <string name="recording_status_channel_name">Recording updates</string>
+    <string name="recording_status_channel_description">Saved activities and interrupted recordings</string>
+    <string name="recording_title_recording">%1$s · Recording</string>
+    <string name="recording_title_paused">%1$s · Paused</string>
+    <string name="recording_title_auto_paused">%1$s · Auto-paused</string>
+    <string name="recording_action_pause">Pause</string>
+    <string name="recording_action_resume">Resume</string>
+    <string name="recording_action_finish">Finish</string>
+    <string name="recording_saved_title">Activity saved</string>
+    <string name="recording_saved_text">%1$s · tap to view</string>
+    <string name="recording_interrupted_title">Recording stopped unexpectedly</string>
+    <string name="recording_interrupted_text">Tap to resume your activity</string>
+    <string name="unit_km">km</string>
+    <string name="unit_mi">mi</string>
+    <string name="pace_per_km">/km</string>
+    <string name="pace_per_mi">/mi</string>
+    <string name="speed_kmh">km/h</string>
+    <string name="speed_mph">mph</string>
+
+    <!-- Audio cues -->
+    <string name="cue_started">%1$s started</string>
+    <string name="cue_paused">Activity paused</string>
+    <string name="cue_resumed">Activity resumed</string>
+    <string name="cue_auto_paused">Auto-paused</string>
+    <string name="cue_auto_resumed">Resumed</string>
+    <string name="cue_saved">Activity saved</string>
+    <string name="cue_distance">Distance %1$s.</string>
+    <string name="cue_time">Time %1$s.</string>
+    <string name="cue_split_pace">Split pace %1$s per %2$s.</string>
+    <string name="cue_unit_kilometer">kilometre</string>
+    <string name="cue_unit_mile">mile</string>
+    <plurals name="cue_kilometers">
+        <item quantity="one">%1$s kilometre</item>
+        <item quantity="other">%1$s kilometres</item>
+    </plurals>
+    <plurals name="cue_miles">
+        <item quantity="one">%1$s mile</item>
+        <item quantity="other">%1$s miles</item>
+    </plurals>
+    <plurals name="cue_hours">
+        <item quantity="one">%d hour</item>
+        <item quantity="other">%d hours</item>
+    </plurals>
+    <plurals name="cue_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+    <plurals name="cue_seconds">
+        <item quantity="one">%d second</item>
+        <item quantity="other">%d seconds</item>
+    </plurals>
+
+    <!-- Permission helper -->
+    <string name="permission_location_title">Location for recording</string>
+    <string name="permission_location_rationale">To record your route, distance and pace, the app needs precise location while you record. Your location stays on this phone unless you choose to share an activity.</string>
+    <string name="permission_location_denied">Location is turned off for this app. Open settings, choose Permissions, then Location, and allow precise location while using the app.</string>
+    <string name="permission_notifications_title">Recording notification</string>
+    <string name="permission_notifications_rationale">A notification shows your time and distance while the screen is off, with Pause and Finish buttons.</string>
+    <string name="permission_notifications_denied">Notifications are turned off for this app. Your recording still works, but its controls will not appear on the lock screen. You can allow notifications in settings.</string>
+    <string name="permission_continue">Continue</string>
+    <string name="permission_not_now">Not now</string>
+    <string name="permission_open_settings">Open settings</string>
+</resources>

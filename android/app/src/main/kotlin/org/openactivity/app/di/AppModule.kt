@@ -14,6 +14,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import org.openactivity.app.data.CommunityRepository
 import org.openactivity.app.data.DataStorePreferencesRepository
+import org.openactivity.app.data.DeviceGpsStatusSource
 import org.openactivity.app.data.FeedRepository
 import org.openactivity.app.data.GpsStatusSource
 import org.openactivity.app.data.PreferencesRepository
@@ -23,7 +24,6 @@ import org.openactivity.app.data.SampleCommunityRepository
 import org.openactivity.app.data.SampleFeedRepository
 import org.openactivity.app.data.SampleProfileRepository
 import org.openactivity.app.data.SampleRouteRepository
-import org.openactivity.app.data.SimulatedGpsStatusSource
 import org.openactivity.app.format.RelativeTimeFormatter
 import java.time.Clock
 import java.util.Locale
@@ -45,7 +45,7 @@ abstract class DataModule {
 
     @Binds abstract fun preferencesRepository(impl: DataStorePreferencesRepository): PreferencesRepository
 
-    @Binds abstract fun gpsStatusSource(impl: SimulatedGpsStatusSource): GpsStatusSource
+    @Binds abstract fun gpsStatusSource(impl: DeviceGpsStatusSource): GpsStatusSource
 }
 
 /** Platform services. */

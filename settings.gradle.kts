@@ -35,4 +35,9 @@ includeIfPresent(
     ":android:core:recording",
     ":android:core:designsystem",
     ":android:app",
+    ":android:core:database", // WP data-service
+    ":android:core:datastore", // WP data-service
+    ":android:core:location", // WP data-service
+    ":android:core:data", // WP data-service
+    ":android:core:recording-service", // WP data-service
 )
