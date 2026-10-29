@@ -202,6 +202,11 @@ class RecordViewModel @Inject constructor(
         }
     }
 
+    /** Explains a pre-start feature that is not available yet (Sensors, Beacon). */
+    fun notAvailable(message: String) {
+        viewModelScope.launch { eventChannel.send(RecordEvent.Message(message)) }
+    }
+
     /** Turns the 3-2-1 countdown before the timer on or off. */
     fun setCountdown(enabled: Boolean) {
         launchSafely(SETTINGS_ERROR) { preferences.setCountdown(enabled) }

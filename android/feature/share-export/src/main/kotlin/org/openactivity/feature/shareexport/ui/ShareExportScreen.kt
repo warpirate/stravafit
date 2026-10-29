@@ -257,6 +257,8 @@ private fun Content(state: ShareExportUiState.Content, actions: ShareExportActio
             formats = state.formats,
             privacyTrim = spec.privacyTrim,
             enabled = state.busy == null,
+            hiddenStartMeters = state.hiddenStartMeters,
+            hiddenEndMeters = state.hiddenEndMeters,
             onExport = actions.onExport,
             onDismiss = { actions.onFormatSheet(false) },
         )

@@ -44,6 +44,8 @@ internal fun FormatSheet(
     formats: List<Pair<ExportFormat, FormatUnavailableReason?>>,
     privacyTrim: Boolean,
     enabled: Boolean,
+    hiddenStartMeters: Int = 0,
+    hiddenEndMeters: Int = 0,
     onExport: (ExportFormat, FileDestination) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -55,7 +57,11 @@ internal fun FormatSheet(
                 modifier = Modifier.padding(horizontal = Spacing.l).semantics { heading() },
             )
             Text(
-                stringResource(if (privacyTrim) R.string.share_export_sheet_privacy_on else R.string.share_export_sheet_privacy_off),
+                if (privacyTrim) {
+                    stringResource(R.string.share_export_sheet_privacy_on, hiddenStartMeters, hiddenEndMeters)
+                } else {
+                    stringResource(R.string.share_export_sheet_privacy_off)
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = RidgelineTheme.colors.textSecondary,
                 modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s),

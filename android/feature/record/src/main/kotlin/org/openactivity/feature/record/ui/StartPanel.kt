@@ -21,8 +21,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.PauseCircleOutline
-import androidx.compose.material.icons.rounded.RecordVoiceOver
+import androidx.compose.material.icons.rounded.MonitorHeart
+import androidx.compose.material.icons.rounded.Sensors
 import androidx.compose.material.icons.rounded.Route
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,11 +35,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -58,8 +55,10 @@ import org.openactivity.feature.record.format.RecordFormat
 import org.openactivity.model.UnitSystem
 
 /**
- * Bottom panel of the pre-start screen: sport and route pills, Auto-pause · Start · Audio cues, and a
- * one-line summary of the recording settings (or the "waiting for GPS" note after an early Start).
+ * Bottom panel of the pre-start screen: sport and route pills, Sensors · Start · Beacon (strava
+ * direction; auto-pause and audio cues live in the settings sheet behind the gear and are summarised in
+ * the line underneath), and a one-line summary of the recording settings (or the "waiting for GPS" note
+ * after an early Start).
  */
 @Composable
 internal fun StartPanel(state: RecordUiState, actions: RecordActions, modifier: Modifier = Modifier, sideBySide: Boolean = false) {
@@ -105,11 +104,10 @@ internal fun StartPanel(state: RecordUiState, actions: RecordActions, modifier: 
             Spacer(Modifier.height(Spacing.xl))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    RoundToggle(
-                        icon = Icons.Rounded.PauseCircleOutline,
-                        label = stringResource(R.string.record_auto_pause),
-                        checked = state.autoPause,
-                        onToggle = actions.onToggleAutoPause,
+                    RoundAction(
+                        icon = Icons.Rounded.MonitorHeart,
+                        label = stringResource(R.string.record_sensors),
+                        onClick = actions.onSensors,
                     )
                 }
                 RecordButton(
@@ -119,11 +117,10 @@ internal fun StartPanel(state: RecordUiState, actions: RecordActions, modifier: 
                     diameter = START_DIAMETER,
                 )
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    RoundToggle(
-                        icon = Icons.Rounded.RecordVoiceOver,
-                        label = stringResource(R.string.record_audio_cues),
-                        checked = state.audioCues,
-                        onToggle = actions.onToggleAudioCues,
+                    RoundAction(
+                        icon = Icons.Rounded.Sensors,
+                        label = stringResource(R.string.record_beacon),
+                        onClick = actions.onBeacon,
                     )
                 }
             }
@@ -216,22 +213,15 @@ private fun RouteRow(route: RouteChoice, units: UnitSystem, onRemove: () -> Unit
 
 /** 56 dp outlined round toggle with a label below; the icon turns orange when on. */
 @Composable
-private fun RoundToggle(icon: ImageVector, label: String, checked: Boolean, onToggle: () -> Unit) {
-    val state = stringResource(if (checked) R.string.record_on else R.string.record_off)
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.semantics(mergeDescendants = true) {
-            role = Role.Switch
-            stateDescription = state
-        },
-    ) {
+private fun RoundAction(icon: ImageVector, label: String, onClick: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(
-            onClick = onToggle,
+            onClick = onClick,
             shape = PillShape,
             color = MaterialTheme.colorScheme.surface,
-            contentColor = if (checked) RidgelineTheme.colors.accent else MaterialTheme.colorScheme.onSurface,
-            border = BorderStroke(1.5.dp, if (checked) RidgelineTheme.colors.accent else RidgelineTheme.colors.borderStrong),
-            modifier = Modifier.size(SIDE_BUTTON_DP),
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            border = BorderStroke(1.5.dp, RidgelineTheme.colors.borderStrong),
+            modifier = Modifier.size(SIDE_BUTTON_DP).semantics { contentDescription = label },
         ) {
             Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = null) }
         }

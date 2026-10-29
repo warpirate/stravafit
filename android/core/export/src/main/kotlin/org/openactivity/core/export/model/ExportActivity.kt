@@ -112,6 +112,9 @@ public data class ExportPrivacy(
     val hideEndMeters: Double = DEFAULT_HIDE_METERS,
     val zones: List<ExportPrivacyZone> = emptyList(),
 ) {
+    /** True when trimming would remove anything at all. */
+    public val hidesAnything: Boolean get() = hideStartMeters > 0.0 || hideEndMeters > 0.0 || zones.isNotEmpty()
+
     public companion object {
         /** Default trim when the owner has not configured anything: about one city block. */
         public const val DEFAULT_HIDE_METERS: Double = 200.0

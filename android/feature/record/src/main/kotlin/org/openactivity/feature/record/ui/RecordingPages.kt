@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -157,44 +159,51 @@ internal fun RecordingPanel(
     val paused = recording.isPaused
     val onPace = if (recording.sport.displaysPace && !locked) actions.onCyclePaceMode else null
     Surface(modifier = modifier, shape = SheetTopShape, color = MaterialTheme.colorScheme.surface, shadowElevation = Elevation.sheet) {
+        // When the panel may be short (landscape, indoor), the stats scroll and the controls stay pinned
+        // at the bottom, so Lap / Stop / Lock are always on screen and never clipped.
         Column(
             Modifier
                 .fillMaxWidth()
-                .then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)
-                .windowInsetsPadding(WindowInsets.navigationBars),
+                .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.displayCutout)),
         ) {
-            if (paused) PausedStrip()
-            Column(Modifier.fillMaxWidth().padding(top = Spacing.m), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(stringResource(R.string.record_time), style = RidgelineTheme.text.labelRecord, color = RidgelineTheme.colors.textMuted)
-                Text(
-                    metrics.time.value.orEmpty(),
-                    style = if (paused) RidgelineTheme.text.displayPaused else RidgelineTheme.text.display,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    modifier = Modifier.clearAndSetSemantics { contentDescription = metrics.time.spoken },
-                )
-            }
-            Spacer(Modifier.height(Spacing.m))
-            HorizontalDivider(color = RidgelineTheme.colors.hairline)
-            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-                PanelCell(metrics.speed, Modifier.weight(1f).padding(vertical = Spacing.m), RidgelineTheme.text.statXl, onClick = onPace)
-                VerticalDivider(Modifier.fillMaxHeight(), color = RidgelineTheme.colors.hairline)
-                val primaryRight = if (recording.sport.usesGps) metrics.distance else metrics.movingTime
-                PanelCell(primaryRight, Modifier.weight(1f).padding(vertical = Spacing.m), RidgelineTheme.text.statXl)
-            }
-            HorizontalDivider(color = RidgelineTheme.colors.hairline)
-            Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.s, vertical = Spacing.m)) {
-                PanelCell(metrics.average, Modifier.weight(1f), RidgelineTheme.text.statL)
-                if (recording.sport.usesGps) {
-                    PanelCell(metrics.elevationGain, Modifier.weight(1f), RidgelineTheme.text.statL)
-                } else {
-                    PanelCell(metrics.lap, Modifier.weight(1f), RidgelineTheme.text.statL)
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .then(if (scrollable) Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()) else Modifier),
+            ) {
+                if (paused) PausedStrip()
+                Column(Modifier.fillMaxWidth().padding(top = Spacing.m), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(stringResource(R.string.record_time), style = RidgelineTheme.text.labelRecord, color = RidgelineTheme.colors.textMuted)
+                    Text(
+                        metrics.time.value.orEmpty(),
+                        style = if (paused) RidgelineTheme.text.displayPaused else RidgelineTheme.text.display,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        modifier = Modifier.clearAndSetSemantics { contentDescription = metrics.time.spoken },
+                    )
                 }
-                PanelCell(metrics.heartRate, Modifier.weight(1f), RidgelineTheme.text.statL, leading = {
-                    Icon(Icons.Rounded.Favorite, null, Modifier.size(16.dp), tint = RidgelineTheme.colors.heartRate)
-                })
+                Spacer(Modifier.height(Spacing.m))
+                HorizontalDivider(color = RidgelineTheme.colors.hairline)
+                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+                    PanelCell(metrics.speed, Modifier.weight(1f).padding(vertical = Spacing.m), RidgelineTheme.text.statXl, onClick = onPace)
+                    VerticalDivider(Modifier.fillMaxHeight(), color = RidgelineTheme.colors.hairline)
+                    val primaryRight = if (recording.sport.usesGps) metrics.distance else metrics.movingTime
+                    PanelCell(primaryRight, Modifier.weight(1f).padding(vertical = Spacing.m), RidgelineTheme.text.statXl)
+                }
+                HorizontalDivider(color = RidgelineTheme.colors.hairline)
+                Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.s, vertical = Spacing.m)) {
+                    PanelCell(metrics.average, Modifier.weight(1f), RidgelineTheme.text.statL)
+                    if (recording.sport.usesGps) {
+                        PanelCell(metrics.elevationGain, Modifier.weight(1f), RidgelineTheme.text.statL)
+                    } else {
+                        PanelCell(metrics.lap, Modifier.weight(1f), RidgelineTheme.text.statL)
+                    }
+                    PanelCell(metrics.heartRate, Modifier.weight(1f), RidgelineTheme.text.statL, leading = {
+                        Icon(Icons.Rounded.Favorite, null, Modifier.size(16.dp), tint = RidgelineTheme.colors.heartRate)
+                    })
+                }
+                if (recording.sport.usesGps) SplitProgressRow(metrics)
             }
-            if (recording.sport.usesGps) SplitProgressRow(metrics)
             RecordingControls(recording, actions, locked, onLockChange)
         }
     }

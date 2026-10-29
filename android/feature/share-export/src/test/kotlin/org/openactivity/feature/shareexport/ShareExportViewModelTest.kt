@@ -80,6 +80,37 @@ class ShareExportViewModelTest {
     }
 
     @Test
+    fun `without a privacy zone hiding is off by default and turning it on hides the default distance`() {
+        val open = Fixtures.run().copy(privacy = org.openactivity.core.export.model.ExportPrivacy(0.0, 0.0))
+        val vm = viewModel("run-1", FakeProvider(open))
+        val initial = vm.content { it.preview is PreviewState.Ready }
+        assertEquals(false, initial.spec.privacyTrim)
+        assertEquals(0, initial.hiddenStartMeters)
+        vm.setPrivacyTrim(true)
+        val on = vm.content { it.spec.privacyTrim }
+        assertEquals(org.openactivity.core.export.model.ExportPrivacy.DEFAULT_HIDE_METERS.toInt(), on.hiddenStartMeters)
+        assertEquals(org.openactivity.core.export.model.ExportPrivacy.DEFAULT_HIDE_METERS.toInt(), on.hiddenEndMeters)
+    }
+
+    @Test
+    fun `each template remembers its own size and transparency`() {
+        val vm = viewModel("run-1")
+        vm.content { it.preview is PreviewState.Ready }
+        vm.selectTemplate(ArtTemplate.STORY)
+        vm.content { it.spec.template == ArtTemplate.STORY }
+        vm.selectTemplate(ArtTemplate.AURORA)
+        assertEquals(ArtTemplate.AURORA.aspects.first(), vm.content { it.spec.template == ArtTemplate.AURORA }.spec.aspect)
+        vm.setTransparent(true)
+        vm.selectAspect(ArtAspect.PORTRAIT)
+        vm.selectTemplate(ArtTemplate.MINIMAL_STICKER)
+        vm.content { it.spec.template == ArtTemplate.MINIMAL_STICKER }
+        vm.selectTemplate(ArtTemplate.AURORA)
+        val aurora = vm.content { it.spec.template == ArtTemplate.AURORA }.spec
+        assertEquals(true, aurora.transparent)
+        assertEquals(ArtAspect.PORTRAIT, aurora.aspect)
+    }
+
+    @Test
     fun `changing template re-renders with the template's aspect`() {
         val vm = viewModel("run-1")
         vm.content { it.preview is PreviewState.Ready }

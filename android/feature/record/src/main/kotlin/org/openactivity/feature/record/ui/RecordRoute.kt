@@ -148,6 +148,8 @@ fun RecordRoute(
                 viewModel.allowBackground()
             },
             onDismissBatteryPrompt = viewModel::dismissBatteryPrompt,
+            onSensors = { viewModel.notAvailable(context.getString(R.string.record_sensors_soon)) },
+            onBeacon = { viewModel.notAvailable(context.getString(R.string.record_beacon_soon)) },
         )
     }
     RecordContent(state = state, actions = actions, modifier = modifier, snackbarHostState = snackbar)

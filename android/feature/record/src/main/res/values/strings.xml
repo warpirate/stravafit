@@ -11,6 +11,10 @@
     <string name="record_remove_route">Remove route</string>
     <string name="record_sport_change">Sport: %1$s. Change sport</string>
     <string name="record_auto_pause">Auto-pause</string>
+    <string name="record_sensors">Sensors</string>
+    <string name="record_beacon">Beacon</string>
+    <string name="record_sensors_soon">Bluetooth heart-rate, power and cadence sensors are coming soon.</string>
+    <string name="record_beacon_soon">Beacon shares your live location with chosen contacts. It needs a server account, which is coming soon.</string>
     <string name="record_audio_cues">Audio cues</string>
     <string name="record_countdown">Countdown</string>
     <string name="record_on">On</string>

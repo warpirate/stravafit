@@ -47,9 +47,13 @@ import org.openactivity.core.export.art.ArtTheme
 import org.openactivity.core.export.art.RouteArtComposer
 
 private val TemplateCardWidth = 112.dp
+private val TemplateCardShape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
 private val SwatchSize = 40.dp
 
-/** Horizontally scrolling template cards; the selected one is outlined in the primary colour. */
+/**
+ * Horizontally scrolling template cards: rounded like the pills and buttons elsewhere, the selected one
+ * outlined in the accent on a light accent wash.
+ */
 @Composable
 internal fun TemplateCarousel(selected: ArtTemplate, onSelect: (ArtTemplate) -> Unit, modifier: Modifier = Modifier) {
     LazyRow(
@@ -62,13 +66,16 @@ internal fun TemplateCarousel(selected: ArtTemplate, onSelect: (ArtTemplate) -> 
             OutlinedCard(
                 modifier = Modifier
                     .width(TemplateCardWidth)
+                    .clip(TemplateCardShape)
                     .selectable(selected = isSelected, role = Role.RadioButton, onClick = { onSelect(template) }),
+                shape = TemplateCardShape,
                 border = BorderStroke(
                     if (isSelected) 2.dp else 1.dp,
-                    if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                    if (isSelected) RidgelineTheme.colors.accent else RidgelineTheme.colors.hairline,
                 ),
                 colors = CardDefaults.outlinedCardColors(
-                    containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                    containerColor = if (isSelected) RidgelineTheme.colors.accentArea else MaterialTheme.colorScheme.surface,
+                    contentColor = if (isSelected) RidgelineTheme.colors.accentText else MaterialTheme.colorScheme.onSurface,
                 ),
             ) {
                 Column(

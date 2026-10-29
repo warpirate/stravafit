@@ -15,7 +15,7 @@
     <string name="share_export_color_by">Colour route by</string>
     <string name="share_export_options">Options</string>
     <string name="share_export_privacy_trim">Hide start and finish</string>
-    <string name="share_export_privacy_trim_body">Uses your privacy settings so nobody can tell where you live or work.</string>
+    <string name="share_export_privacy_trim_body">Hides the first and last part of the route (your privacy setting, or 200 m) so nobody can tell where you live or work.</string>
     <string name="share_export_privacy_off_warning">Your start and finish will be visible to anyone you share with.</string>
     <string name="share_export_transparent">Transparent background</string>
     <string name="share_export_transparent_body">For laying the image over a photo.</string>
@@ -33,7 +33,7 @@
     <string name="share_export_export_file">Export file</string>
 
     <string name="share_export_sheet_title">Export file</string>
-    <string name="share_export_sheet_privacy_on">Start and finish are removed from the files.</string>
+    <string name="share_export_sheet_privacy_on">The first %1$d m and the last %2$d m of the route are removed from the files.</string>
     <string name="share_export_sheet_privacy_off">Files include your full route.</string>
     <string name="share_export_format_share">Share %1$s</string>
     <string name="share_export_format_save">Save %1$s to device</string>

@@ -43,6 +43,9 @@ public sealed interface ShareExportUiState {
         val instagramAvailable: Boolean,
         val busy: ShareAction? = null,
         val formatSheetOpen: Boolean = false,
+        /** Metres hidden at the start and the finish while "Hide start and finish" is on. */
+        val hiddenStartMeters: Int = 0,
+        val hiddenEndMeters: Int = 0,
     ) : ShareExportUiState {
         /** True when the current template can be drawn, so image actions are enabled. */
         val imageAvailable: Boolean get() = preview !is PreviewState.Unavailable

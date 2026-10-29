@@ -34,6 +34,7 @@ import org.openactivity.core.export.file.ExportFormat
 import org.openactivity.core.export.file.ExportedFile
 import org.openactivity.core.export.file.FormatUnavailableReason
 import org.openactivity.core.export.model.ExportActivity
+import org.openactivity.core.export.model.ExportPrivacy
 import org.openactivity.core.export.model.privacyTrimmed
 import org.openactivity.core.export.share.GallerySaver
 import org.openactivity.core.export.share.ShareLauncher
@@ -61,8 +62,21 @@ public class ShareExportViewModel(
     /** One-shot effects; collect them once, from the screen. */
     public val effects: Flow<ShareEffect> = _effects.receiveAsFlow()
 
-    private var activity: ExportActivity? = null
+    /** The activity as stored; [activity] is what the current settings export. */
+    private var stored: ExportActivity? = null
     private val spec = MutableStateFlow<ArtSpec?>(null)
+
+    /**
+     * The stored activity, or, with "Hide start and finish" on while the owner set no privacy zone, a copy
+     * that hides the default distance, so the switch (and the "removed from the files" note) always tells
+     * the truth. Without this the GPX still began exactly at the start point.
+     */
+    private val activity: ExportActivity?
+        get() {
+            val raw = stored ?: return null
+            val on = spec.value?.privacyTrim ?: return raw
+            return if (on && !raw.privacy.hidesAnything) raw.copy(privacy = ExportPrivacy()) else raw
+        }
 
     init {
         load()
@@ -87,9 +101,10 @@ public class ShareExportViewModel(
                 _uiState.value = ShareExportUiState.NotFound
                 return@launch
             }
-            activity = loaded
+            stored = loaded
             val units = runCatching { provider.units() }.getOrDefault(org.openactivity.core.export.art.ArtUnits.METRIC)
-            val initial = ArtSpec(colorBy = defaultColorBy(loaded), units = units)
+            // Hiding is on by default only when the owner set it up (onboarding's privacy zone, settings).
+            val initial = ArtSpec(colorBy = defaultColorBy(loaded), units = units, privacyTrim = loaded.privacy.hidesAnything)
             _uiState.value = ShareExportUiState.Content(
                 title = loaded.title,
                 spec = initial,
@@ -99,11 +114,23 @@ public class ShareExportViewModel(
                 instagramAvailable = instagramAvailable,
             )
             spec.value = initial
+            updateContent { withHidden(it, initial) }
         }
     }
 
-    /** Picks a template, keeping the current aspect when the template supports it. */
-    public fun selectTemplate(template: ArtTemplate): Unit = updateSpec { it.withTemplate(template) }
+    /** Size and background chosen per template, so switching away and back keeps them. */
+    private val perTemplate = HashMap<ArtTemplate, Pair<ArtAspect, Boolean>>()
+
+    /**
+     * Picks a template with the size and transparency last chosen for it, or its own defaults the first
+     * time. Options never leak from one template to another (Story's 9:16 used to carry over to Aurora,
+     * and turning Aurora transparent was forgotten after a look at Sticker).
+     */
+    public fun selectTemplate(template: ArtTemplate): Unit = updateSpec { current ->
+        perTemplate[current.template] = current.aspect to current.transparent
+        val (aspect, transparent) = perTemplate[template] ?: (template.aspects.first() to template.transparentByDefault)
+        current.copy(template = template, aspect = aspect, transparent = transparent)
+    }
 
     /** Picks an output size. */
     public fun selectAspect(aspect: ArtAspect): Unit = updateSpec {
@@ -194,6 +221,7 @@ public class ShareExportViewModel(
         val current = spec.value ?: return
         val next = change(current)
         if (next == current) return
+        spec.value = next
         val loaded = activity ?: return
         updateContent { content ->
             // Keep showing the last finished image while renders are superseded in quick succession.
@@ -202,9 +230,16 @@ public class ShareExportViewModel(
                 is PreviewState.Rendering -> preview.previous
                 else -> null
             }
-            content.copy(spec = next, preview = PreviewState.Rendering(previous), formats = formats(loaded, next))
+            withHidden(content.copy(spec = next, preview = PreviewState.Rendering(previous), formats = formats(loaded, next)), next)
         }
-        spec.value = next
+    }
+
+    private fun withHidden(content: ShareExportUiState.Content, current: ArtSpec): ShareExportUiState.Content {
+        val privacy = activity?.privacy?.takeIf { current.privacyTrim }
+        return content.copy(
+            hiddenStartMeters = privacy?.hideStartMeters?.toInt() ?: 0,
+            hiddenEndMeters = privacy?.hideEndMeters?.toInt() ?: 0,
+        )
     }
 
     private fun updateContent(change: (ShareExportUiState.Content) -> ShareExportUiState.Content) {

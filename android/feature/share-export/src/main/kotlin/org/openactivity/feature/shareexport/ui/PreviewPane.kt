@@ -31,10 +31,13 @@ import androidx.compose.ui.unit.dp
 import org.openactivity.core.designsystem.theme.RidgelineTheme
 import org.openactivity.core.designsystem.theme.Spacing
 import org.openactivity.core.export.art.ArtSpec
+import org.openactivity.core.export.art.ArtTheme
 import org.openactivity.feature.shareexport.PreviewState
 import org.openactivity.feature.shareexport.R
 
 private val PreviewMaxHeight = 420.dp
+private val DarkCheckerA = androidx.compose.ui.graphics.Color(0xFF26262B)
+private val DarkCheckerB = androidx.compose.ui.graphics.Color(0xFF3A3A40)
 private val CheckerCell = 12.dp
 
 /**
@@ -53,7 +56,7 @@ internal fun PreviewPane(spec: ArtSpec, title: String, preview: PreviewState, mo
                 .semantics { contentDescription = "$description: $title" },
             contentAlignment = Alignment.Center,
         ) {
-            if (spec.transparent) Checkerboard() else Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant))
+            if (spec.transparent) Checkerboard(darkBehind = darkCheckerboard(spec)) else Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant))
             when (preview) {
                 is PreviewState.Ready -> PreviewImage(preview.bitmap, dimmed = false)
                 is PreviewState.Rendering -> {
@@ -88,10 +91,16 @@ private fun PreviewMessage(text: String) {
     )
 }
 
+/**
+ * Light routes and text (every theme but Paper) are drawn for dark photos: on a light checkerboard a
+ * white sticker all but vanished, so they get a dark one. Paper's dark ink keeps the light one.
+ */
+internal fun darkCheckerboard(spec: ArtSpec): Boolean = spec.theme != ArtTheme.PAPER
+
 @Composable
-private fun Checkerboard() {
-    val light = MaterialTheme.colorScheme.surfaceVariant
-    val dark = MaterialTheme.colorScheme.outlineVariant
+private fun Checkerboard(darkBehind: Boolean) {
+    val light = if (darkBehind) DarkCheckerA else MaterialTheme.colorScheme.surfaceVariant
+    val dark = if (darkBehind) DarkCheckerB else MaterialTheme.colorScheme.outlineVariant
     Canvas(Modifier.fillMaxSize()) {
         drawRect(light)
         val cell = CheckerCell.toPx()

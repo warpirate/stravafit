@@ -32,4 +32,8 @@ data class RecordActions(
     val onDiscardInterrupted: () -> Unit = {},
     val onAllowBackground: () -> Unit = {},
     val onDismissBatteryPrompt: () -> Unit = {},
+    /** Sensors (Bluetooth heart rate, power, cadence) on the pre-start screen. */
+    val onSensors: () -> Unit = {},
+    /** Beacon (live location sharing) on the pre-start screen. */
+    val onBeacon: () -> Unit = {},
 )
