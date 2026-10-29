@@ -47,26 +47,14 @@ public sealed interface ArtResult {
  */
 public class RouteArtComposer @Inject constructor() {
 
+    /** Why [spec] cannot be drawn for [activity], or `null` when it can. Cheap: nothing is rendered. */
+    public fun unavailableReason(activity: ExportActivity, spec: ArtSpec): ArtUnavailableReason? =
+        prepare(activity, spec).second
+
     /** Builds the SVG for [activity] with [spec]. Pure and thread-safe; call it off the main thread. */
     public fun compose(activity: ExportActivity, spec: ArtSpec): ArtResult {
-        val source = if (spec.privacyTrim) {
-            val trimmed = activity.privacyTrimmed()
-            if (trimmed.routeHidden && spec.template.needsRoute) {
-                return ArtResult.Unavailable(ArtUnavailableReason.ROUTE_HIDDEN_BY_PRIVACY)
-            }
-            trimmed.activity
-        } else {
-            activity
-        }
-        if (spec.template.needsRoute && !source.hasRoute) return ArtResult.Unavailable(ArtUnavailableReason.NO_ROUTE)
-        if (spec.template == ArtTemplate.ELEVATION) {
-            // The profile's x axis is distance along the route, so it needs positions as well.
-            if (!activity.hasRoute) return ArtResult.Unavailable(ArtUnavailableReason.NO_ROUTE)
-            if (activity.positionedPoints.count { it.elevation != null } < 2) {
-                return ArtResult.Unavailable(ArtUnavailableReason.NO_ELEVATION)
-            }
-        }
-
+        val (source, reason) = prepare(activity, spec)
+        if (reason != null || source == null) return ArtResult.Unavailable(reason ?: ArtUnavailableReason.NO_ROUTE)
         val track = toTrack(source, activity)
         val theme = spec.theme.toLibTheme()
         val units = if (spec.units == ArtUnits.METRIC) Units.METRIC else Units.IMPERIAL
@@ -91,6 +79,24 @@ public class RouteArtComposer @Inject constructor() {
             )
         }
         return ArtResult.Svg(svg, w, h)
+    }
+
+    /** The (possibly trimmed) activity to draw, or the reason nothing can be drawn. */
+    private fun prepare(activity: ExportActivity, spec: ArtSpec): Pair<ExportActivity?, ArtUnavailableReason?> {
+        val source = if (spec.privacyTrim) {
+            val trimmed = activity.privacyTrimmed()
+            if (trimmed.routeHidden && spec.template.needsRoute) return null to ArtUnavailableReason.ROUTE_HIDDEN_BY_PRIVACY
+            trimmed.activity
+        } else {
+            activity
+        }
+        if (spec.template.needsRoute && !source.hasRoute) return null to ArtUnavailableReason.NO_ROUTE
+        if (spec.template == ArtTemplate.ELEVATION) {
+            // The profile's x axis is distance along the route, so it needs positions as well.
+            if (!activity.hasRoute) return null to ArtUnavailableReason.NO_ROUTE
+            if (activity.positionedPoints.count { it.elevation != null } < 2) return null to ArtUnavailableReason.NO_ELEVATION
+        }
+        return source to null
     }
 
     /** Background colour (ARGB) of [theme], used behind transparent previews and for story backgrounds. */

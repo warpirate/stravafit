@@ -34,8 +34,9 @@ public data class ExportedFile(
  * system may clear the cache at any time, so files are always written fresh right before sharing.
  */
 @Singleton
-public class ExportFileStore internal constructor(
+public class ExportFileStore(
     private val context: Context,
+    /** Builds the shareable URI of a written file; tests and alternative providers can replace it. */
     private val uriFor: (Context, File) -> Uri,
 ) {
     @Inject

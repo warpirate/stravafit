@@ -49,6 +49,12 @@ public enum class FormatUnavailableReason {
 
     /** TCX and FIT need a timestamp on every sample. */
     NEEDS_TIMES,
+
+    /** Images only: privacy trimming hides the whole route. */
+    ROUTE_HIDDEN,
+
+    /** Images only: the elevation template needs elevation samples. */
+    NEEDS_ELEVATION,
 }
 
 /**

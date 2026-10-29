@@ -15,6 +15,7 @@ import org.openactivity.core.export.art.RouteArtComposer
 import org.openactivity.core.export.file.ExportFileStore
 import org.openactivity.core.export.file.ExportFormat
 import org.openactivity.core.export.file.ExportedFile
+import org.openactivity.core.export.file.FormatUnavailableReason
 import org.openactivity.core.export.file.TrackFileEncoder
 import org.openactivity.core.export.model.ExportActivity
 import org.openactivity.core.export.model.privacyTrimmed
@@ -124,10 +125,23 @@ public class ActivityExporter internal constructor(
             store.write(fileName(activity, null), format) { it.write(bytes) }
         }
 
-    /** Whether [format] can be written for [activity] (with [privacyTrim] applied as the export would). */
-    public fun canExportData(activity: ExportActivity, format: ExportFormat, privacyTrim: Boolean): Boolean {
+    /** Why [spec] cannot be rendered or exported as an image for [activity], or `null` when it can. */
+    public fun imageUnavailableReason(activity: ExportActivity, spec: ArtSpec): FormatUnavailableReason? =
+        when (composer.unavailableReason(activity, spec)) {
+            null -> null
+            ArtUnavailableReason.NO_ROUTE -> FormatUnavailableReason.NEEDS_ROUTE
+            ArtUnavailableReason.ROUTE_HIDDEN_BY_PRIVACY -> FormatUnavailableReason.ROUTE_HIDDEN
+            ArtUnavailableReason.NO_ELEVATION -> FormatUnavailableReason.NEEDS_ELEVATION
+        }
+
+    /**
+     * Why [format] cannot be written for [activity] with [privacyTrim] applied as the export would, or
+     * `null` when it can.
+     */
+    public fun dataUnavailableReason(activity: ExportActivity, format: ExportFormat, privacyTrim: Boolean): FormatUnavailableReason? {
+        require(format.isData) { "$format is not a track-data format" }
         val source = if (privacyTrim) activity.privacyTrimmed().activity else activity
-        return encoder.unavailableReason(source, format) == null
+        return encoder.unavailableReason(source, format)
     }
 
     /**
@@ -167,7 +181,8 @@ public class ActivityExporter internal constructor(
         /** Builds an exporter without dependency injection (tests, previews, non-Hilt callers). */
         public fun create(context: Context): ActivityExporter = create(ExportFileStore(context.applicationContext))
 
-        internal fun create(store: ExportFileStore): ActivityExporter {
+        /** Builds an exporter that writes through [store]. */
+        public fun create(store: ExportFileStore): ActivityExporter {
             val rasterizer = SvgRasterizer()
             return ActivityExporter(RouteArtComposer(), rasterizer, PosterPdfRenderer(rasterizer), TrackFileEncoder(), store)
         }
