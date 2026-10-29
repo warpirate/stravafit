@@ -35,6 +35,9 @@ interface ActivityRepository {
      */
     suspend fun saveFinished(finished: FinishedActivity, options: NewActivity, recordedUnits: UnitSystem): Long
 
+    /** Id of the activity saved from recording [uuid], or null when it was never saved. */
+    suspend fun findIdByUuid(uuid: String): Long?
+
     /** Updates the editable fields. Returns false when the activity does not exist. */
     suspend fun updateMetadata(id: Long, update: ActivityMetadataUpdate): Boolean
 

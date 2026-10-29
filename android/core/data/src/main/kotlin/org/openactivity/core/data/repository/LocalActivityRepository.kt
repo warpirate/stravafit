@@ -77,6 +77,8 @@ class LocalActivityRepository @Inject constructor(
         return dao.insertActivityWithChildren(rows.activity, rows.points, rows.laps, rows.splits, rows.bestEfforts)
     }
 
+    override suspend fun findIdByUuid(uuid: String): Long? = dao.getByUuid(uuid)?.id
+
     override suspend fun updateMetadata(id: Long, update: ActivityMetadataUpdate): Boolean = dao.updateMetadata(
         ActivityMetadataEntity(
             id = id,
@@ -97,12 +99,12 @@ class LocalActivityRepository @Inject constructor(
         firstDayOfWeek: DayOfWeek,
     ): Flow<List<WeekTotals>> {
         require(weeks > 0) { "weeks must be positive" }
-        val today = LocalDate.now(clock)
-        // One extra day of margin either side covers activities whose own time zone differs from ours.
+        // A week of margin covers activities whose own time zone differs from ours; the aggregator drops
+        // anything outside the requested weeks.
         val from = ZonedDateTime.now(clock).minusWeeks(weeks.toLong()).minusDays(8).toInstant().toEpochMilli()
         return dao.observeStatRows(from).map { rows ->
             val filtered = if (sports == null) rows else rows.filter { sportOf(it.sport) in sports }
-            StatsAggregator.weekly(filtered, weeks, today, firstDayOfWeek)
+            StatsAggregator.weekly(filtered, weeks, LocalDate.now(clock), firstDayOfWeek)
         }
     }
 
