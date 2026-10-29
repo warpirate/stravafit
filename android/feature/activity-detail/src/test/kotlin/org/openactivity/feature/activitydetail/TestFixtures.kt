@@ -24,6 +24,9 @@ import org.openactivity.recording.FinishedActivity
 import org.openactivity.recording.RecordingConfig
 import org.openactivity.recording.RecordingEngine
 import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.exp
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /** Recordings produced by the real engine from generated input (not real people's data). */
@@ -31,8 +34,9 @@ object Recordings {
     const val START_MILLIS: Long = 1_748_760_600_000L // 2025-06-01T06:50:00Z
 
     /**
-     * A run with varying pace, a hill and heart rate, recorded at 1 Hz with a manual lap halfway.
-     * About 1 km at 2.6-3.4 m/s for every 330 s.
+     * A run over one long hill, recorded at 1 Hz with a manual lap halfway: a slower warm-up, slower on
+     * the climb and quicker on the descent, small stride-to-stride wobble, and a heart rate that settles,
+     * follows the effort and drifts up. About 1 km per 330 s at 2.7-3.4 m/s.
      */
     fun hillyRun(seconds: Int = 1500, sport: SportType = SportType.RUN, withHeartRate: Boolean = true): FinishedActivity {
         val engine = RecordingEngine(RecordingConfig(sport, unitSystem = UnitSystem.METRIC))
@@ -41,7 +45,11 @@ object Recordings {
         engine.process(EngineInput.UserAction(base, Action.START, START_MILLIS))
         for (s in 1..seconds) {
             val t = base + s * 1_000_000_000L
-            val speed = 3.0 + 0.4 * sin(2 * PI * s / 300.0)
+            val phase = 2 * PI * s / seconds
+            val climbing = cos(phase) // altitude follows sin(phase), so its slope follows cos(phase)
+            val warmUp = 0.25 * exp(-s / 150.0)
+            val wobble = 0.06 * sin(2 * PI * s / 97.0) + 0.04 * sin(2 * PI * s / 41.0)
+            val speed = 3.1 - 0.28 * climbing - warmUp + wobble
             position = Spherical.destination(position, 70.0 + 30 * sin(2 * PI * s / 900.0), speed)
             engine.process(
                 EngineInput.Location(
@@ -55,7 +63,8 @@ object Recordings {
                     speedMps = speed,
                 ),
             )
-            if (withHeartRate) engine.process(EngineInput.HeartRate(t, (140 + 15 * sin(2 * PI * s / 600.0)).toInt()))
+            val heartRate = 118 + 24 * (1 - exp(-s / 120.0)) + 7 * sin(phase + PI / 6) + 6.0 * s / seconds
+            if (withHeartRate) engine.process(EngineInput.HeartRate(t, heartRate.roundToInt()))
             if (s == seconds / 2) engine.process(EngineInput.UserAction(t, Action.LAP))
         }
         engine.process(EngineInput.UserAction(base + (seconds + 1) * 1_000_000_000L, Action.FINISH))

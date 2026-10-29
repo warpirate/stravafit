@@ -207,6 +207,42 @@ object ChartMath {
         return ticks
     }
 
+    /**
+     * Speed values (m/s) inside [speedRange] that land on round paces, so a pace chart is labelled
+     * "5:00", "5:30", "6:00" rather than the odd paces that round speeds turn into. [unitMeters] is the
+     * pace unit (1000 for /km, 1609.344 for /mi, 100 for /100m). The step is the smallest of
+     * 5 s, 10 s, 15 s, 30 s, 1, 2, 5 or 10 min that gives at most [maxTicks] ticks. Empty when the
+     * range has no positive speeds.
+     */
+    fun paceTicks(speedRange: ClosedFloatingPointRange<Double>, unitMeters: Double, maxTicks: Int = 3): List<Double> {
+        require(maxTicks >= 1) { "need at least one tick" }
+        val slowSpeed = speedRange.start
+        val fastSpeed = speedRange.endInclusive
+        if (!(fastSpeed > 0.0) || !slowSpeed.isFinite() || unitMeters <= 0.0) return emptyList()
+        // Slowest pace on the chart; a range reaching zero speed is capped at three times the fastest pace.
+        val fastPace = unitMeters / fastSpeed
+        val slowPace = if (slowSpeed > 0.0) unitMeters / slowSpeed else fastPace * 3
+        val step = PACE_STEPS_SECONDS.firstOrNull { step ->
+            (floor(slowPace / step) - ceil(fastPace / step)).toInt() + 1 <= maxTicks
+        } ?: PACE_STEPS_SECONDS.last()
+        val ticks = ArrayList<Double>()
+        var pace = ceil(fastPace / step) * step
+        while (pace <= slowPace + 1e-9) {
+            if (pace > 0.0) ticks += unitMeters / pace
+            pace += step
+        }
+        return ticks
+    }
+
+    /**
+     * Round ticks in a display unit that is [factor] times the stored one (km/h is 3.6 × m/s), returned
+     * in the stored unit so they plot on the same scale. Labels then read "10", "12", "14" km/h.
+     */
+    fun scaledTicks(range: ClosedFloatingPointRange<Double>, factor: Double, maxTicks: Int = 3): List<Double> {
+        require(factor > 0.0) { "factor must be positive" }
+        return niceTicks(range.start * factor, range.endInclusive * factor, maxTicks).map { it / factor }
+    }
+
     /** [min]..[max] widened by [fraction] of the span on each side (and never empty). */
     fun padded(min: Double, max: Double, fraction: Double = 0.08): ClosedFloatingPointRange<Double> {
         val span = max - min
@@ -245,6 +281,7 @@ object ChartMath {
     }
 
     private val NICE_STEPS = listOf(1.0, 2.0, 2.5, 5.0, 10.0)
+    private val PACE_STEPS_SECONDS = listOf(5.0, 10.0, 15.0, 30.0, 60.0, 120.0, 300.0, 600.0)
     private val PLAUSIBLE_HR = 30.0..230.0
     private const val MAX_GAP_SECONDS = 30.0
 
