@@ -42,10 +42,20 @@ internal class OverlayRenderer(private val style: Style) {
         }
         for (spec in plan.layers) {
             if (appliedLayers[spec.id] == spec) continue
-            val layer = style.getLayer(spec.id) ?: createLayer(spec).also { style.addLayer(it) }
+            val layer = style.getLayer(spec.id) ?: createLayer(spec).also(::addBelowPuck)
             layer.setProperties(*properties(spec))
             appliedLayers[spec.id] = spec
         }
+    }
+
+    /**
+     * Adds [layer] on top of the base map but under the location puck. The puck's layers may already
+     * be there (LocationComponent activated, or re-added after a style change) and would otherwise
+     * end up hidden under the live track. Adding each layer in plan order keeps our own order intact.
+     */
+    private fun addBelowPuck(layer: Layer) {
+        val anchor = lowestPuckLayer(style.layers.map { it.id })
+        if (anchor == null) style.addLayer(layer) else style.addLayerBelow(layer, anchor)
     }
 
     private fun createLayer(spec: LayerSpec): Layer = when (spec) {
@@ -74,6 +84,12 @@ internal class OverlayRenderer(private val style: Style) {
     }
 
     companion object {
+        /** Prefix MapLibre's LocationComponent uses for every layer it adds. */
+        internal const val PUCK_LAYER_PREFIX: String = "mapbox-location-"
+
+        /** The bottom-most location-puck layer in [layerIds] (bottom first), or null when there is none. */
+        internal fun lowestPuckLayer(layerIds: List<String>): String? = layerIds.firstOrNull { it.startsWith(PUCK_LAYER_PREFIX) }
+
         /** `["interpolate", ["linear"], ["line-progress"], stop, colour, ...]` for [stops]. */
         fun gradientExpression(stops: List<GradientStop>): Expression = Expression.interpolate(
             Expression.linear(),

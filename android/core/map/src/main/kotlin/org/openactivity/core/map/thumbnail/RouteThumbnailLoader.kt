@@ -4,6 +4,8 @@ package org.openactivity.core.map.thumbnail
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeoutOrNull
@@ -44,15 +46,34 @@ class RouteThumbnailLoader(
     suspend fun load(request: ThumbnailRequest): RouteThumbnail? {
         if (request.points.size < 2) return null
         cache.get(request.cacheKey)?.let { return RouteThumbnail(it, ThumbnailSource.MapSnapshot) }
-        if (network.isOnline()) {
-            val bitmap = permits.withPermit { withTimeoutOrNull(snapshotTimeoutMs) { snapshot.render(request) } }
-            if (bitmap != null) {
-                cache.put(request.cacheKey, bitmap)
-                return RouteThumbnail(bitmap, ThumbnailSource.MapSnapshot)
-            }
-        }
-        return fallback.render(request)?.let { RouteThumbnail(it, ThumbnailSource.Offline) }
+        snapshotOrNull(request)?.let { return it }
+        return offline(request)
     }
+
+    /**
+     * Like [load], but never leaves a card blank while a snapshot renders: on a cache miss while
+     * online it emits the offline drawing first and the map snapshot once it is ready. Emits
+     * nothing for a route with fewer than two points.
+     */
+    fun loadProgressively(request: ThumbnailRequest): Flow<RouteThumbnail> = flow {
+        if (request.points.size < 2) return@flow
+        cache.get(request.cacheKey)?.let {
+            emit(RouteThumbnail(it, ThumbnailSource.MapSnapshot))
+            return@flow
+        }
+        offline(request)?.let { emit(it) }
+        snapshotOrNull(request)?.let { emit(it) }
+    }
+
+    private suspend fun snapshotOrNull(request: ThumbnailRequest): RouteThumbnail? {
+        if (!network.isOnline()) return null
+        val bitmap = permits.withPermit { withTimeoutOrNull(snapshotTimeoutMs) { snapshot.render(request) } } ?: return null
+        cache.put(request.cacheKey, bitmap)
+        return RouteThumbnail(bitmap, ThumbnailSource.MapSnapshot)
+    }
+
+    private suspend fun offline(request: ThumbnailRequest): RouteThumbnail? =
+        fallback.render(request)?.let { RouteThumbnail(it, ThumbnailSource.Offline) }
 
     companion object {
         const val MAX_CONCURRENT_SNAPSHOTS: Int = 2

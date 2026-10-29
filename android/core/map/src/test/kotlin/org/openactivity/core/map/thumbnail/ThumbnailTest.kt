@@ -4,6 +4,7 @@ package org.openactivity.core.map.thumbnail
 import android.graphics.Bitmap
 import android.graphics.Color
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -170,6 +171,25 @@ class ThumbnailTest {
     fun loaderSkipsRoutesWithoutALine() = runTest {
         val loader = RouteThumbnailLoader(MemoryCache(), { error("not called") }, { error("not called") }, { true })
         assertNull(loader.load(request(points = route.take(1))))
+    }
+
+    @Test
+    fun progressiveLoadShowsTheDrawingUntilTheSnapshotArrives() = runTest {
+        val snapshotBitmap = solid(300, 150, Color.BLUE)
+        val fallbackBitmap = solid(300, 150, Color.GRAY)
+        val cache = MemoryCache()
+        val loader = RouteThumbnailLoader(cache, { snapshotBitmap }, { fallbackBitmap }, { true })
+        val first = loader.loadProgressively(request()).toList()
+        assertEquals(listOf(ThumbnailSource.Offline, ThumbnailSource.MapSnapshot), first.map { it.source })
+        assertSame(snapshotBitmap, first.last().bitmap)
+
+        // Cached now: only the snapshot, no placeholder flash.
+        val second = loader.loadProgressively(request()).toList()
+        assertEquals(listOf(ThumbnailSource.MapSnapshot), second.map { it.source })
+
+        val offline = RouteThumbnailLoader(MemoryCache(), { error("not called offline") }, { fallbackBitmap }, { false })
+        assertEquals(listOf(ThumbnailSource.Offline), offline.loadProgressively(request()).toList().map { it.source })
+        assertTrue(loader.loadProgressively(request(points = route.take(1))).toList().isEmpty())
     }
 
     private class MemoryCache : ThumbnailCache {

@@ -8,5 +8,6 @@
     <string name="map_following">Following your location</string>
     <string name="map_attribution_label">Map data: %1$s</string>
     <string name="map_thumbnail_offline">Route preview (map unavailable offline)</string>
-    <string name="map_thumbnail_osm">© OpenStreetMap</string>
+    <string name="map_thumbnail_osm">© OpenMapTiles © OpenStreetMap</string>
+    <string name="map_thumbnail_osm_topo">© OpenStreetMap · © OpenTopoMap</string>
 </resources>
