@@ -1,0 +1,67 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+!.vscode/extensions.json
+.fleet/
+*.swp
+*~
+
+# Gradle / build
+.gradle/
+build/
+local.properties
+*.class
+
+# Android / Kotlin
+*.apk
+*.aab
+*.ap_
+*.dex
+*.hprof
+captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
+output-metadata.json
+*.keystore
+*.jks
+!debug.keystore
+google-services.json
+
+# Node / backend
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+dist/
+coverage/
+.turbo/
+supabase/.temp/
+
+# Go
+/bin/
+*.exe
+*.test
+*.out
+go.work.sum
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+
+# Logs / temp
+*.log
+tmp/
+.cache/
