@@ -79,8 +79,10 @@ enum class SaveEditDialog {
 
 /** One-shot effects. */
 sealed interface SaveEditEffect {
-    /** Changes were stored for [activityId]. */
-    data class Saved(val activityId: Long) : SaveEditEffect
+    /**
+     * Changes were stored for [activityId]; [isNew] tells the first save after recording from an edit.
+     */
+    data class Saved(val activityId: Long, val isNew: Boolean) : SaveEditEffect
 
     /** The just-recorded activity was deleted. */
     data object Discarded : SaveEditEffect

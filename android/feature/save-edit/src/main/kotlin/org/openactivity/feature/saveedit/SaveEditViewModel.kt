@@ -196,7 +196,7 @@ class SaveEditViewModel internal constructor(
                 extras.setMuted(activityId, form.muted)
                 stored = form.copy(title = title)
                 editing { it.copy(saving = false, dirty = false, form = it.form.copy(title = title)) }
-                effectChannel.send(SaveEditEffect.Saved(activityId))
+                effectChannel.send(SaveEditEffect.Saved(activityId, isNew))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

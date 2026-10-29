@@ -78,11 +78,10 @@ fun SaveEditScreen(navigation: SaveEditNavigation, viewModel: SaveEditViewModel 
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(ActivityExtras.MAX_PHOTOS),
     ) { uris -> viewModel.addPhotos(uris) }
-    val isNew = (state as? SaveEditUiState.Editing)?.isNew ?: false
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             when (effect) {
-                is SaveEditEffect.Saved -> navigation.onSaved(effect.activityId, isNew)
+                is SaveEditEffect.Saved -> navigation.onSaved(effect.activityId, effect.isNew)
                 SaveEditEffect.Discarded -> navigation.onDiscarded()
                 SaveEditEffect.Close -> navigation.onClose()
                 is SaveEditEffect.Message -> snackbar.showSnackbar(effect.message)

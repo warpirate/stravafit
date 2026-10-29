@@ -38,7 +38,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.openactivity.core.designsystem.component.EmptyState
 import org.openactivity.core.designsystem.component.RidgelineTopAppBar
 import org.openactivity.core.export.file.ExportFormat
-import org.openactivity.core.export.file.ExportedFile
 import org.openactivity.core.export.share.ShareLauncher
 import org.openactivity.feature.activitydetail.ActivityDetailNavigation
 import org.openactivity.feature.activitydetail.ActivityDetailUiState
@@ -68,21 +67,13 @@ fun ActivityDetailScreen(
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
     val shareLauncher = remember(context) { ShareLauncher(context.applicationContext) }
-    var pendingDocument by remember { mutableStateOf<ExportedFile?>(null) }
-    val createDocument = rememberLauncherForActivityResult(CreateDocumentForFile()) { uri ->
-        val file = pendingDocument
-        pendingDocument = null
-        if (uri != null && file != null) viewModel.writeDocument(file, uri)
-    }
+    val createDocument = rememberLauncherForActivityResult(CreateDocumentForFile(), viewModel::onDocumentCreated)
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             when (effect) {
                 DetailEffect.Deleted -> navigation.onBack()
                 is DetailEffect.Message -> snackbar.showSnackbar(effect.message)
-                is DetailEffect.SaveDocument -> {
-                    pendingDocument = effect.file
-                    createDocument.launch(effect.file)
-                }
+                is DetailEffect.SaveDocument -> createDocument.launch(effect.file)
                 is DetailEffect.ShareFile -> if (!shareLauncher.share(context, effect.file)) viewModel.onShareUnavailable()
             }
         }

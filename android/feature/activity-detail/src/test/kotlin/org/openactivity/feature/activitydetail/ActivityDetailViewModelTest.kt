@@ -129,6 +129,13 @@ class ActivityDetailViewModelTest : RepositoryBackedTest() {
         assertTrue(effect is DetailEffect.SaveDocument)
         assertTrue((effect as DetailEffect.SaveDocument).file.displayName.endsWith(".gpx"))
         withTimeout(10_000) { vm.uiState.first { (it as? ActivityDetailUiState.Content)?.dialogs?.exportFormats == null } }
+
+        // The picker's answer goes back to the view model, which still holds the file (it survives recreation).
+        val destination = java.io.File(context.cacheDir, "picked.gpx").also { it.delete() }
+        vm.onDocumentCreated(android.net.Uri.fromFile(destination))
+        val saved = withTimeout(10_000) { vm.effects.first() }
+        assertEquals(DetailEffect.Message("Saved ${effect.file.displayName}"), saved)
+        assertTrue(destination.length() > 0)
         job.cancel()
     }
 }

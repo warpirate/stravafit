@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.feature.activitydetail.fileimport
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import org.openactivity.core.data.model.DefaultTitles
 import org.openactivity.core.data.model.NewActivity
 import org.openactivity.core.data.model.SavedActivity
@@ -43,7 +45,8 @@ class ActivityImportSaver @Inject constructor(
         activities.findIdByUuid(uuid)?.let { id -> return SaveOutcome.Duplicate(id, titleOf(id) ?: imported.sourceName) }
         val prefs = settings.settings.first()
         val finished = try {
-            ImportedActivityConverter.convert(imported, prefs.units)
+            // Metrics over a long FIT file take a while: keep them off the caller's (main) thread.
+            withContext(Dispatchers.Default) { ImportedActivityConverter.convert(imported, prefs.units) }
         } catch (e: UnusableActivityException) {
             return SaveOutcome.Rejected(e.message ?: "The file cannot be imported")
         }

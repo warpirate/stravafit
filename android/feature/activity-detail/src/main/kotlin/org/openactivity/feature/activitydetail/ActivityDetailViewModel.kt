@@ -83,6 +83,12 @@ class ActivityDetailViewModel internal constructor(
 
     private val deleting = MutableStateFlow(false)
 
+    /**
+     * The exported file waiting for the "save to device" picker. Kept here rather than in the screen so
+     * it survives the activity being recreated (rotation, dark mode) while the picker is open.
+     */
+    private var pendingDocument: ExportedFile? = null
+
     private val content: Flow<DetailContent?> = activities.observeActivityDetail(activityId).flatMapLatest { detail ->
         if (detail == null) return@flatMapLatest flowOf(null)
         val bests = activities.observePersonalBests(setOf(detail.activity.sport))
@@ -151,6 +157,7 @@ class ActivityDetailViewModel internal constructor(
             try {
                 val file = fileExporter.export(activityId, format)
                 dialogs.update { it.copy(exportFormats = null) }
+                if (!share) pendingDocument = file
                 effectChannel.send(if (share) DetailEffect.ShareFile(file) else DetailEffect.SaveDocument(file))
             } catch (e: CancellationException) {
                 throw e
@@ -160,6 +167,16 @@ class ActivityDetailViewModel internal constructor(
                 dialogs.update { it.copy(exporting = false) }
             }
         }
+    }
+
+    /**
+     * The "save to device" picker returned [destination] (null when cancelled): copies the pending
+     * exported file there.
+     */
+    fun onDocumentCreated(destination: Uri?) {
+        val file = pendingDocument ?: return
+        pendingDocument = null
+        if (destination != null) writeDocument(file, destination)
     }
 
     /** Copies an exported [file] to the document the user created. */

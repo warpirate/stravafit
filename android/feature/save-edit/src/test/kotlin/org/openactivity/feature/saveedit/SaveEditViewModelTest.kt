@@ -88,6 +88,16 @@ class SaveEditViewModelTest {
     }
 
     @Test
+    fun `saving from the edit screen reports an edit, not a first save`(): Unit = runBlocking {
+        val id = stored()
+        val vm = vm(id, isNew = false)
+        vm.editing()
+        vm.setTitle("Renamed")
+        vm.save()
+        assertEquals(SaveEditEffect.Saved(id, isNew = false), withTimeout(10_000) { vm.effects.first() })
+    }
+
+    @Test
     fun `save stores every field, and an empty title saves as the default`(): Unit = runBlocking {
         val id = stored()
         val vm = vm(id)
@@ -99,7 +109,7 @@ class SaveEditViewModelTest {
         vm.setPerceivedExertion(12)
         vm.setMuted(true)
         vm.save()
-        assertEquals(SaveEditEffect.Saved(id), withTimeout(10_000) { vm.effects.first() })
+        assertEquals(SaveEditEffect.Saved(id, isNew = true), withTimeout(10_000) { vm.effects.first() })
 
         val a = activities.observeActivity(id).first()!!
         assertEquals("Morning Trail Run", a.title)
