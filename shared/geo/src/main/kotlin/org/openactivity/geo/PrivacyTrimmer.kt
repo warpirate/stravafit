@@ -113,21 +113,24 @@ public object PrivacyTrimmer {
         if (options.zones.isEmpty()) return 0
         var steps = 0
         var lastInside = -1
-        var matched: PrivacyZone? = null
+        val matched = LinkedHashSet<PrivacyZone>()
         for (i in indices) {
             if (!inWindow(i)) break
             val zone = options.zones.firstOrNull { it.contains(points[i]) }
             if (zone != null) {
                 lastInside = steps
-                matched = zone
+                matched += zone
             }
             steps++
         }
-        if (matched == null) return 0
-        // Keep dropping points until the track is outside radius + margin of the matched zone.
+        if (matched.isEmpty()) return 0
+        // Keep dropping points until the track is outside radius + margin of every zone it touched, so the
+        // cut never lands inside the margin of an earlier zone (e.g. two neighbouring hidden places).
         var dropped = lastInside + 1
         val ordered = indices.toList()
-        while (dropped < ordered.size && matched.contains(points[ordered[dropped]], options.zoneMarginMeters)) dropped++
+        while (dropped < ordered.size && matched.any { it.contains(points[ordered[dropped]], options.zoneMarginMeters) }) {
+            dropped++
+        }
         return dropped
     }
 }

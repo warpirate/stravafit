@@ -186,6 +186,17 @@ class PrivacyTrimmerTest {
     }
 
     @Test
+    fun `cut clears the margin of every zone touched, not only the last one`() {
+        // Zone A sits 90 m beside the track, so its margin reaches further along the track than zone B's.
+        val a = PrivacyZone(Spherical.destination(track[5], 0.0, 90.0), 100.0)
+        val b = PrivacyZone(track[11], 15.0)
+        val r = PrivacyTrimmer.trim(track, PrivacyTrimOptions(zones = listOf(a, b), zoneMarginMeters = 150.0))
+        val firstVisible = track[r.firstVisibleIndex]
+        assertTrue(!a.contains(firstVisible, 150.0) && !b.contains(firstVisible, 150.0), "cut at ${r.firstVisibleIndex}")
+        assertTrue(a.contains(track[r.firstVisibleIndex - 1], 150.0))
+    }
+
+    @Test
     fun `zone at the end trims from the end`() {
         val home = track[498]
         val r = PrivacyTrimmer.trim(track, PrivacyTrimOptions(zones = listOf(PrivacyZone(home, 120.0))))
