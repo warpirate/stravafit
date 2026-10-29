@@ -28,8 +28,9 @@ import javax.xml.stream.XMLStreamReader
  * byte-order mark or whitespace, and rejects DTDs.
  *
  * Tolerance rules: a lap without `StartTime` falls back to its first trackpoint time or the
- * activity id; missing lap totals are derived from the trackpoints; trackpoints without a valid
- * position are kept (indoor activities) with a `null` position.
+ * activity id; missing lap totals are derived from the trackpoints (the lap distance from the
+ * activity-cumulative trackpoint distances); trackpoints without a valid position are kept
+ * (indoor activities) with a `null` position.
  */
 public class TcxReader {
 
@@ -88,7 +89,13 @@ public class TcxReader {
         val activityId = id
             ?: laps.firstNotNullOfOrNull { it.startTime ?: it.firstPointTime() }
             ?: throw TrackFileFormatException("Activity has no Id and no lap start time", line, 1)
-        return TcxActivity(sport, activityId, laps.map { it.build(activityId) }, notes, creator)
+        // Trackpoint distances are cumulative over the activity; a lap's derived distance is measured
+        // from the previous lap's last cumulative distance.
+        var lapStartDistance = 0.0
+        val builtLaps = laps.map { lap ->
+            lap.build(activityId, lapStartDistance).also { lapStartDistance = lap.lastPointDistance() ?: lapStartDistance }
+        }
+        return TcxActivity(sport, activityId, builtLaps, notes, creator)
     }
 
     private fun readCreatorName(xml: XMLStreamReader): String? {
@@ -199,11 +206,14 @@ public class TcxReader {
         private fun lastPointTime(): Instant? = tracks.asReversed()
             .firstNotNullOfOrNull { t -> t.points.asReversed().firstNotNullOfOrNull { it.time } }
 
-        fun build(activityId: Instant): TcxLap {
+        fun lastPointDistance(): Double? = tracks.asReversed()
+            .firstNotNullOfOrNull { t -> t.points.asReversed().firstNotNullOfOrNull { it.distance } }
+
+        /** [startDistance] is the activity's cumulative distance when this lap began. */
+        fun build(activityId: Instant, startDistance: Double): TcxLap {
             val start = startTime ?: firstPointTime() ?: activityId
             val derivedSeconds = lastPointTime()?.let { Duration.between(start, it).toMillis() / 1000.0 } ?: 0.0
-            val derivedDistance = tracks.asReversed()
-                .firstNotNullOfOrNull { t -> t.points.asReversed().firstNotNullOfOrNull { it.distance } } ?: 0.0
+            val derivedDistance = lastPointDistance()?.let { (it - startDistance).coerceAtLeast(0.0) } ?: 0.0
             return TcxLap(
                 startTime = start,
                 totalTimeSeconds = totalTimeSeconds ?: derivedSeconds.coerceAtLeast(0.0),

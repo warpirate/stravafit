@@ -17,20 +17,37 @@ public enum class TrackPointExtensionVersion(internal val namespace: String) {
     V2("http://www.garmin.com/xmlschemas/TrackPointExtension/v2"),
 }
 
+/** How the [GpxWriter] writes per-point power, which GPX 1.1 has no core element for. */
+public enum class GpxPowerFormat {
+    /**
+     * Garmin PowerExtension v1 `<pwr:PowerInWatts>`: valid against the GPX 1.1 XSD (whose
+     * `<extensions>` only admits elements from other namespaces) and read by Garmin-compatible tools.
+     */
+    GARMIN_POWER_EXTENSION,
+
+    /**
+     * A bare `<power>` element in the GPX namespace: the de-facto convention many importers read,
+     * but it makes the file invalid against the GPX 1.1 XSD.
+     */
+    PLAIN,
+
+    /** Power is not written. */
+    NONE,
+}
+
 /**
  * Options for [GpxWriter].
  *
  * @property creator Fallback for the mandatory `creator` attribute when [GpxDocument.creator] is null.
  * @property extensionVersion TrackPointExtension schema for heart rate, cadence and temperature.
- * @property writePower Write power as a `<power>` element inside `<extensions>` (the de-facto
- *   convention most importers read; it has no official schema).
+ * @property powerFormat How power is written; the default keeps the file XSD-valid.
  * @property coordinateDecimals Fraction digits for latitude/longitude; 7 is about 1 cm.
  * @property elevationDecimals Fraction digits for elevation.
  */
 public data class GpxWriteOptions(
     val creator: String = "lib-gpx-tcx",
     val extensionVersion: TrackPointExtensionVersion = TrackPointExtensionVersion.V1,
-    val writePower: Boolean = true,
+    val powerFormat: GpxPowerFormat = GpxPowerFormat.GARMIN_POWER_EXTENSION,
     val coordinateDecimals: Int = 7,
     val elevationDecimals: Int = 1,
 ) {
@@ -60,6 +77,7 @@ public class GpxWriter(private val options: GpxWriteOptions = GpxWriteOptions())
             "xmlns" to GPX_NAMESPACE,
             "xmlns:xsi" to XSI_NAMESPACE,
             "xmlns:gpxtpx" to options.extensionVersion.namespace,
+            "xmlns:pwr" to POWER_NAMESPACE.takeIf { options.powerFormat == GpxPowerFormat.GARMIN_POWER_EXTENSION },
             "xsi:schemaLocation" to "$GPX_NAMESPACE $GPX_SCHEMA",
         ) {
             writeMetadata(xml, document.metadata)
@@ -121,10 +139,10 @@ public class GpxWriter(private val options: GpxWriteOptions = GpxWriteOptions())
     private fun writeExtensions(xml: XmlOutput, point: TrackPoint) {
         val speed = point.speed.takeIf { options.extensionVersion == TrackPointExtensionVersion.V2 }
         val hasTpx = point.temperature != null || point.heartRate != null || point.cadence != null || speed != null
-        val power = point.power.takeIf { options.writePower }
+        val power = point.power?.takeIf { options.powerFormat != GpxPowerFormat.NONE }
         if (!hasTpx && power == null) return
         xml.element("extensions") {
-            if (power != null) xml.leaf("power", power.toString())
+            if (power != null && options.powerFormat == GpxPowerFormat.PLAIN) xml.leaf("power", power.toString())
             if (hasTpx) {
                 xml.element("gpxtpx:TrackPointExtension") {
                     // Element order follows the TrackPointExtension XSD sequence.
@@ -134,6 +152,10 @@ public class GpxWriter(private val options: GpxWriteOptions = GpxWriteOptions())
                     xml.leaf("gpxtpx:speed", speed?.let { formatDecimal(it, 3) })
                 }
             }
+            if (power != null && options.powerFormat == GpxPowerFormat.GARMIN_POWER_EXTENSION) {
+                // PowerInWatts is an xsd:unsignedShort.
+                xml.leaf("pwr:PowerInWatts", power.coerceIn(0, 65535).toString())
+            }
         }
     }
 
@@ -141,5 +163,6 @@ public class GpxWriter(private val options: GpxWriteOptions = GpxWriteOptions())
         const val GPX_NAMESPACE = "http://www.topografix.com/GPX/1/1"
         const val GPX_SCHEMA = "http://www.topografix.com/GPX/1/1/gpx.xsd"
         const val XSI_NAMESPACE = "http://www.w3.org/2001/XMLSchema-instance"
+        const val POWER_NAMESPACE = "http://www.garmin.com/xmlschemas/PowerExtension/v1"
     }
 }

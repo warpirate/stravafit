@@ -63,8 +63,12 @@ public data class TcxLap(
     public companion object {
         /**
          * Builds a lap whose totals are derived from [points]: duration from the first to the last
-         * timestamp, distance from the last cumulative distance, and heart-rate average/maximum.
+         * timestamp, distance from the cumulative distances, and heart-rate average/maximum.
          * The [startTime] defaults to the first point's time.
+         *
+         * TCX trackpoint distances are cumulative from the start of the activity, so for every lap
+         * after the first pass the previous lap's final cumulative distance as [startDistance];
+         * the lap distance is the last cumulative distance minus [startDistance].
          */
         public fun fromPoints(
             points: List<TrackPoint>,
@@ -72,13 +76,15 @@ public data class TcxLap(
                 "startTime is required when no point has a time"
             },
             triggerMethod: TcxTriggerMethod = TcxTriggerMethod.MANUAL,
+            startDistance: Double = 0.0,
         ): TcxLap {
             val lastTime = points.lastOrNull { it.time != null }?.time ?: startTime
             val heartRates = points.mapNotNull { it.heartRate }
             return TcxLap(
                 startTime = startTime,
                 totalTimeSeconds = Duration.between(startTime, lastTime).toMillis() / 1000.0,
-                distanceMeters = points.lastOrNull { it.distance != null }?.distance ?: 0.0,
+                distanceMeters = points.lastOrNull { it.distance != null }?.distance
+                    ?.let { (it - startDistance).coerceAtLeast(0.0) } ?: 0.0,
                 maximumSpeed = points.mapNotNull { it.speed }.maxOrNull(),
                 averageHeartRate = if (heartRates.isEmpty()) null else Math.round(heartRates.average()).toInt(),
                 maximumHeartRate = heartRates.maxOrNull(),

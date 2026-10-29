@@ -30,6 +30,11 @@ TcxWriter().write(tcxDoc, out)
 Output is deterministic (fixed indentation, `\n`, trimmed decimals, UTC timestamps) so it can be
 golden-tested. Writers do **not** apply privacy trimming; pass already-trimmed tracks.
 
+GPX power defaults to Garmin PowerExtension `<pwr:PowerInWatts>`, which keeps the file valid
+against the GPX 1.1 XSD. `GpxPowerFormat.PLAIN` writes the popular but schema-invalid bare
+`<power>` element instead. `TcxLap.fromPoints(points, startDistance = ...)` derives a lap's
+distance from activity-cumulative trackpoint distances.
+
 ## Tests
 
 `./gradlew :lib:gpx-tcx:test` reads fixtures from `testdata/files/{gpx,tcx}` and compares writer

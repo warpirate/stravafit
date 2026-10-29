@@ -5,6 +5,7 @@ import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class WriterTest {
@@ -68,11 +69,27 @@ class WriterTest {
                 GpxTrack(segments = listOf(TrackSegment(listOf(TrackPoint(null, null, time = start), samplePoints[0])))),
             ),
         )
-        val text = GpxWriter(GpxWriteOptions(writePower = false)).writeToString(doc)
+        val text = GpxWriter(GpxWriteOptions(powerFormat = GpxPowerFormat.NONE)).writeToString(doc)
         val back = GpxReader().read(text.byteInputStream())
         assertEquals(1, back.allTrackPoints.size)
         assertEquals(null, back.allTrackPoints[0].power)
         assertTrue("creator=\"lib-gpx-tcx\"" in text)
+    }
+
+    @Test
+    fun `GPX power is written as Garmin PowerExtension by default and as plain power on request`() {
+        val doc = GpxDocument(tracks = listOf(GpxTrack(segments = listOf(TrackSegment(listOf(samplePoints[0]))))))
+        val schemaValid = GpxWriter().writeToString(doc)
+        assertTrue("xmlns:pwr=\"http://www.garmin.com/xmlschemas/PowerExtension/v1\"" in schemaValid)
+        assertTrue("<pwr:PowerInWatts>200</pwr:PowerInWatts>" in schemaValid)
+        assertFalse("<power>" in schemaValid, "a GPX-namespace <power> breaks GPX 1.1 XSD validity")
+
+        val plain = GpxWriter(GpxWriteOptions(powerFormat = GpxPowerFormat.PLAIN)).writeToString(doc)
+        assertTrue("<power>200</power>" in plain)
+        assertFalse("PowerInWatts" in plain || "xmlns:pwr" in plain)
+        for (text in listOf(schemaValid, plain)) {
+            assertEquals(200, GpxReader().read(text.byteInputStream()).allTrackPoints.single().power)
+        }
     }
 
     private val sampleTcx = TcxDocument(
@@ -83,7 +100,7 @@ class WriterTest {
                 laps = listOf(
                     TcxLap.fromPoints(samplePoints.take(3), triggerMethod = TcxTriggerMethod.DISTANCE)
                         .copy(calories = 12, cadence = 86, averageSpeed = 6.125, averageWatts = 205, maximumWatts = 210),
-                    TcxLap.fromPoints(samplePoints.drop(3)),
+                    TcxLap.fromPoints(samplePoints.drop(3), startDistance = samplePoints[2].distance!!),
                 ),
                 notes = "Golden run",
                 creatorName = "golden test",
@@ -128,6 +145,13 @@ class WriterTest {
         assertEquals(125, lap.maximumHeartRate)
         assertEquals(123, lap.averageHeartRate) // 122.5 rounds half-up
         assertEquals(6.625, lap.maximumSpeed)
+    }
+
+    @Test
+    fun `later lap distance is measured from the previous lap's cumulative distance`() {
+        val lap2 = sampleTcx.activities.single().laps[1]
+        assertEquals(76.25 - 30.5, lap2.distanceMeters)
+        assertEquals(0.0, TcxLap.fromPoints(samplePoints.take(1), startDistance = 50.0).distanceMeters)
     }
 
     @Test

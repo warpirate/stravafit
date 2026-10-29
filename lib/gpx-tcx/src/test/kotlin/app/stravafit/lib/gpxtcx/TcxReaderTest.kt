@@ -64,6 +64,23 @@ class TcxReaderTest {
     }
 
     @Test
+    fun `derived lap distances use the activity-cumulative trackpoint distances`() {
+        fun lap(start: String, vararg points: Pair<String, Double>) =
+            "<Lap StartTime=\"$start\"><Track>" +
+                points.joinToString("") { (t, d) -> "<Trackpoint><Time>$t</Time><DistanceMeters>$d</DistanceMeters></Trackpoint>" } +
+                "</Track></Lap>"
+        val xml = "<TrainingCenterDatabase><Activities><Activity Sport=\"Running\"><Id>2026-05-08T06:30:00Z</Id>" +
+            lap("2026-05-08T06:30:00Z", "2026-05-08T06:30:00Z" to 0.0, "2026-05-08T06:35:00Z" to 1000.0) +
+            lap("2026-05-08T06:35:00Z", "2026-05-08T06:35:05Z" to 1012.0, "2026-05-08T06:40:00Z" to 1950.0) +
+            lap("2026-05-08T06:40:00Z") +
+            lap("2026-05-08T06:40:00Z", "2026-05-08T06:44:00Z" to 2750.0) +
+            "</Activity></Activities></TrainingCenterDatabase>"
+        val laps = TcxReader().read(xml.byteInputStream()).activities.single().laps
+        assertEquals(listOf(1000.0, 950.0, 0.0, 800.0), laps.map { it.distanceMeters })
+        assertEquals(listOf(300.0, 300.0, 0.0, 240.0), laps.map { it.totalTimeSeconds })
+    }
+
+    @Test
     fun `rejects non-TCX and malformed input`() {
         assertFailsWith<TrackFileFormatException> { read("gpx/garmin-edge-tpx-v1.gpx") }
         assertFailsWith<TrackFileFormatException> { read("gpx/malformed-xxe.gpx") }

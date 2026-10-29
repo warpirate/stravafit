@@ -115,7 +115,7 @@ def check_gpx(name, has_speed):
         check(f"{name}[{i}].time", p.time, start + dt.timedelta(seconds=i))
         ext = {}
         for e in p.extensions:
-            if e.tag.endswith("power"):
+            if e.tag.endswith("power") or e.tag.endswith("PowerInWatts"):
                 ext["power"] = e.text
             for child in e:
                 ext[child.tag.split("}")[-1]] = child.text

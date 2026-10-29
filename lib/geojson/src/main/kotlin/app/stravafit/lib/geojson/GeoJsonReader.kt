@@ -16,7 +16,7 @@ public class GeoJsonReader {
 
     /** Parses [text]. A leading byte-order mark is ignored. */
     public fun read(text: String): GeoJsonObject {
-        val root = JsonParser(text.removePrefix("﻿")).parse()
+        val root = JsonParser(text.removePrefix("\uFEFF")).parse()
         return objectFrom(root.asObject("root"), "root")
     }
 

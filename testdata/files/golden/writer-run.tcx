@@ -86,7 +86,7 @@
       </Lap>
       <Lap StartTime="2026-05-10T07:00:03Z">
         <TotalTimeSeconds>2</TotalTimeSeconds>
-        <DistanceMeters>76.25</DistanceMeters>
+        <DistanceMeters>45.75</DistanceMeters>
         <MaximumSpeed>6.625</MaximumSpeed>
         <Calories>0</Calories>
         <AverageHeartRateBpm>
