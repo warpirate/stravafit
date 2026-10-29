@@ -83,7 +83,7 @@ class RecordingNotifications @Inject constructor(
         val units = snapshot.units
         val metric = units == UnitSystem.METRIC
         val parts = mutableListOf(
-            NotificationFormat.elapsed(snapshot.elapsed),
+            NotificationFormat.elapsed(snapshot.timerTime),
             "${NotificationFormat.distance(snapshot.distanceMeters, units)} ${context.getString(if (metric) R.string.unit_km else R.string.unit_mi)}",
         )
         val speed = if (snapshot.status == RecordingStatus.RECORDING) snapshot.currentSpeedMps else snapshot.averageSpeedMps

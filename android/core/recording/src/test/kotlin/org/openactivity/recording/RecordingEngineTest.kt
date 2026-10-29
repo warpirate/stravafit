@@ -260,7 +260,8 @@ class RecordingEngineTest {
         assertNear(141 * 15.0, done.gpsGaps.single().bridgedMeters, 20.0, "bridge")
         assertTrue(ActivityFlag.SIGNIFICANT_GPS_GAP in done.flags)
         assertEquals(0, done.autoPauseCount, "no fixes is not a stop")
-        assertEquals(260.seconds, done.movingTime)
+        // The first second, before the first fix, is not moving time.
+        assertEquals(259.seconds, done.movingTime)
     }
 
     @Test
@@ -354,5 +355,76 @@ class RecordingEngineTest {
         assertNull(e.state.heartRateBpm)
         assertNull(e.state.powerWatts)
         assertNull(e.state.cadence)
+    }
+
+    @Test
+    fun `timer stands still while paused`() {
+        val f = Feed().action(Action.START).move(30, 3.0).action(Action.PAUSE).ticks(20)
+        val e = engine(SportType.RUN)
+        val paused = e.feed(f)
+        assertEquals(RecordingStatus.PAUSED, paused.status)
+        assertEquals(50.seconds, paused.elapsed)
+        assertEquals(30.seconds, paused.timerTime)
+        f.inputs.clear()
+        f.action(Action.RESUME).move(10, 3.0)
+        assertEquals(40.seconds, e.feed(f).timerTime)
+    }
+
+    @Test
+    fun `cached fix from before start is ignored and adds no jump`() {
+        // The provider delivers its cached last location (900 m away, taken before START) first.
+        val f = Feed().action(Action.START)
+        val stale = f.fix(speed = 0.0, at = Spherical.destination(f.current(), 0.0, 900.0)).copy(monotonicNanos = f.nanos(-60.0))
+        f.add(stale)
+        f.move(34, 3.2, doppler = false)
+        val live = engine(SportType.RUN).feed(f)
+        assertNear(33 * 3.2, live.distanceMeters, 15.0, "distance")
+        assertTrue(live.movingTime >= 25.seconds, "moving ${live.movingTime}")
+    }
+
+    @Test
+    fun `moving time counts when the receiver reports zero speed`() {
+        val f = Feed().action(Action.START)
+        val e = engine(SportType.RUN)
+        e.processAll(f.inputs)
+        repeat(60) {
+            f.inputs.clear()
+            f.move(1, 3.2)
+            e.processAll(f.inputs.map { if (it is EngineInput.Location) it.copy(speedMps = 0.0) else it })
+        }
+        assertTrue(e.state.movingTime >= 30.seconds, "moving ${e.state.movingTime}")
+    }
+
+    @Test
+    fun `summary splits and efforts agree and exclude the wait for the first fix`() {
+        // 20 s stationary before any fix arrives, then 1 km at 3.2 m/s with a 60 s manual pause midway.
+        val f = Feed().action(Action.START).ticks(20).move(150, 3.2, doppler = false)
+            .action(Action.PAUSE).ticks(60).action(Action.RESUME).move(170, 3.2, doppler = false).action(Action.FINISH)
+        val done = engine(SportType.RUN).apply { feed(f) }.finishedActivity!!
+        val pace = 1000.0 / done.averageSpeedMps
+        assertNear(1000.0 / 3.2, pace, 12.0, "summary pace")
+        val split = done.splits.first()
+        val splitPace = split.movingTime.inWholeMilliseconds / 1000.0 / (split.distance.meters / 1000.0)
+        assertNear(pace, splitPace, 8.0, "split pace")
+        val halfMile = done.bestEfforts.first { it.targetMeters in 800.0..810.0 }
+        assertNear(804.67 / 3.2, halfMile.elapsedSeconds, 10.0, "half mile ignores the pause")
+    }
+
+    @Test
+    fun `flat barometer falls back to gps altitude`() {
+        val f = Feed().action(Action.START)
+        val e = engine(SportType.RUN)
+        e.processAll(f.inputs)
+        f.inputs.clear()
+        for (s in 1..120) {
+            f.move(1, 3.0)
+            val fix = f.inputs.last { it is EngineInput.Location } as EngineInput.Location
+            f.inputs[f.inputs.indexOf(fix)] = fix.copy(altitudeMeters = 560.0 + s / 6.0)
+            f.add(EngineInput.Pressure(f.nanos(f.seconds) + 2, 1013.25))
+        }
+        val s = e.feed(f)
+        assertEquals(AltitudeSource.GPS, s.elevation.source)
+        assertTrue(s.elevation.gainMeters >= 10.0, "gain ${s.elevation.gainMeters}")
+        assertTrue(s.elevation.currentMeters!! > 570.0, "altitude ${s.elevation.currentMeters}")
     }
 }

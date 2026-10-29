@@ -81,6 +81,11 @@ public class RecordingEngine(public val config: RecordingConfig) {
     private var baroAltitude = Double.NaN
     private var baroCalibrationSum = 0.0
     private var baroCalibrationCount = 0
+    private var stepSpeed = 0.0
+    private var baroMin = Double.NaN
+    private var baroMax = Double.NaN
+    private var gpsAltMin = Double.NaN
+    private var gpsAltMax = Double.NaN
     private val splits = SplitAccumulator(config.unitSystem.splitLengthMeters)
     private val laps = ArrayList<Lap>()
     private var lapStartNanos = 0L
@@ -155,7 +160,10 @@ public class RecordingEngine(public val config: RecordingConfig) {
         if (autoPauseActive) return true
         val fix = lastAccepted ?: return false
         if ((t - fix.nanos) / 1e9 > profile.movingRule.gapCapSeconds) return false
-        return !motion.isStationary && motion.smoothedSpeed >= profile.movingRule.thresholdMps
+        val threshold = profile.movingRule.thresholdMps
+        // Either the motion detector sees movement, or the distance actually grew at moving speed. The
+        // second matters when the receiver reports a Doppler speed of 0 while the position moves.
+        return (!motion.isStationary && motion.smoothedSpeed >= threshold) || stepSpeed >= threshold
     }
 
     private fun anchorWallClock(t: Long, wallMillis: Long) {
@@ -173,6 +181,10 @@ public class RecordingEngine(public val config: RecordingConfig) {
     // ------------------------------------------------------------- location
 
     private fun onLocation(loc: EngineInput.Location, t: Long) {
+        // A fix taken before START (the provider's cached last location, delivered when a subscription
+        // opens) or long before the engine clock is stale: it says where the athlete was, not where they
+        // are, and anchoring the track on it adds a phantom jump to the distance.
+        if (status.isActive && (t < startNanos || clockNanos?.let { it - t > STALE_FIX_NANOS } == true)) return
         val previousFix = lastFixNanos
         if (previousFix != null && t <= previousFix) return
         lastFixNanos = t
@@ -229,9 +241,18 @@ public class RecordingEngine(public val config: RecordingConfig) {
         val position = filter.position
         val fusedSpeed = filter.speed
         if (isRecording) {
+            val before = distance
             accumulateDistance(position, fusedSpeed, t, prev, afterGap, accuracy, velocityMode = doppler != null)
+            val dt = gapNanos / 1e9
+            if (prev != null && !afterGap && dt > 0.0) {
+                val instant = (distance - before) / dt
+                stepSpeed += STEP_SPEED_ALPHA * (instant - stepSpeed)
+            } else {
+                stepSpeed = 0.0
+            }
         } else {
             bridgePending = true
+            stepSpeed = 0.0
         }
         previousFusedSpeed = fusedSpeed
         val altitude = currentAltitude()
@@ -368,16 +389,20 @@ public class RecordingEngine(public val config: RecordingConfig) {
                 verticalAccuracyAvg + VACC_ALPHA * (verticalAccuracy - verticalAccuracyAvg)
             }
         }
-        if (!hasBarometer) {
-            // While manually paused (a lift, a car) altitude is tracked for display but never counted.
-            if (status == RecordingStatus.PAUSED) gpsElevation.rebase()
-            val h = if (verticalAccuracyAvg.isNaN()) {
-                gpsElevation.hysteresisMeters
-            } else {
-                maxOf(gpsElevation.hysteresisMeters, GPS_HYSTERESIS_PER_VACC * verticalAccuracyAvg)
-            }
-            gpsElevation.add(altitude, h)
-        } else if (baroCalibrationCount < BARO_CALIBRATION_FIXES && baroAltitude.isFinite()) {
+        if (status.isActive) {
+            gpsAltMin = if (gpsAltMin.isNaN()) altitude else minOf(gpsAltMin, altitude)
+            gpsAltMax = if (gpsAltMax.isNaN()) altitude else maxOf(gpsAltMax, altitude)
+        }
+        // GPS altitude is always tracked, so a barometer that turns out to be stuck can fall back to it.
+        // While manually paused (a lift, a car) altitude is tracked for display but never counted.
+        if (status == RecordingStatus.PAUSED) gpsElevation.rebase()
+        val h = if (verticalAccuracyAvg.isNaN()) {
+            gpsElevation.hysteresisMeters
+        } else {
+            maxOf(gpsElevation.hysteresisMeters, GPS_HYSTERESIS_PER_VACC * verticalAccuracyAvg)
+        }
+        gpsElevation.add(altitude, h)
+        if (hasBarometer && baroCalibrationCount < BARO_CALIBRATION_FIXES && baroAltitude.isFinite()) {
             baroCalibrationSum += altitude - baroAltitude
             baroCalibrationCount++
         }
@@ -392,6 +417,8 @@ public class RecordingEngine(public val config: RecordingConfig) {
         }
         baroAltitude = ElevationMetrics.pressureToAltitude(hPa)
         if (!status.isActive) return
+        baroMin = if (baroMin.isNaN()) baroAltitude else minOf(baroMin, baroAltitude)
+        baroMax = if (baroMax.isNaN()) baroAltitude else maxOf(baroMax, baroAltitude)
         if (status == RecordingStatus.PAUSED) baroElevation.rebase()
         baroElevation.add(baroAltitude)
     }
@@ -402,8 +429,21 @@ public class RecordingEngine(public val config: RecordingConfig) {
         baroElevation.rebase()
     }
 
+    /**
+     * The barometer is used only while it is plausible. A sensor whose reading never changes while GPS
+     * altitude clearly does (emulators, some broken or sealed sensors) is ignored in favour of GPS, so the
+     * activity still gets an elevation profile instead of a flat line.
+     */
+    private val baroUsable: Boolean
+        get() {
+            if (!hasBarometer) return false
+            val baroRange = if (baroMin.isNaN()) 0.0 else baroMax - baroMin
+            val gpsRange = if (gpsAltMin.isNaN()) 0.0 else gpsAltMax - gpsAltMin
+            return !(baroRange < STUCK_BARO_RANGE_M && gpsRange >= STUCK_GPS_RANGE_M)
+        }
+
     private fun currentAltitude(): Double? = when {
-        hasBarometer && baroAltitude.isFinite() -> {
+        baroUsable && baroAltitude.isFinite() -> {
             val offset = if (baroCalibrationCount > 0) baroCalibrationSum / baroCalibrationCount else 0.0
             baroAltitude + offset
         }
@@ -412,14 +452,14 @@ public class RecordingEngine(public val config: RecordingConfig) {
     }
 
     private val elevationGain: Double
-        get() = if (hasBarometer) carriedGain + baroElevation.gain else gpsElevation.gain
+        get() = if (baroUsable) carriedGain + baroElevation.gain else gpsElevation.gain
 
     private val elevationLoss: Double
-        get() = if (hasBarometer) carriedLoss + baroElevation.loss else gpsElevation.loss
+        get() = if (baroUsable) carriedLoss + baroElevation.loss else gpsElevation.loss
 
     private val altitudeSource: AltitudeSource
         get() = when {
-            hasBarometer -> AltitudeSource.BAROMETER
+            baroUsable -> AltitudeSource.BAROMETER
             gpsElevation.smoothed.isFinite() -> AltitudeSource.GPS
             else -> AltitudeSource.NONE
         }
@@ -560,6 +600,7 @@ public class RecordingEngine(public val config: RecordingConfig) {
             status = status,
             sport = config.sport,
             elapsed = elapsedNanos.nanoseconds,
+            timerTime = if (status == RecordingStatus.IDLE || status == RecordingStatus.DISCARDED) Duration.ZERO else timerNanos.nanoseconds,
             movingTime = moving,
             distanceMeters = distanceNow,
             currentSpeedMps = currentSpeed,
@@ -630,6 +671,11 @@ public class RecordingEngine(public val config: RecordingConfig) {
         baroAltitude = baroAltitude,
         baroCalibrationSum = baroCalibrationSum,
         baroCalibrationCount = baroCalibrationCount,
+        stepSpeed = stepSpeed,
+        baroMin = baroMin,
+        baroMax = baroMax,
+        gpsAltMin = gpsAltMin,
+        gpsAltMax = gpsAltMax,
         splits = splits.snapshot(),
         laps = laps.toList(),
         lapStartNanos = lapStartNanos,
@@ -687,6 +733,11 @@ public class RecordingEngine(public val config: RecordingConfig) {
         baroAltitude = s.baroAltitude
         baroCalibrationSum = s.baroCalibrationSum
         baroCalibrationCount = s.baroCalibrationCount
+        stepSpeed = s.stepSpeed
+        baroMin = s.baroMin
+        baroMax = s.baroMax
+        gpsAltMin = s.gpsAltMin
+        gpsAltMax = s.gpsAltMax
         splits.restore(s.splits)
         laps += s.laps
         lapStartNanos = s.lapStartNanos
@@ -752,6 +803,10 @@ public class RecordingEngine(public val config: RecordingConfig) {
         private const val DOPPLER_CHECK_SLACK_M = 10.0
         private const val STATIONARY_ESCAPE_M = 30.0
         private const val VACC_ALPHA = 0.05
+        private const val STEP_SPEED_ALPHA = 0.5
+        private const val STALE_FIX_NANOS = 10_000_000_000L
+        private const val STUCK_BARO_RANGE_M = 0.3
+        private const val STUCK_GPS_RANGE_M = 5.0
 
         /**
          * Rebuilds an engine from [snapshot].

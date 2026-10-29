@@ -89,6 +89,8 @@ public data class LapProgress(val index: Int, val elapsed: Duration, val distanc
  * Everything the record screen and the notification show. Produced by [RecordingEngine] after every input.
  *
  * @property elapsed time since START, including pauses (monotonic clock).
+ * @property timerTime time the timer ran: elapsed time minus pauses. This is the main clock on the record
+ *   screen; it stands still while paused.
  * @property movingTime moving time so far. With auto-pause off and no manual pause this is a live estimate;
  *   the finished activity recomputes it with the shared moving-time rule.
  * @property currentSpeedMps smoothed current speed; 0 while paused.
@@ -104,6 +106,7 @@ public data class RecordingState(
     val status: RecordingStatus,
     val sport: SportType,
     val elapsed: Duration,
+    val timerTime: Duration,
     val movingTime: Duration,
     val distanceMeters: Double,
     val currentSpeedMps: Double,

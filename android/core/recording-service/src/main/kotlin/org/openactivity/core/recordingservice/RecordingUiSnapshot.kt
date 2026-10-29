@@ -38,6 +38,7 @@ data class SplitProgress(val index: Int, val distanceMeters: Double, val movingT
  * @property startedAt wall-clock start, null when idle.
  * @property units unit system used for splits and audio cues of this recording.
  * @property elapsed time since START including pauses.
+ * @property timerTime elapsed time minus pauses: the main clock, frozen while paused.
  * @property movingTime moving time so far.
  * @property currentSpeedMps smoothed current speed (0 while paused).
  * @property averageSpeedMps distance over moving time.
@@ -71,6 +72,7 @@ data class RecordingUiSnapshot(
     val track: List<TrackPoint>,
     val isMockLocation: Boolean,
     val recoveredAfterInterruption: Boolean,
+    val timerTime: Duration = elapsed,
 ) {
     /** True while running or paused. */
     val isActive: Boolean get() = status.isActive
@@ -150,6 +152,7 @@ data class RecordingUiSnapshot(
                 track = track,
                 isMockLocation = state.isMockLocation,
                 recoveredAfterInterruption = recovered,
+                timerTime = state.timerTime,
             )
         }
     }

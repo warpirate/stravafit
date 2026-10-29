@@ -64,6 +64,11 @@ class FormatTest {
         assertEquals("Split 3", m.split.label)
     }
 
+    @Test fun timeShowsTimerTimeSoItFreezesWhilePaused() {
+        val paused = recordingSnapshot(status = RecordingStatus.PAUSED).copy(elapsed = 3.minutes, timerTime = 2.minutes + 26.seconds)
+        assertEquals("2:26", LiveMetrics.from(paused, PaceMode.SPLIT).time.value)
+    }
+
     @Test fun runPaceCanShowCurrentOrAverage() {
         assertEquals("Pace", LiveMetrics.from(recordingSnapshot(), PaceMode.CURRENT).speed.label)
         assertEquals("Avg pace", LiveMetrics.from(recordingSnapshot(), PaceMode.AVERAGE).speed.label)

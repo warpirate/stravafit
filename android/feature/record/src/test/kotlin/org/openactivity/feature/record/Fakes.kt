@@ -227,6 +227,7 @@ fun recordingSnapshot(
     routeId = routeId,
     startedAt = Instant.parse("2026-10-29T07:00:00Z"),
     elapsed = 12.minutes + 47.seconds,
+    timerTime = 12.minutes + 47.seconds,
     movingTime = 12.minutes + 40.seconds,
     distanceMeters = 2410.0,
     currentSpeedMps = 3.15,

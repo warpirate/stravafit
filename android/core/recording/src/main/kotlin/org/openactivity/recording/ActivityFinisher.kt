@@ -43,24 +43,30 @@ internal object ActivityFinisher {
         val sport = input.config.sport
         val profile = input.config.profile
         val samples = samplesOf(input.points, input.pauses)
-        // Strava-compatible rule: with auto-pause or manual pauses, moving time is timer time; otherwise it
-        // is derived from the track. Activities without a track use timer time.
-        val timerMode = input.autoPauseActive || samples.size < 2 || input.pauses.any { it.kind == PauseKind.MANUAL }
+        // With auto-pause, moving time is the timer time covered by the track; otherwise it is derived from
+        // the track with the shared moving-time rule (paused intervals never count). Either way the time
+        // before the first fix, when nothing is known about movement, is not moving time, so the summary
+        // average, the splits and the charts all divide by the same seconds. Activities without a track use
+        // timer time.
+        val noTrack = samples.size < 2
+        val timerMode = input.autoPauseActive || noTrack
         val mask = if (timerMode) MovingTime.timerMask(samples) else MovingTime.movingMask(samples, profile.movingRule)
-        val movingNanos = if (timerMode) {
+        val movingNanos = if (noTrack) {
             input.timerNanos
         } else {
             (MovingTime.sumIntervals(samples, mask) * 1e9).toLong()
         }.coerceIn(0L, input.elapsedNanos)
         val movingSeconds = movingNanos / 1e9
         val cap = profile.maxSpeedMps
+        // Efforts run on timer time: a pause inside the fastest half mile does not count against it.
+        val effortSamples = timerTimeSamples(samples)
         val bestEfforts = when {
-            sport.isRunLike -> BestEfforts.forDistances(samples, StandardEfforts.RUN_DISTANCES_M, cap)
-            sport.isRideLike -> BestEfforts.forDistances(samples, StandardEfforts.RIDE_DISTANCES_M, cap)
+            sport.isRunLike -> BestEfforts.forDistances(effortSamples, StandardEfforts.RUN_DISTANCES_M, cap)
+            sport.isRideLike -> BestEfforts.forDistances(effortSamples, StandardEfforts.RIDE_DISTANCES_M, cap)
             else -> emptyList()
         }
         val durationEfforts = if (sport.isRideLike) {
-            StandardEfforts.RIDE_DURATIONS_S.mapNotNull { BestEfforts.forDuration(samples, it, cap) }
+            StandardEfforts.RIDE_DURATIONS_S.mapNotNull { BestEfforts.forDuration(effortSamples, it, cap) }
         } else {
             emptyList()
         }
@@ -91,6 +97,22 @@ internal object ActivityFinisher {
             flags = input.flags,
             points = input.points,
         )
+    }
+
+    /**
+     * [samples] with paused intervals squeezed out of the time axis: time stands still across a pause, so
+     * windows measure timer time. No distance is added while paused, so nothing else changes.
+     */
+    internal fun timerTimeSamples(samples: ActivitySamples): ActivitySamples {
+        val n = samples.size
+        if (n == 0) return samples
+        val t = DoubleArray(n)
+        t[0] = samples.time[0]
+        for (i in 1 until n) {
+            val dt = samples.time[i] - samples.time[i - 1]
+            t[i] = t[i - 1] + if (samples.isPaused(i)) 0.0 else dt
+        }
+        return ActivitySamples(t, samples.distance, altitude = samples.altitude)
     }
 
     /** Converts the track to metric samples; an interval is paused when its midpoint lies inside a pause. */

@@ -11,7 +11,7 @@ import org.openactivity.recording.RecordingStatus
  * The numbers the recording screens show, already formatted. Built from a [RecordingUiSnapshot] by
  * [LiveMetrics.from]; pure, so the sport and pause rules are unit-tested.
  *
- * @property time elapsed time, the hero number.
+ * @property time timer time (elapsed minus pauses), the hero number; it stands still while paused.
  * @property speed pace or speed field, following the sport and [PaceMode] (record detail 3.3, 3.4).
  * @property average average pace or speed.
  * @property elevation current altitude; [elevationGain] total climb.
@@ -69,7 +69,7 @@ data class LiveMetrics(
             val elevationUnit = RecordFormat.elevationUnit(units)
             val elevationSpoken = RecordFormat.elevationUnitSpoken(units)
             return LiveMetrics(
-                time = Stat("Time", RecordFormat.duration(snapshot.elapsed)),
+                time = Stat("Time", RecordFormat.duration(snapshot.timerTime)),
                 movingTime = Stat("Moving time", RecordFormat.duration(snapshot.movingTime)),
                 distance = Stat(
                     "Distance",

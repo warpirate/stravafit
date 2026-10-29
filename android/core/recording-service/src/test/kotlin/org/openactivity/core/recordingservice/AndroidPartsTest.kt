@@ -82,6 +82,7 @@ class AndroidPartsTest {
             status = RecordingStatus.RECORDING,
             sport = SportType.RUN,
             elapsed = 42.minutes + 10.seconds,
+            timerTime = 42.minutes + 10.seconds,
             distanceMeters = 7210.0,
             currentSpeedMps = 1000.0 / 351.0,
             gpsStatus = GpsStatus.forAccuracy(5.0),

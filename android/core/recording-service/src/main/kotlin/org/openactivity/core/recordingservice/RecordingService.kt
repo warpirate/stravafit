@@ -143,7 +143,7 @@ class RecordingService : Service() {
         if (snapshot.isActive) {
             wakeLock.update(snapshot.status)
             // State changes several times a second; the notification only needs whole seconds.
-            val key = NotificationKey(snapshot.status, snapshot.elapsed.inWholeSeconds, snapshot.distanceMeters.toLong() / 10)
+            val key = NotificationKey(snapshot.status, snapshot.timerTime.inWholeSeconds, snapshot.distanceMeters.toLong() / 10)
             if (inForeground && key != lastNotification) {
                 lastNotification = key
                 notifications.update(snapshot)
