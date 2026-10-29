@@ -19,11 +19,25 @@ import org.openactivity.app.feature.settings.SettingsScreen
 import org.openactivity.feature.record.navigation.navigateToRecord
 import org.openactivity.feature.record.navigation.recordScreen
 import org.openactivity.core.designsystem.theme.RidgelineTheme
+import org.openactivity.feature.activitydetail.ActivityDetailNavigation
+import org.openactivity.feature.activitydetail.ImportActivitiesRoute
+import org.openactivity.feature.activitydetail.activityDetailScreen
+import org.openactivity.feature.activitydetail.importActivitiesScreen
+import org.openactivity.feature.activitydetail.navigateToActivityDetail
+import org.openactivity.feature.activitydetail.navigateToImportActivities
+import org.openactivity.feature.activitydetail.rememberExportActivityProvider
+import org.openactivity.feature.saveedit.SaveEditNavigation
+import org.openactivity.feature.saveedit.SaveEditRoute
+import org.openactivity.feature.saveedit.navigateToEditActivity
+import org.openactivity.feature.saveedit.saveEditScreen
+import org.openactivity.feature.shareexport.navigateToShareExport
+import org.openactivity.feature.shareexport.shareExportScreen
 
 /** The app navigation graph. */
 @Composable
 fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) {
     val motion = RidgelineTheme.motion
+    val exportProvider = rememberExportActivityProvider()
     NavHost(
         navController = navController,
         startDestination = FeedRoute,
@@ -56,8 +70,41 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
             durationMillis = motion.enter(motion.long),
         )
         composable<SettingsRoute> {
-            SettingsScreen(onNavigateUp = dropUnlessResumed { navController.popBackStack() })
+            SettingsScreen(
+                onNavigateUp = dropUnlessResumed { navController.popBackStack() },
+                onImportActivities = dropUnlessResumed { navController.navigateToImportActivities() },
+            )
         }
+        activityDetailScreen(
+            ActivityDetailNavigation(
+                onBack = { navController.popBackStack() },
+                onEdit = { id -> navController.navigateToEditActivity(id) },
+                onShare = { id -> navController.navigateToShareExport(id.toString()) },
+            ),
+        )
+        saveEditScreen(
+            SaveEditNavigation(
+                onSaved = { id, isNew ->
+                    if (isNew) {
+                        // After the first save, show the activity in place of the save screen.
+                        navController.navigateToActivityDetail(id) {
+                            popUpTo<SaveEditRoute> { inclusive = true }
+                        }
+                    } else {
+                        navController.popBackStack()
+                    }
+                },
+                onDiscarded = { navController.popBackStack() },
+                onClose = { navController.popBackStack() },
+            ),
+        )
+        importActivitiesScreen(
+            onBack = { navController.popBackStack() },
+            onOpenActivity = { id ->
+                navController.navigateToActivityDetail(id) { popUpTo<ImportActivitiesRoute> { inclusive = true } }
+            },
+        )
+        shareExportScreen(provider = exportProvider, onClose = { navController.popBackStack() })
     }
 }
 

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.feature.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -45,7 +46,11 @@ import org.openactivity.core.designsystem.theme.Spacing
 
 /** Settings screen, connected to [SettingsViewModel]. */
 @Composable
-fun SettingsScreen(onNavigateUp: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(
+    onNavigateUp: () -> Unit,
+    onImportActivities: () -> Unit = {},
+    viewModel: SettingsViewModel = hiltViewModel(),
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     SettingsContent(
         state = state,
@@ -53,6 +58,7 @@ fun SettingsScreen(onNavigateUp: () -> Unit, viewModel: SettingsViewModel = hilt
         onUnitSystem = viewModel::setUnitSystem,
         onThemeMode = viewModel::setThemeMode,
         onReduceMotion = viewModel::setReduceMotion,
+        onImportActivities = onImportActivities,
     )
 }
 
@@ -66,6 +72,7 @@ fun SettingsContent(
     onThemeMode: (ThemeMode) -> Unit,
     onReduceMotion: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    onImportActivities: () -> Unit = {},
 ) {
     Scaffold(
         modifier = modifier,
@@ -102,6 +109,10 @@ fun SettingsContent(
                         checked = state.preferences.reduceMotion,
                         onCheckedChange = onReduceMotion,
                     )
+                }
+                OverlineHeader("Your data")
+                SettingsGroup {
+                    LinkRow("Import activity file", "GPX, TCX or FIT from a watch, bike computer or another app", onImportActivities)
                 }
                 OverlineHeader("Feed")
                 SettingsGroup {
@@ -178,5 +189,19 @@ private fun InfoRow(title: String, value: String) {
     ) {
         Text(title, style = MaterialTheme.typography.bodyLarge)
         Text(value, style = MaterialTheme.typography.bodySmall, color = RidgelineTheme.colors.textSecondary)
+    }
+}
+
+@Composable
+private fun LinkRow(title: String, subtitle: String, onClick: () -> Unit) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 72.dp)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = Spacing.l, vertical = Spacing.m),
+    ) {
+        Text(title, style = MaterialTheme.typography.bodyLarge)
+        Text(subtitle, style = MaterialTheme.typography.bodySmall, color = RidgelineTheme.colors.textMuted)
     }
 }
