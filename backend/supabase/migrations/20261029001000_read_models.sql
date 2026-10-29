@@ -13,7 +13,12 @@
 --   3. serves the privacy-trimmed geometry to anyone but the owner.
 --
 -- Field rules (settings-privacy-units §6.2, §8.1):
---   start time / timezone : owner, or follower when not hidden; never strangers
+--   start time / timezone : owner, or follower when not hidden; never strangers.
+--                           published_at is cut to the UTC day and created_at /
+--                           updated_at are NULL whenever the start time is not
+--                           shown, because upload time ~ end time ~ start time
+--                           + elapsed time would otherwise give it away
+--   splits / lap times    : hidden by hide_pace (a 1 km split time IS the pace)
 --   gear                  : owner and followers only
 --   heart rate (+effort)  : hidden by hide_heart_rate
 --   speed / pace          : hidden by hide_pace
@@ -94,10 +99,11 @@ select
   a.is_indoor,
   a.is_manual,
   a.start_date_local,
-  case when v.is_owner or (v.is_follower and not a.hide_start_time) then a.start_time end   as start_time,
-  case when v.is_owner or (v.is_follower and not a.hide_start_time) then a.tz_name end      as tz_name,
-  case when v.is_owner or (v.is_follower and not a.hide_start_time) then a.utc_offset_s end as utc_offset_s,
-  a.published_at,
+  case when v.start_visible then a.start_time end                                         as start_time,
+  case when v.start_visible then a.tz_name end                                            as tz_name,
+  case when v.start_visible then a.utc_offset_s end                                       as utc_offset_s,
+  case when v.start_visible then a.published_at
+       else pg_catalog.date_trunc('day', a.published_at, 'UTC') end                       as published_at,
   case when v.is_owner or v.is_follower then a.gear_id end                                  as gear_id,
   a.elapsed_s,
   a.moving_s,
@@ -135,12 +141,14 @@ select
   v.is_owner,
   exists (select 1 from public.high_fives h
            where h.activity_id = a.id and h.user_id = auth.uid())   as viewer_high_fived,
-  a.created_at,
-  a.updated_at
+  case when v.start_visible then a.created_at end                                         as created_at,
+  case when v.start_visible then a.updated_at end                                         as updated_at
 from public.activities a
 cross join lateral (
   select r.relation = 'self'     as is_owner,
-         r.relation = 'follower' as is_follower
+         r.relation = 'follower' as is_follower,
+         r.relation = 'self' or (r.relation = 'follower' and not a.hide_start_time)
+                                 as start_visible
     from (select private.viewer_relation(a.owner_id) as relation) r
 ) v
 where a.deleted_at is null
@@ -161,9 +169,9 @@ select
   l.lap_index,
   l.name,
   l.trigger,
-  l.start_offset_s,
-  l.elapsed_s,
-  l.moving_s,
+  case when o.is_owner or not a.hide_pace       then l.start_offset_s end as start_offset_s,
+  case when o.is_owner or not a.hide_pace       then l.elapsed_s end     as elapsed_s,
+  case when o.is_owner or not a.hide_pace       then l.moving_s end      as moving_s,
   l.distance_m,
   case when o.is_owner or not a.hide_elevation  then l.elev_gain_m end   as elev_gain_m,
   case when o.is_owner or not a.hide_pace       then l.avg_speed_mps end as avg_speed_mps,
@@ -187,8 +195,8 @@ select
   s.unit,
   s.split_index,
   s.distance_m,
-  s.elapsed_s,
-  s.moving_s,
+  case when o.is_owner or not a.hide_pace       then s.elapsed_s end     as elapsed_s,
+  case when o.is_owner or not a.hide_pace       then s.moving_s end      as moving_s,
   case when o.is_owner or not a.hide_elevation  then s.elev_diff_m end   as elev_diff_m,
   case when o.is_owner or not a.hide_pace       then s.avg_speed_mps end as avg_speed_mps,
   case when o.is_owner or not a.hide_pace       then s.gap_speed_mps end as gap_speed_mps,
@@ -219,7 +227,10 @@ select
        and not (t = 'latlng' and a.hide_map)) end                  as stream_types,
   st.sample_count,
   st.metrics_version,
-  st.updated_at
+  -- Written by the worker right after upload, so it dates the activity.
+  case when o.is_owner
+         or (not a.hide_start_time and private.viewer_relation(a.owner_id) = 'follower')
+       then st.updated_at end                                     as updated_at
 from public.activity_streams st
 join public.activities a on a.id = st.activity_id
 cross join lateral (select a.owner_id = auth.uid() as is_owner) o
@@ -239,7 +250,9 @@ grant select on public.profile_cards, public.activity_cards, public.activity_lap
 -- Activities of the caller and of accounts they follow (accepted), newest
 -- first by publish time, keyset-paginated on (published_at, id). Muted
 -- activities and muted accounts never appear. Visibility, blocks and hidden
--- stats are enforced by activity_cards.
+-- stats are enforced by activity_cards. Paging uses the published_at the
+-- caller was shown: for an activity whose start time is hidden from the caller
+-- that is the UTC day, so it sorts after the timed posts of that day.
 create or replace function public.get_home_feed(
   p_before_published_at timestamptz default null,
   p_before_id           uuid default null,

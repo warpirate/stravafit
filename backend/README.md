@@ -44,13 +44,18 @@ backend/
 
 1. **Base tables are owner-only.** `activities`, `laps`, `splits`, `activity_streams`, `profiles` and `profile_settings` can be selected only by their owner. Other users read the **read models** (`activity_cards`, `profile_cards`, …). These are security-barrier views that:
    - filter rows with `private.viewer_relation()`, which returns `self`, `follower`, `stranger`, `blocked` or `anonymous`, and with `private.can_view_activity()`;
-   - return `NULL` for every hidden stat to anyone except the owner, so hidden values never leave the database;
+   - return `NULL` for every hidden stat to anyone except the owner, so hidden values never leave the database (with hidden pace, split and lap times are `NULL` too);
    - serve the privacy-trimmed geometry (`route_public`, `*_point_public`, `summary_polyline_public`) to anyone except the owner.
 2. **Visibility rules.** An `everyone` activity is visible to anyone, including anonymous users. A `followers` activity is visible to accepted followers only. An `only_me` activity is visible to its owner only. A block hides everything in both directions, and the blocked user is never told.
-3. **Always hidden from strangers.** Start time and gear, even on `everyone` activities. A followers-only profile shows strangers name, photo and approximate location only.
-4. **Map privacy.** Every activity stores `hide_start_m`/`hide_end_m` (default 200 m, at least 400 m for minors) and `hide_map`. `private.privacy_trim()` trims each end, then keeps trimming while the endpoint lies inside a hidden place. It measures with exact geodesic distance. Adding a hidden place re-trims past activities, except those whose map privacy the owner edited individually.
+3. **Always hidden from strangers.** Start time and gear, even on `everyone` activities. Whenever a viewer may not see the start time, `published_at` is cut to the UTC day and `created_at`/`updated_at` are `NULL`, since the upload time would give the start time away. A followers-only profile shows strangers name, photo and approximate location only.
+4. **Map privacy.** Every activity stores `hide_start_m`/`hide_end_m` (default 200 m, at least 400 m for minors) and `hide_map`. `private.privacy_trim()` follows privacy-safety §B:
+   - each end is trimmed by its distance plus a deterministic per-activity jitter of up to 25 % (HMAC of the activity id with a per-instance secret in `private.instance_secrets`);
+   - if any point in the first or last 20 % of the route lies inside a hidden place grown by the same jitter, the cut moves to where the route leaves it, so public endpoints never sit exactly on the circle. Points are sampled every 10 m and tested with exact geodesic distance;
+   - if trimming leaves less than 500 m, or removes more than 60 % of the route, the whole map is hidden.
+
+   Adding a hidden place re-trims past activities, except those whose map privacy the owner edited individually.
 5. **Private notes** live in their own owner-only table, and no view reads it.
-6. **Health data.** Heart rate is dropped on insert unless the owner has given health-data consent. Consent changes are recorded in `consent_records`.
+6. **Health data.** Heart rate (on activities, laps and splits) is dropped on every write unless the owner has given health-data consent. Consent changes are recorded in `consent_records`. Purging heart rate already stored when consent is withdrawn is a worker job that is not built yet.
 7. **Age gate.** A sign-up whose birthday is under 13 is rejected. The limit is 16 for countries listed in `signup_age_rules`. Minors cannot weaken their privacy defaults, and a birthday cannot be changed once it is set.
 
 ## API surface (PostgREST)

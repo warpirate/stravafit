@@ -209,6 +209,11 @@ begin
     if new.default_visibility = 'everyone' then
       new.default_visibility := 'followers';
     end if;
+    -- Crossings (fly-by style matching) start at "no one" for minors
+    -- (privacy-safety §10.1); they may change it later.
+    if tg_op = 'INSERT' then
+      new.crossings_audience := 'no_one';
+    end if;
   end if;
 
   return new;

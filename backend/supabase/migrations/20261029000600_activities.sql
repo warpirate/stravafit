@@ -117,36 +117,122 @@ create index activities_start_public_gix on public.activities using gist (start_
 -- Privacy trimming
 -- ---------------------------------------------------------------------------
 
--- True when a Web Mercator point lies within any of the owner's hidden places.
--- Uses exact geodesic distance (not a polygonised buffer, whose chords would
--- let points a few metres inside the circle count as outside).
-create or replace function private.in_hidden_place(p_owner uuid, p_point_3857 extensions.geometry)
-returns boolean
+-- Per-instance secret that seeds the deterministic trim jitter (privacy-safety
+-- §B step 3). Generated once at install; never exposed through the API.
+create table private.instance_secrets (
+  name  text primary key,
+  value bytea not null check (octet_length(value) >= 32)
+);
+
+alter table private.instance_secrets enable row level security;
+revoke all on table private.instance_secrets from public, anon, authenticated, service_role;
+
+insert into private.instance_secrets (name, value)
+values ('privacy_trim_jitter', extensions.gen_random_bytes(32));
+
+-- Deterministic per-activity value in [0, 1): HMAC-SHA256 of the activity id
+-- (plus a salt naming the route end) keyed with the instance secret. Stable
+-- across re-trims, unpredictable without the secret. Falls back to 1 (the
+-- largest trim) if the secret is missing, so a broken install over-trims.
+create or replace function private.trim_jitter(p_activity uuid, p_salt text)
+returns double precision
 language sql
 stable
 security definer
 set search_path = ''
 as $$
-  select exists (
-    select 1 from public.privacy_zones z
-     where z.owner_id = p_owner
-       and extensions.st_dwithin(
-             z.center,
-             extensions.st_transform(p_point_3857, 4326)::extensions.geography,
-             z.radius_m));
+  select coalesce((
+    select ('x' || encode(substr(extensions.hmac(
+              convert_to(p_activity::text || ':' || p_salt, 'UTF8'), s.value, 'sha256'), 1, 4),
+              'hex'))::bit(32)::bigint / 4294967296.0
+      from private.instance_secrets s
+     where s.name = 'privacy_trim_jitter'), 1.0);
 $$;
 
--- Returns the publicly visible part of a route: the first `p_start_m` and last
--- `p_end_m` metres are removed, then the trim keeps walking (in 10 m steps)
--- while the new endpoint still lies inside one of the owner's hidden places.
--- Distances are measured in Web Mercator, whose scale is locally isotropic, so
--- metre fractions are accurate along routes of ordinary length. Returns NULL
--- when nothing would remain.
+-- How far (as a fraction of the route, measured from the start when
+-- p_from_start, else from the end) the route must be cut so that its visible
+-- end lies outside every hidden place. Rule (privacy-safety §B step 4): when
+-- any point within the first 20 % lies inside a hidden place grown by
+-- `p_jitter` x 25 % of its radius, the cut moves to the first point after the
+-- last such point where the route is outside again. The cut therefore lands at
+-- a jittered distance beyond the circle, never exactly on it, so the centre
+-- cannot be recovered from many activities.
+--
+-- Points are sampled every 10 m (at most 2000 samples over the half of the
+-- route nearest this end) and tested with exact geodesic distance. Returns 0
+-- when no hidden place is involved and 1 when the route never leaves it.
+create or replace function private.hidden_place_cut(
+  p_owner      uuid,
+  p_merc       extensions.geometry,
+  p_len_m      double precision,
+  p_jitter     double precision,
+  p_from_start boolean
+)
+returns double precision
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  c_window constant double precision := 0.2;  -- share of the route checked at each end
+  c_span   constant double precision := 0.5;  -- never look past the middle
+  v_n      integer := least(greatest(ceil(c_span * p_len_m / 10.0)::integer, 1), 2000);
+  v_inside boolean[];
+  v_last   integer;
+begin
+  select array_agg(
+           exists (
+             select 1 from public.privacy_zones z
+              where z.owner_id = p_owner
+                and extensions.st_dwithin(
+                      z.center,
+                      extensions.st_transform(
+                        extensions.st_lineinterpolatepoint(
+                          p_merc,
+                          case when p_from_start then i * c_span / v_n
+                               else 1.0 - i * c_span / v_n end),
+                        4326)::extensions.geography,
+                      z.radius_m * (1.0 + 0.25 * p_jitter)))
+           order by i)
+    into v_inside
+    from generate_series(0, v_n) i;
+
+  -- Last inside sample within the checked window (array index i + 1).
+  for i in reverse v_n .. 0 loop
+    if v_inside[i + 1] and i * c_span / v_n <= c_window then
+      v_last := i;
+      exit;
+    end if;
+  end loop;
+  if v_last is null then
+    return 0.0;
+  end if;
+
+  for i in v_last + 1 .. v_n loop
+    if not v_inside[i + 1] then
+      return i * c_span / v_n;
+    end if;
+  end loop;
+  return 1.0;
+end;
+$$;
+
+-- Returns the publicly visible part of a route (privacy-safety §B):
+--   1. the first `p_start_m` and last `p_end_m` metres are removed, each grown
+--      by a deterministic per-activity jitter of up to 25 %;
+--   2. hidden places near either end push the cut out of the place (see
+--      private.hidden_place_cut);
+--   3. when any trimming applies and less than 500 m, or less than 40 % of the
+--      route, would remain, the whole map is hidden (NULL).
+-- Fractions are taken along the Web Mercator line, whose scale is locally
+-- isotropic, so metre fractions are accurate along routes of ordinary length.
 create or replace function private.privacy_trim(
-  p_owner   uuid,
-  p_route   extensions.geography,
-  p_start_m integer,
-  p_end_m   integer
+  p_activity uuid,
+  p_owner    uuid,
+  p_route    extensions.geography,
+  p_start_m  integer,
+  p_end_m    integer
 )
 returns extensions.geography
 language plpgsql
@@ -155,11 +241,16 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_len_m   double precision;
-  v_merc    extensions.geometry;
-  v_step    double precision;
-  v_from    double precision;
-  v_to      double precision;
+  c_min_remaining_m constant double precision := 500.0;
+  c_max_removed     constant double precision := 0.6;
+  v_len_m    double precision;
+  v_merc     extensions.geometry;
+  v_j_start  double precision := private.trim_jitter(p_activity, 'start');
+  v_j_end    double precision := private.trim_jitter(p_activity, 'end');
+  v_from     double precision;
+  v_to       double precision;
+  v_cut      double precision;
+  v_trimming boolean := greatest(p_start_m, 0) > 0 or greatest(p_end_m, 0) > 0;
 begin
   if p_route is null then
     return null;
@@ -171,37 +262,55 @@ begin
   end if;
 
   v_merc := extensions.st_transform(p_route::extensions.geometry, 3857);
-  v_from := least(greatest(p_start_m, 0) / v_len_m, 1.0);
-  v_to   := greatest(1.0 - greatest(p_end_m, 0) / v_len_m, 0.0);
-  v_step := 10.0 / v_len_m;
+  v_from := greatest(p_start_m, 0) * (1.0 + 0.25 * v_j_start) / v_len_m;
+  v_to   := 1.0 - greatest(p_end_m, 0) * (1.0 + 0.25 * v_j_end) / v_len_m;
 
   if exists (select 1 from public.privacy_zones z where z.owner_id = p_owner) then
-    while v_from < 1.0
-      and private.in_hidden_place(p_owner, extensions.st_lineinterpolatepoint(v_merc, v_from)) loop
-      v_from := v_from + v_step;
-    end loop;
-    while v_to > 0.0
-      and private.in_hidden_place(p_owner, extensions.st_lineinterpolatepoint(v_merc, v_to)) loop
-      v_to := v_to - v_step;
-    end loop;
+    v_cut := private.hidden_place_cut(p_owner, v_merc, v_len_m, v_j_start, true);
+    if v_cut > 0 then
+      v_trimming := true;
+      v_from := greatest(v_from, v_cut);
+    end if;
+    v_cut := private.hidden_place_cut(p_owner, v_merc, v_len_m, v_j_end, false);
+    if v_cut > 0 then
+      v_trimming := true;
+      v_to := least(v_to, 1.0 - v_cut);
+    end if;
   end if;
 
   if v_from >= v_to or v_from >= 1.0 or v_to <= 0.0 then
     return null;
   end if;
+  if v_trimming and ((v_to - v_from) * v_len_m < c_min_remaining_m
+                     or 1.0 - (v_to - v_from) > c_max_removed) then
+    return null;
+  end if;
 
   return extensions.st_transform(
-           extensions.st_linesubstring(v_merc, v_from, least(v_to, 1.0)), 4326
+           extensions.st_linesubstring(v_merc, greatest(v_from, 0.0), least(v_to, 1.0)), 4326
          )::extensions.geography;
 end;
 $$;
 
-comment on function private.privacy_trim(uuid, extensions.geography, integer, integer) is
+comment on function private.privacy_trim(uuid, uuid, extensions.geography, integer, integer) is
   'Privacy-trimmed public route. Mirrors the worker''s shared:geo trimming; DB copy guarantees no leak.';
 
 -- ---------------------------------------------------------------------------
 -- Triggers (BEFORE triggers fire in name order)
 -- ---------------------------------------------------------------------------
+
+-- True when the user has given explicit consent to health-data processing.
+create or replace function private.has_health_consent(p_user uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(
+    (select s.health_data_consent from public.profile_settings s where s.user_id = p_user),
+    false);
+$$;
 
 -- 10: copy account defaults onto new activities and validate references.
 create or replace function private.activities_apply_defaults()
@@ -227,11 +336,16 @@ begin
     new.hide_start_time := coalesce(new.hide_start_time, s.default_hide_start_time, false);
     new.hide_elevation  := coalesce(new.hide_elevation, s.default_hide_elevation, false);
 
-    -- Health data (GDPR Art. 9): without explicit consent no HR is stored.
-    if not coalesce(s.health_data_consent, false) then
-      new.avg_hr := null;
-      new.max_hr := null;
-    end if;
+  end if;
+
+  -- Health data (GDPR Art. 9): without explicit consent no HR is stored, also
+  -- when the worker writes recomputed metrics later.
+  if (tg_op = 'INSERT'
+      or new.avg_hr is distinct from old.avg_hr
+      or new.max_hr is distinct from old.max_hr)
+     and not private.has_health_consent(new.owner_id) then
+    new.avg_hr := null;
+    new.max_hr := null;
   end if;
 
   -- Minors always keep at least 400 m of endpoint trimming.
@@ -302,7 +416,7 @@ begin
     new.route_public := null;
   else
     new.route_public := private.privacy_trim(
-      new.owner_id, new.route_simplified, new.hide_start_m, new.hide_end_m);
+      new.id, new.owner_id, new.route_simplified, new.hide_start_m, new.hide_end_m);
   end if;
 
   if new.route_public is null then
@@ -369,6 +483,20 @@ begin
     raise exception 'activity % not found', new.activity_id using errcode = 'foreign_key_violation';
   end if;
   new.owner_id := v_owner;
+  return new;
+end;
+$$;
+
+-- Laps and splits carry heart rate too: drop it without health-data consent.
+create or replace function private.child_strip_hr()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if not private.has_health_consent(new.owner_id) then
+    new := json_populate_record(new, '{"avg_hr": null, "max_hr": null}'::json);
+  end if;
   return new;
 end;
 $$;
@@ -453,6 +581,11 @@ create trigger laps_set_owner before insert or update on public.laps
   for each row execute function private.child_set_owner();
 create trigger splits_set_owner before insert or update on public.splits
   for each row execute function private.child_set_owner();
+-- Fires after *_set_owner (BEFORE triggers run in name order).
+create trigger laps_strip_hr before insert or update on public.laps
+  for each row execute function private.child_strip_hr();
+create trigger splits_strip_hr before insert or update on public.splits
+  for each row execute function private.child_strip_hr();
 create trigger activity_streams_set_owner before insert or update on public.activity_streams
   for each row execute function private.child_set_owner();
 create trigger activity_private_notes_set_owner before insert or update on public.activity_private_notes
