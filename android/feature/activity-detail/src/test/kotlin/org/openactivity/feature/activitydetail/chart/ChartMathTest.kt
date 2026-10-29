@@ -101,4 +101,50 @@ class ChartMathTest {
     fun `fewer than two points give no chart`() {
         assertNull(ChartMath.build(listOf(point(0, 0.0, 0.0)), SportType.RUN))
     }
+
+    @Test
+    fun `pace ticks land on round paces inside the speed range`() {
+        // 2.7..3.4 m/s is 6:10..4:54 per km: 30 s steps give 5:00, 5:30 and 6:00.
+        val ticks = ChartMath.paceTicks(2.7..3.4, unitMeters = 1000.0)
+        assertEquals(listOf(300.0, 330.0, 360.0), ticks.map { Math.round(1000.0 / it).toDouble() }.sorted())
+        assertTrue(ticks.all { it in 2.7..3.4 })
+    }
+
+    @Test
+    fun `pace ticks widen the step to stay within the tick budget`() {
+        // 1.5..4.0 m/s is 11:07..4:10 per km: whole minutes give too many ticks, two minutes give 6:00, 8:00, 10:00.
+        val paces = ChartMath.paceTicks(1.5..4.0, unitMeters = 1000.0, maxTicks = 3).map { Math.round(1000.0 / it) }.sorted()
+        assertEquals(listOf(360L, 480L, 600L), paces)
+    }
+
+    @Test
+    fun `pace ticks handle a range that reaches zero speed`() {
+        val ticks = ChartMath.paceTicks(-0.2..3.0, unitMeters = 1000.0)
+        assertTrue(ticks.isNotEmpty())
+        assertTrue(ticks.all { it > 0.0 && it <= 3.0 })
+        assertTrue(ChartMath.paceTicks(-1.0..0.0, unitMeters = 1000.0).isEmpty())
+    }
+
+    @Test
+    fun `scaled ticks are round in the display unit`() {
+        // 5.5..8.5 m/s is 19.8..30.6 km/h.
+        val kmh = ChartMath.scaledTicks(5.5..8.5, factor = 3.6).map { it * 3.6 }
+        assertTrue(kmh.isNotEmpty())
+        kmh.forEach { assertEquals(Math.round(it).toDouble(), it, 1e-9) }
+        assertTrue(kmh.any { it in 19.8..30.6 })
+    }
+
+    @Test
+    fun `pace ticks never exceed the budget for a crawl`() {
+        // 0.05 m/s at the top: even ten-minute steps would give dozens of ticks.
+        assertTrue(ChartMath.paceTicks(-0.01..0.05, unitMeters = 1000.0, maxTicks = 3).size <= 3)
+    }
+
+    @Test
+    fun `imperial elevation ticks are round feet`() {
+        val factor = org.openactivity.feature.activitydetail.format.DetailFormat.elevationDisplayFactor(org.openactivity.model.UnitSystem.IMPERIAL)
+        val feet = ChartMath.scaledTicks(100.0..160.0, factor).map { it * factor }
+        assertTrue(feet.isNotEmpty())
+        feet.forEach { assertEquals(Math.round(it / 50.0) * 50.0, it, 1e-6) }
+    }
 }

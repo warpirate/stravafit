@@ -87,6 +87,25 @@ object DetailFormat {
         }
     }
 
+    /**
+     * Distance in metres that [sport]'s pace is given per (1000, a mile, 100 or 500), or null when the
+     * sport shows speed instead of pace.
+     */
+    fun paceUnitMeters(sport: SportType, units: UnitSystem): Double? = when (sport.speedDisplay) {
+        SpeedDisplay.PACE -> units.splitLengthMeters
+        SpeedDisplay.PACE_PER_100M -> 100.0
+        SpeedDisplay.PACE_PER_500M -> 500.0
+        SpeedDisplay.SPEED -> null
+    }
+
+    /** Multiplier from m/s to the shown speed unit (km/h or mph). */
+    fun speedDisplayFactor(units: UnitSystem): Double =
+        if (units == UnitSystem.METRIC) 3.6 else 3600.0 / UnitConstants.METERS_PER_MILE
+
+    /** Multiplier from metres to the shown elevation unit (metres or feet). */
+    fun elevationDisplayFactor(units: UnitSystem): Double =
+        if (units == UnitSystem.METRIC) 1.0 else 1.0 / UnitConstants.METERS_PER_FOOT
+
     /** "Pace" or "Speed" for [sport]. */
     fun speedLabel(sport: SportType): String = if (sport.displaysPace) "Pace" else "Speed"
 

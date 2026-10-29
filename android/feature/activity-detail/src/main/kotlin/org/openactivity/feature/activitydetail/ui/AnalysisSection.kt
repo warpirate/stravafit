@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.graphics.Color
@@ -46,9 +47,22 @@ internal fun AnalysisSection(
         fill = Color.Unspecified,
         grid = RidgelineTheme.colors.hairline,
         label = RidgelineTheme.colors.textMuted,
-        average = viz.goalLine,
+        average = viz.goalLine.copy(alpha = 0.55f),
         scrub = MaterialTheme.colorScheme.onSurface,
+        labelBackground = MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
     )
+    val paceUnit = DetailFormat.paceUnitMeters(sport, units)
+    val speedTicks: (ClosedFloatingPointRange<Double>) -> List<Double> = remember(paceUnit, units) {
+        if (paceUnit != null) {
+            { r -> ChartMath.paceTicks(r, paceUnit) }
+        } else {
+            { r -> ChartMath.scaledTicks(r, DetailFormat.speedDisplayFactor(units)) }
+        }
+    }
+    // Elevation is stored in metres: label round feet in imperial rather than converted round metres.
+    val elevationTicks: (ClosedFloatingPointRange<Double>) -> List<Double> = remember(units) {
+        { r -> ChartMath.scaledTicks(r, DetailFormat.elevationDisplayFactor(units)) }
+    }
     val labelStyle = RidgelineTheme.text.caption
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
         Readout(data, sport, units, scrubIndex)
@@ -64,6 +78,7 @@ internal fun AnalysisSection(
                 scrubIndex = scrubIndex,
                 onScrub = onScrub,
                 backgroundMetric = ChartMetric.ELEVATION,
+                tickValues = speedTicks,
             )
         }
         data.seriesFor(ChartMetric.ELEVATION)?.let { s ->
@@ -79,6 +94,7 @@ internal fun AnalysisSection(
                 scrubIndex = scrubIndex,
                 onScrub = onScrub,
                 height = 96.dp,
+                tickValues = elevationTicks,
             )
         }
         data.seriesFor(ChartMetric.HEART_RATE)?.let { s ->

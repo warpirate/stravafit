@@ -11,7 +11,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
@@ -22,6 +24,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -34,6 +37,7 @@ import androidx.compose.ui.unit.dp
  * @property line the series line.
  * @property fill area under the line, or [Color.Unspecified] for none.
  * @property background optional elevation silhouette drawn behind the series.
+ * @property labelBackground plate behind tick labels so the line never runs through them.
  */
 data class ChartColors(
     val line: Color,
@@ -43,6 +47,7 @@ data class ChartColors(
     val average: Color,
     val scrub: Color,
     val background: Color = Color.Unspecified,
+    val labelBackground: Color = Color.Unspecified,
 )
 
 /**
@@ -53,6 +58,8 @@ data class ChartColors(
  * [yLabel] formats tick values (pace sports pass speed values and print them as pace).
  *
  * @param backgroundMetric optional series drawn as a silhouette behind the line (elevation under pace).
+ * @param tickValues picks the labelled y values for the padded value range; round numbers by default
+ * (pace charts pass [ChartMath.paceTicks] so the labels are round paces).
  */
 @Composable
 fun ActivityChart(
@@ -67,12 +74,15 @@ fun ActivityChart(
     modifier: Modifier = Modifier,
     height: Dp = 120.dp,
     backgroundMetric: ChartMetric? = null,
+    tickValues: ((ClosedFloatingPointRange<Double>) -> List<Double>)? = null,
 ) {
     val series = data.seriesFor(metric) ?: return
     val background = backgroundMetric?.let { data.seriesFor(it) }
     val measurer = rememberTextMeasurer()
     val range = remember(series) { ChartMath.padded(series.min, series.max) }
-    val ticks = remember(range) { ChartMath.niceTicks(range.start, range.endInclusive, 3).filter { it in range } }
+    val ticks = remember(range, tickValues) {
+        (tickValues?.invoke(range) ?: ChartMath.niceTicks(range.start, range.endInclusive, 3)).filter { it in range }
+    }
     val scrub by rememberUpdatedState(onScrub)
 
     Canvas(
@@ -108,13 +118,10 @@ fun ActivityChart(
             val bgRange = ChartMath.padded(background.min, background.max, 0.15)
             drawArea(data, background.values, ::xOf, bgRange.start, bgRange.endInclusive, colors.background)
         }
-        // Grid lines and tick labels.
+        // Grid lines first; their labels go on top of the series at the end.
         for (t in ticks) {
             val y = yOf(t, range.start, range.endInclusive)
             drawLine(colors.grid, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
-            val layout = measurer.measure(yLabel(t), labelStyle.copy(color = colors.label))
-            val top = (y - layout.size.height - 2.dp.toPx()).coerceAtLeast(0f)
-            drawText(layout, topLeft = Offset(2.dp.toPx(), top))
         }
         if (colors.fill != Color.Unspecified) {
             drawArea(data, series.values, ::xOf, range.start, range.endInclusive, colors.fill)
@@ -130,6 +137,9 @@ fun ActivityChart(
                 pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx())),
             )
         }
+        for (t in ticks) {
+            drawTickLabel(measurer.measure(yLabel(t), labelStyle.copy(color = colors.label)), yOf(t, range.start, range.endInclusive), colors.labelBackground)
+        }
         scrubIndex?.takeIf { it in data.x.indices }?.let { i ->
             val x = xOf(i)
             drawLine(colors.scrub, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1.5.dp.toPx())
@@ -141,6 +151,22 @@ fun ActivityChart(
             }
         }
     }
+}
+
+/** Draws a tick label just above its grid line at the left edge, on a small plate when [plate] is set. */
+private fun DrawScope.drawTickLabel(layout: TextLayoutResult, lineY: Float, plate: Color) {
+    val padH = 4.dp.toPx()
+    val padV = 1.dp.toPx()
+    val top = (lineY - layout.size.height - 2.dp.toPx() - padV).coerceAtLeast(padV)
+    if (plate != Color.Unspecified) {
+        drawRoundRect(
+            color = plate,
+            topLeft = Offset(0f, top - padV),
+            size = Size(layout.size.width + padH * 2, layout.size.height + padV * 2),
+            cornerRadius = CornerRadius(4.dp.toPx()),
+        )
+    }
+    drawText(layout, topLeft = Offset(padH, top))
 }
 
 private fun DrawScope.yOf(value: Double, min: Double, max: Double): Float =
