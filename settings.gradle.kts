@@ -1,12 +1,13 @@
 pluginManagement {
     repositories {
-        gradlePluginPortal()
         google()
         mavenCentral()
+        gradlePluginPortal()
     }
 }
 
 dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
         mavenCentral()
@@ -15,4 +16,23 @@ dependencyResolutionManagement {
 
 rootProject.name = "stravafit"
 
-include(":export-core")
+// Include only modules that exist, so partial checkouts and new modules don't break configuration.
+fun includeIfPresent(vararg paths: String) {
+    for (p in paths) {
+        val dir = file(p.removePrefix(":").replace(':', '/'))
+        if (dir.resolve("build.gradle.kts").exists()) include(p)
+    }
+}
+
+// Shared pure-Kotlin code (KMP-ready; JVM target for now)
+includeIfPresent(":shared:model", ":shared:geo", ":shared:polyline", ":shared:metrics")
+
+// Reusable Apache-2.0 libraries
+includeIfPresent(":lib:route-art", ":lib:gpx-tcx", ":lib:geojson", ":lib:fit")
+
+// Android
+includeIfPresent(
+    ":android:core:recording",
+    ":android:core:designsystem",
+    ":android:app",
+)

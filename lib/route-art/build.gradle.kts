@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "2.0.21"
+    alias(libs.plugins.kotlin.jvm)
 }
 
 kotlin {
@@ -8,15 +8,15 @@ kotlin {
 
 dependencies {
     testImplementation(kotlin("test"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.3")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 tasks.test {
     useJUnitPlatform()
 }
 
-// ./gradlew :export-core:samples  -> writes demo SVGs to export-core/samples/
+// ./gradlew :lib:route-art:samples  -> writes demo SVGs to lib/route-art/samples/
 tasks.register<JavaExec>("samples") {
     group = "application"
     description = "Render sample route-art SVGs"

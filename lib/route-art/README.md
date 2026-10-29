@@ -1,4 +1,4 @@
-# export-core
+# lib/route-art
 
 Pure-Kotlin route-art exporter (no Android dependencies) — turns a GPS track into shareable SVG.
 Used by the Android app for share cards, stickers and posters; also runnable on the JVM/server.
@@ -28,8 +28,8 @@ Catmull–Rom → chunked strokes coloured via OKLab ramp (5–95th percentile n
 ## Run
 
 ```bash
-./gradlew :export-core:test      # unit + well-formed-SVG tests
-./gradlew :export-core:samples   # writes export-core/samples/*.svg (open gallery.html)
+./gradlew :lib:route-art:test      # unit + well-formed-SVG tests
+./gradlew :lib:route-art:samples   # writes lib/route-art/samples/*.svg (open gallery.html)
 ```
 
 ## Next
