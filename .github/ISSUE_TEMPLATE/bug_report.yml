@@ -1,0 +1,84 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Bug report
+description: Something does not work as specified or documented.
+title: "bug: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. **Security or privacy-leak issues must not be filed here.** Follow SECURITY.md instead.
+        Please do not attach real GPS tracks or screenshots that show your home, routes or other people's data. Trim or blur them first.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Android app (gms flavor)
+        - Android app (foss flavor)
+        - Recording / GPS
+        - Export (files or route art)
+        - Maps / routes
+        - Backend (Supabase / worker)
+        - Library (lib/*)
+        - Docs
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you saw, and what you expected to see instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open ...
+        2. Tap ...
+        3. See ...
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: App version or commit
+      placeholder: "0.1.0 (foss) or commit abc1234"
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device and Android version
+      placeholder: "Pixel 8, Android 15"
+
+  - type: input
+    id: checklist
+    attributes:
+      label: Related checklist ID (optional)
+      description: If the bug breaks a documented acceptance item, give its ID (e.g. `record-4.4`).
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant log output. Remove coordinates, tokens and email addresses first.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
+        - label: This is not a security vulnerability or private-data leak.
+          required: true
