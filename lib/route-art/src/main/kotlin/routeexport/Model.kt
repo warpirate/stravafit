@@ -19,11 +19,16 @@ enum class Sport(val label: String, val showsPace: Boolean) {
     OTHER("Activity", false),
 }
 
+/**
+ * @property summary stats to print on cards instead of the ones computed from [points]. Callers that
+ *   privacy-trim the points pass the full activity's stats here, so only the map is trimmed.
+ */
 data class Track(
     val points: List<TrackPoint>,
     val title: String = "",
     val subtitle: String = "",
     val sport: Sport = Sport.RUN,
+    val summary: Stats? = null,
 )
 
 enum class Units { METRIC, IMPERIAL }

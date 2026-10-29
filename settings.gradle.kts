@@ -35,4 +35,7 @@ includeIfPresent(
     ":android:core:recording",
     ":android:core:designsystem",
     ":android:app",
+    ":android:core:export", // WP export
+    ":android:core:import", // WP export
+    ":android:feature:share-export", // WP export
 )

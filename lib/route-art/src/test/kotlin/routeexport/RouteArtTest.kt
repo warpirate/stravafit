@@ -141,3 +141,13 @@ class TemplatesTest {
         assertWellFormed(RouteArt.aurora(loop, privacyRadiusM = 1_000_000.0))
     }
 }
+
+class SummaryOverrideTest {
+    @Test
+    fun posterPrintsSuppliedSummaryInsteadOfTrackStats() {
+        val track = SampleData.lakeLoop()
+        val summary = statsOf(track.points).copy(distanceM = 42_195.0)
+        val svg = RouteArt.poster(track.copy(summary = summary), privacyRadiusM = 300.0)
+        assertTrue(svg.contains("42.20"), "poster shows the supplied distance")
+    }
+}

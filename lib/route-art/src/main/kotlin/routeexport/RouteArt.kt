@@ -153,7 +153,7 @@ object RouteArt {
     internal data class StatCell(val label: String, val value: String, val unit: String)
 
     internal fun statCells(track: Track, units: Units, points: List<TrackPoint> = track.points): List<StatCell> {
-        val s = statsOf(points)
+        val s = track.summary ?: statsOf(points)
         val cells = ArrayList<StatCell>()
         val (dv, du) = Format.distance(s.distanceM, units)
         cells += StatCell("Distance", dv, du)
