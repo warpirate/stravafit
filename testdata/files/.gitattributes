@@ -1,0 +1,2 @@
+# Binary fixtures and goldens must never be line-ending converted.
+*.fit binary

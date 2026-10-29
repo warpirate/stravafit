@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Handcrafted Cluetrust-style exporter"
+     xmlns="http://www.topografix.com/GPX/1/1"
+     xmlns:gpxdata="http://www.cluetrust.com/XML/GPXDATA/1/0">
+  <trk>
+    <name>Commute</name>
+    <trkseg>
+      <trkpt lat="40.7128" lon="-74.0060">
+        <ele>10</ele>
+        <time>2026-05-03T07:30:00Z</time>
+        <extensions>
+          <gpxdata:hr>99</gpxdata:hr>
+          <gpxdata:cadence>70</gpxdata:cadence>
+          <gpxdata:temp>18.5</gpxdata:temp>
+          <gpxdata:distance>0</gpxdata:distance>
+        </extensions>
+      </trkpt>
+      <trkpt lat="40.7130" lon="-74.0058">
+        <ele>10.4</ele>
+        <time>2026-05-03T07:30:05Z</time>
+        <extensions>
+          <gpxdata:hr>104</gpxdata:hr>
+          <gpxdata:cadence>72</gpxdata:cadence>
+          <gpxdata:temp>18.5</gpxdata:temp>
+          <gpxdata:distance>27.4</gpxdata:distance>
+        </extensions>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>

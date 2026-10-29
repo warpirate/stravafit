@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.0" creator="Handcrafted route planner" xmlns="http://www.topografix.com/GPX/1/0">
+  <rte>
+    <name>Lakeside loop</name>
+    <rtept lat="47.3769" lon="8.5417"><ele>408</ele></rtept>
+    <rtept lat="47.3700" lon="8.5450"><ele>406</ele></rtept>
+    <rtept lat="47.3650" lon="8.5500"/>
+  </rte>
+  <trk>
+    <name>Planned as track</name>
+    <trkseg>
+      <trkpt lat="47.3769" lon="8.5417"><ele>408</ele><speed>4.2</speed></trkpt>
+      <trkpt lat="47.3700" lon="8.5450"><ele>406</ele></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

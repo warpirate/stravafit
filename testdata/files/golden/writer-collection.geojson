@@ -1,0 +1,61 @@
+{
+  "type": "FeatureCollection",
+  "bbox": [-0.1246, 0, 13.407, 52.521],
+  "features": [
+    {
+      "type": "Feature",
+      "id": "act-42",
+      "bbox": [13.405, 52.52, 13.407, 52.521],
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [13.405, 52.52, 34.3],
+          [13.4052, 52.5201, 34.6],
+          [13.407, 52.521]
+        ]
+      },
+      "properties": {
+        "name": "Morning \"Ride\"\n",
+        "sport": "ride",
+        "distance_m": 1234.5,
+        "elapsed_s": 3600,
+        "moving": true,
+        "gear": null,
+        "splits": [300, 295.5],
+        "meta": {
+          "tiny": 0.0000001
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 7,
+      "bbox": [-0.1246, 51.5007, -0.1246, 51.5007],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-0.1246, 51.5007]
+      },
+      "properties": {
+        "kind": "start"
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [0, 0, 3, 3],
+      "geometry": {
+        "type": "MultiLineString",
+        "coordinates": [
+          [
+            [0, 0],
+            [1, 1]
+          ],
+          [
+            [2, 2],
+            [3, 3]
+          ]
+        ]
+      },
+      "properties": null
+    }
+  ]
+}

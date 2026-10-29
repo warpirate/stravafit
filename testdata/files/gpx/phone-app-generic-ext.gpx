@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Handcrafted phone tracker">
+  <trk>
+    <name>Evening Walk</name>
+    <type>walking</type>
+    <trkseg>
+      <trkpt lat="48.8566" lon="2.3522">
+        <ele>35</ele>
+        <time>2026-05-04 18:00:00</time>
+        <extensions><heartrate>88</heartrate><cadence>52</cadence><power>0</power></extensions>
+      </trkpt>
+      <trkpt lat="48.85665" lon="2.35228">
+        <time>2026-05-04T18:00:03.123456Z</time>
+        <extensions><heartrate>90</heartrate></extensions>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>
