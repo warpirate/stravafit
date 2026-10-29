@@ -143,7 +143,9 @@ private fun MapViewHost(
         val m = mapView.awaitMap()
         m.configureDefaults()
         val camera = currentState.camera
-        if (camera != null) m.jumpTo(camera) else m.jumpTo(WORLD_CAMERA)
+        // Without a camera of its own a new map opens where the last one was (or at the last known fix)
+        // instead of at world zoom: no world tiles to load first, no blank beige while zooming in.
+        m.jumpTo(camera ?: LastMapCamera.value ?: WORLD_CAMERA)
         map = m
     }
     LaunchedEffect(map, gesturesEnabled) { map?.uiSettings?.setAllGesturesEnabled(gesturesEnabled) }
@@ -193,7 +195,12 @@ private fun MapViewHost(
     val longClickHandler by rememberUpdatedState(onMapLongClick)
     DisposableEffect(map) {
         val m = map ?: return@DisposableEffect onDispose { }
-        val idle = MapLibreMap.OnCameraIdleListener { m.cameraPosition.toMapCameraOrNull()?.let { currentState.camera = it } }
+        val idle = MapLibreMap.OnCameraIdleListener {
+            m.cameraPosition.toMapCameraOrNull()?.let {
+                currentState.camera = it
+                LastMapCamera.remember(it)
+            }
+        }
         val click = MapLibreMap.OnMapClickListener { p ->
             val h = clickHandler ?: return@OnMapClickListener false
             h(p.toModel())

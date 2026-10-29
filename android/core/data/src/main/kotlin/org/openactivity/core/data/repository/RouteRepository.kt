@@ -85,12 +85,7 @@ class LocalRouteRepository @Inject constructor(
             if (i > 0) cumulative += Spherical.distance(latLngs[i - 1], latLngs[i])
             RoutePointEntity(0, i, p.latitude, p.longitude, p.elevationMeters, cumulative)
         }
-        val altitudes = points.mapNotNull { it.elevationMeters }
-        val elevation = if (altitudes.size >= 2) {
-            ElevationMetrics.compute(altitudes.toDoubleArray(), ELEVATION_HYSTERESIS_METERS)
-        } else {
-            null
-        }
+        val elevation = routeElevation(points.mapNotNull { it.elevationMeters })
         val bbox = checkNotNull(BoundingBox.of(latLngs))
         val route = RouteEntity(
             uuid = UUID.randomUUID().toString(),
@@ -112,9 +107,22 @@ class LocalRouteRepository @Inject constructor(
 
     override suspend fun delete(id: Long): Boolean = dao.delete(id) > 0
 
-    private companion object {
+    companion object {
+        /**
+         * Gain and loss of a route profile, or null with fewer than two altitudes. Route elevations are
+         * planned (often from a terrain model), not noisy GPS, so a small band is enough. The last value is
+         * repeated so the trailing median sees the end of the profile; without it a final descent
+         * (577 -> 573 m) went uncounted and the route showed "Elev loss 0 m".
+         */
+        fun routeElevation(altitudes: List<Double>): org.openactivity.metrics.ElevationTotals? {
+            if (altitudes.size < 2) return null
+            val flushed = altitudes + List(ELEVATION_MEDIAN_WINDOW / 2) { altitudes.last() }
+            return ElevationMetrics.compute(flushed.toDoubleArray(), ELEVATION_HYSTERESIS_METERS, ELEVATION_MEDIAN_WINDOW)
+        }
+
         const val DEFAULT_NAME = "Route"
         const val POLYLINE_TOLERANCE_METERS = 3.0
-        const val ELEVATION_HYSTERESIS_METERS = 3.0
+        const val ELEVATION_HYSTERESIS_METERS = 1.0
+        const val ELEVATION_MEDIAN_WINDOW = 5
     }
 }

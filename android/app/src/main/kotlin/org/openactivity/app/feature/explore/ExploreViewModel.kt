@@ -12,7 +12,15 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import org.openactivity.app.data.PreferencesRepository
+import org.openactivity.core.location.LocationAvailability
+import org.openactivity.core.location.LocationSource
+import org.openactivity.core.map.MapLocation
 import org.openactivity.app.data.route.RouteImporter
 import org.openactivity.app.format.UnitFormatter
 import org.openactivity.app.ui.common.decodeRoute
@@ -49,6 +57,8 @@ data class ExploreUiState(
     val selectedRouteId: Long? = null,
     val isImporting: Boolean = false,
     val message: String? = null,
+    /** The athlete's position while the tab is visible and location is allowed, else null. */
+    val userLocation: MapLocation? = null,
 ) {
     /** The route highlighted on the map, if any. */
     val selectedRoute: RouteCardUi? get() = routes.firstOrNull { it.id == selectedRouteId } ?: routes.firstOrNull()
@@ -60,15 +70,28 @@ class ExploreViewModel @Inject constructor(
     routeRepository: RouteRepository,
     preferencesRepository: PreferencesRepository,
     private val importer: RouteImporter,
+    locationSource: LocationSource? = null,
 ) : ViewModel() {
 
     private val local = MutableStateFlow(Local())
+
+    /** Fixes only while the tab is collected and location is allowed; never asks for permission here. */
+    private val userLocation: Flow<MapLocation?> =
+        if (locationSource == null || locationSource.availability() != LocationAvailability.AVAILABLE) {
+            flowOf(null)
+        } else {
+            locationSource.locations()
+                .map<_, MapLocation?> { MapLocation(LatLng(it.latitude, it.longitude), accuracyMeters = it.horizontalAccuracyMeters?.toFloat()) }
+                .onStart { emit(null) }
+                .catch { emit(null) }
+        }
 
     val uiState: StateFlow<ExploreUiState> = combine(
         routeRepository.observeRoutes(),
         preferencesRepository.preferences,
         local,
-    ) { routes, preferences, local ->
+        userLocation,
+    ) { routes, preferences, local, location ->
         val formatter = UnitFormatter(preferences.unitSystem, Locale.getDefault())
         ExploreUiState(
             isLoading = false,
@@ -76,6 +99,7 @@ class ExploreViewModel @Inject constructor(
             selectedRouteId = local.selectedRouteId?.takeIf { id -> routes.any { it.id == id } } ?: routes.firstOrNull()?.id,
             isImporting = local.importing,
             message = local.message,
+            userLocation = location,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), ExploreUiState())
 

@@ -72,7 +72,13 @@ fun OpenActivityApp(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentTab = backStackEntry?.destination?.currentTab()
 
-    CompositionLocalProvider(LocalMessenger provides messenger) {
+    val athleteViewModel: AthleteViewModel = hiltViewModel()
+    val athlete by athleteViewModel.athlete.collectAsStateWithLifecycle()
+
+    CompositionLocalProvider(
+        LocalMessenger provides messenger,
+        org.openactivity.core.designsystem.component.LocalAthlete provides athlete,
+    ) {
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
             contentWindowInsets = WindowInsets(0),

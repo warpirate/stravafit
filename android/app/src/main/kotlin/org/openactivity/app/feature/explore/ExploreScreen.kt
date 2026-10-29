@@ -8,6 +8,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChevronRight
@@ -135,10 +140,53 @@ fun ExploreContent(state: ExploreUiState, actions: ExploreActions, modifier: Mod
         .filter { query.isBlank() || it.name.contains(query.trim(), ignoreCase = true) }
     val selected = state.selectedRoute?.takeIf { it in routes } ?: routes.firstOrNull()
     val dark = isMapThemeDark()
-    Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        Box(Modifier.weight(1f).fillMaxWidth()) {
+    // Landscape: the routes sit in a side panel so the map keeps the full height (a bottom sheet hid it).
+    BoxWithConstraints(modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+        val landscape = maxWidth > maxHeight
+        val sheetMax = maxHeight * SHEET_MAX_FRACTION
+        if (landscape) {
+            Row(Modifier.fillMaxSize()) {
+                ExploreMap(state, routes, selected, actions, mapState, query, { query = it }, styleKind, { styleKind = it }, tilted, { tilted = !tilted }, sportFilter, { sportFilter = it }, dark, Modifier.weight(1f).fillMaxHeight())
+                RoutesSheet(routes, selected, state, actions, Modifier.width(SIDE_PANEL_WIDTH).fillMaxHeight(), side = true)
+            }
+        } else {
+            Column(Modifier.fillMaxSize()) {
+                ExploreMap(state, routes, selected, actions, mapState, query, { query = it }, styleKind, { styleKind = it }, tilted, { tilted = !tilted }, sportFilter, { sportFilter = it }, dark, Modifier.weight(1f).fillMaxWidth())
+                RoutesSheet(routes, selected, state, actions, Modifier.heightIn(max = sheetMax))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExploreMap(
+    state: ExploreUiState,
+    routes: List<RouteCardUi>,
+    selected: RouteCardUi?,
+    actions: ExploreActions,
+    mapState: org.openactivity.core.map.compose.MapState,
+    query: String,
+    onQuery: (String) -> Unit,
+    styleKind: MapStyleKind?,
+    onStyle: (MapStyleKind) -> Unit,
+    tilted: Boolean,
+    onTilt: () -> Unit,
+    sportFilter: SportType?,
+    onSport: (SportType?) -> Unit,
+    dark: Boolean,
+    modifier: Modifier,
+) {
+        Box(modifier) {
             val points = selected?.points.orEmpty()
-            LaunchedEffect(selected?.id) { if (points.size >= 2) mapState.fitTo(points, MapPadding.all(72f)) }
+            // Frame the route clear of the search pill and chips above and the buttons on the right.
+            val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+            val fitPadding = MapPadding(FIT_SIDE_DP, statusBar.value + FIT_TOP_DP, FIT_RIGHT_DP, FIT_BOTTOM_DP)
+            LaunchedEffect(selected?.id) { if (points.size >= 2) mapState.fitTo(points, fitPadding) }
+            // Without a route to show, open on the athlete (once), as Record does.
+            val location = state.userLocation
+            LaunchedEffect(location != null, selected == null) {
+                if (location != null && selected == null && mapState.camera?.let { it.zoom < 10.0 } != false) mapState.followUser()
+            }
             LaunchedEffect(tilted) {
                 mapState.camera?.let { mapState.moveTo(it.copy(tilt = if (tilted) TILT_3D else 0.0)) }
             }
@@ -147,18 +195,19 @@ fun ExploreContent(state: ExploreUiState, actions: ExploreActions, modifier: Mod
                 state = mapState,
                 styleKind = styleKind ?: MapStyleKind.default(dark),
                 overlays = MapOverlays(activityRoute = if (points.size >= 2) ActivityRouteOverlay(points, colorByPace = false) else null),
+                location = location,
             )
             Column(Modifier.fillMaxWidth().statusBarsPadding().padding(top = Spacing.s)) {
                 Row(Modifier.padding(horizontal = Spacing.gutter), verticalAlignment = Alignment.CenterVertically) {
-                    SearchPill(query, { query = it }, Modifier.weight(1f))
+                    SearchPill(query, onQuery, Modifier.weight(1f))
                     Spacer(Modifier.width(Spacing.m))
-                    MapLayersButton(MapStyleKind.entries, styleKind ?: MapStyleKind.default(dark), { styleKind = it })
+                    MapLayersButton(MapStyleKind.entries, styleKind ?: MapStyleKind.default(dark), onStyle)
                 }
                 Row(
                     Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.gutter, vertical = Spacing.m),
                     horizontalArrangement = Arrangement.spacedBy(Spacing.s),
                 ) {
-                    SportChip(sportFilter, state.routes.mapNotNull { it.sport }.distinct()) { sportFilter = it }
+                    SportChip(sportFilter, state.routes.mapNotNull { it.sport }.distinct(), onSport)
                     MapChip("Heatmap", selected = false) { actions.onNotAvailable(SERVER_NEEDED) }
                     MapChip("Routes", selected = true) {}
                     MapChip("Segments", selected = false) { actions.onNotAvailable(SERVER_NEEDED) }
@@ -168,19 +217,29 @@ fun ExploreContent(state: ExploreUiState, actions: ExploreActions, modifier: Mod
                 Modifier.align(Alignment.CenterEnd).padding(end = Spacing.gutter),
                 verticalArrangement = Arrangement.spacedBy(Spacing.m),
             ) {
-                MapRoundButton(onClick = { tilted = !tilted }, modifier = Modifier.semantics { contentDescription = "3D view" }) {
+                MapRoundButton(onClick = onTilt, modifier = Modifier.semantics { contentDescription = "3D view" }) {
                     Text("3D", style = MaterialTheme.typography.titleSmall, color = if (tilted) RidgelineTheme.colors.accent else RidgelineTheme.colors.onFloat)
                 }
                 MapRoundButton(
-                    onClick = { if (points.size >= 2) mapState.fitTo(points, MapPadding.all(72f)) },
-                    modifier = Modifier.semantics { contentDescription = "Show the route" },
+                    onClick = {
+                        when {
+                            location != null -> mapState.followUser()
+                            points.size >= 2 -> mapState.fitTo(points, fitPadding)
+                        }
+                    },
+                    modifier = Modifier.semantics { contentDescription = if (location != null) "Show my location" else "Show the route" },
                 ) { Icon(Icons.Rounded.NearMe, contentDescription = null) }
             }
-            ImportPill(state.isImporting, actions.onImport, Modifier.align(Alignment.BottomEnd).padding(Spacing.gutter))
+            CreateRoutePill(state.isImporting, actions, Modifier.align(Alignment.BottomEnd).padding(Spacing.gutter))
         }
-        RoutesSheet(routes, selected, state, actions)
-    }
 }
+
+private val SIDE_PANEL_WIDTH = 340.dp
+private const val SHEET_MAX_FRACTION = 0.5f
+private const val FIT_SIDE_DP = 48f
+private const val FIT_RIGHT_DP = 84f
+private const val FIT_TOP_DP = 136f
+private const val FIT_BOTTOM_DP = 96f
 
 private const val TILT_3D = 60.0
 private const val SERVER_NEEDED = "Needs a server account. That is coming soon."
@@ -265,9 +324,34 @@ private fun MapChip(label: String, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** The flat dark pill at the bottom of the map: imports a GPX route (route building needs a server). */
+/**
+ * The flat dark "Create route" pill at the bottom of the map. A route is created from a GPX, TCX or FIT
+ * file; drawing one on the map is not available yet, and the menu says so.
+ */
 @Composable
-private fun ImportPill(importing: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun CreateRoutePill(importing: Boolean, actions: ExploreActions, modifier: Modifier = Modifier) {
+    var open by remember { mutableStateOf(false) }
+    Box(modifier) {
+        CreatePillSurface(importing, onClick = { open = true })
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text("From a GPX, TCX or FIT file") },
+                leadingIcon = { Icon(Icons.Rounded.FileUpload, null) },
+                onClick = { open = false; actions.onImport() },
+            )
+            DropdownMenuItem(
+                text = { Text("Draw on the map (coming soon)") },
+                leadingIcon = { Icon(Icons.Rounded.Route, null) },
+                onClick = { open = false; actions.onNotAvailable(DRAW_NOT_YET) },
+            )
+        }
+    }
+}
+
+private const val DRAW_NOT_YET = "Drawing routes on the map is coming soon. Import a GPX file meanwhile."
+
+@Composable
+private fun CreatePillSurface(importing: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Surface(
         onClick = onClick,
         enabled = !importing,
@@ -280,63 +364,98 @@ private fun ImportPill(importing: Boolean, onClick: () -> Unit, modifier: Modifi
         Row(Modifier.height(52.dp).padding(horizontal = Spacing.xl), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.Add, contentDescription = null)
             Spacer(Modifier.width(Spacing.s))
-            Text(if (importing) "Importing…" else "Import route", style = MaterialTheme.typography.titleMedium)
+            Text(if (importing) "Importing…" else "Create route", style = MaterialTheme.typography.titleMedium)
         }
     }
 }
 
-/** Bottom sheet: "Your routes" with horizontally scrolling route cards, or the empty state. */
+/**
+ * "Suggested routes" (strava direction) with horizontally scrolling route cards. Without a server the
+ * suggestions are the routes saved on this device; with none yet, a compact one-line prompt keeps the
+ * map in view. [side] lays the cards out vertically in the landscape side panel.
+ */
 @Composable
-private fun RoutesSheet(routes: List<RouteCardUi>, selected: RouteCardUi?, state: ExploreUiState, actions: ExploreActions) {
-    Surface(shape = SheetTopShape, color = RidgelineTheme.colors.sheetOverMap, shadowElevation = Elevation.sheet) {
-        Column(Modifier.fillMaxWidth().padding(top = Spacing.s, bottom = Spacing.l)) {
-            Box(
-                Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .size(width = 32.dp, height = 4.dp)
-                    .background(RidgelineTheme.colors.borderStrong, PillShape),
-            )
+private fun RoutesSheet(
+    routes: List<RouteCardUi>,
+    selected: RouteCardUi?,
+    state: ExploreUiState,
+    actions: ExploreActions,
+    modifier: Modifier = Modifier,
+    side: Boolean = false,
+) {
+    Surface(modifier, shape = if (side) RectangleShape else SheetTopShape, color = RidgelineTheme.colors.sheetOverMap, shadowElevation = Elevation.sheet) {
+        Column(Modifier.fillMaxWidth().padding(top = Spacing.s, bottom = Spacing.l).let { if (side) it.statusBarsPadding() else it }) {
+            if (!side) {
+                Box(
+                    Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .size(width = 32.dp, height = 4.dp)
+                        .background(RidgelineTheme.colors.borderStrong, PillShape),
+                )
+            }
             Row(Modifier.fillMaxWidth().padding(start = Spacing.gutter, end = Spacing.xs, top = Spacing.m), verticalAlignment = Alignment.CenterVertically) {
-                Text("Your routes", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                TextButton(onClick = actions.onImport) { Text("Import GPX", color = RidgelineTheme.colors.accentText) }
+                Text("Suggested routes", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                if (state.routes.isNotEmpty()) {
+                    TextButton(onClick = { selected?.let { actions.onOpenRoute(it.id) } }) { Text("See all", color = RidgelineTheme.colors.accentText) }
+                }
             }
             if (!state.isLoading && state.routes.isEmpty()) {
                 NoRoutes(state.isImporting, actions.onImport)
                 return@Column
             }
             Text(
-                "${routes.size} saved · tap a card to see it on the map",
+                suggestionLine(routes),
                 style = MaterialTheme.typography.bodyMedium,
                 color = RidgelineTheme.colors.textMuted,
                 modifier = Modifier.padding(horizontal = Spacing.gutter),
             )
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = Spacing.gutter, vertical = Spacing.m),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.m),
-            ) {
-                items(routes, key = { it.id }) { route ->
-                    RouteCard(
-                        route,
-                        isOnMap = route.id == selected?.id,
-                        onClick = { if (route.id == selected?.id) actions.onOpenRoute(route.id) else actions.onShowOnMap(route.id) },
-                        onOpen = { actions.onOpenRoute(route.id) },
-                    )
-                }
+            val card: @Composable (RouteCardUi) -> Unit = { route ->
+                RouteCard(
+                    route,
+                    isOnMap = route.id == selected?.id,
+                    onClick = { if (route.id == selected?.id) actions.onOpenRoute(route.id) else actions.onShowOnMap(route.id) },
+                    onOpen = { actions.onOpenRoute(route.id) },
+                )
+            }
+            if (side) {
+                LazyColumn(
+                    contentPadding = PaddingValues(horizontal = Spacing.gutter, vertical = Spacing.m),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.m),
+                ) { items(routes, key = { it.id }) { card(it) } }
+            } else {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = Spacing.gutter, vertical = Spacing.m),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.m),
+                ) { items(routes, key = { it.id }) { card(it) } }
             }
         }
     }
 }
 
+/** "Run · 3 saved routes · 5–12 km" from the routes shown. */
+private fun suggestionLine(routes: List<RouteCardUi>): String {
+    val sports = routes.mapNotNull { it.sport }.distinct()
+    val sport = sports.singleOrNull()?.label
+    val count = if (routes.size == 1) "1 saved route" else "${routes.size} saved routes"
+    return listOfNotNull(sport, count, "on this device").joinToString(" · ")
+}
+
+/** One compact line instead of a half-screen empty state, so the map stays in view. */
 @Composable
 private fun NoRoutes(importing: Boolean, onImport: () -> Unit) {
-    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        EmptyState(
-            icon = Icons.Rounded.Route,
-            title = if (importing) "Importing…" else "No saved routes yet",
-            body = "Import a GPX file from another app or website. Saved routes show on the map, and you can record while following one.",
-            primaryActionLabel = "Import GPX route",
-            onPrimaryAction = onImport,
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = Spacing.gutter, vertical = Spacing.m),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Rounded.Route, contentDescription = null, tint = RidgelineTheme.colors.textMuted)
+        Spacer(Modifier.width(Spacing.m))
+        Text(
+            if (importing) "Importing…" else "No routes yet. Create one from a GPX file to see it here.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = RidgelineTheme.colors.textSecondary,
+            modifier = Modifier.weight(1f),
         )
+        TextButton(onClick = onImport, enabled = !importing) { Text("Import", color = RidgelineTheme.colors.accentText) }
     }
 }
 

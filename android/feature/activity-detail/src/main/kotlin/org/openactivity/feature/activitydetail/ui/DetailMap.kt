@@ -37,6 +37,7 @@ internal fun DetailMap(
     modifier: Modifier = Modifier,
     height: Dp = 260.dp,
     shape: androidx.compose.ui.graphics.Shape = androidx.compose.material3.MaterialTheme.shapes.medium,
+    fitPadding: MapPadding = MapPadding.all(36f),
 ) {
     val shapeModifier = modifier.fillMaxWidth().height(height).clip(shape)
     if (LocalInspectionMode.current) {
@@ -55,8 +56,8 @@ internal fun DetailMap(
         )
     }
     val target = focus?.takeIf { it.size >= 2 } ?: route
-    LaunchedEffect(state, target) {
-        state.fitTo(target, MapPadding.all(36f), animate = focus != null)
+    LaunchedEffect(state, target, fitPadding) {
+        state.fitTo(target, fitPadding, animate = focus != null)
     }
     RidgelineMap(
         modifier = shapeModifier,

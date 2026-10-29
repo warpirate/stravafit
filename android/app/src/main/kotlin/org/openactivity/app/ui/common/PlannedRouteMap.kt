@@ -11,6 +11,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalInspectionMode
 import org.openactivity.core.map.compose.RidgelineMap
 import org.openactivity.core.map.compose.rememberMapState
+import org.openactivity.core.map.overlay.ActivityRouteOverlay
 import org.openactivity.core.map.overlay.MapOverlays
 import org.openactivity.core.map.thumbnail.RouteMapThumbnail
 import org.openactivity.model.LatLng
@@ -45,7 +46,8 @@ fun PlannedRouteMap(
     RidgelineMap(
         modifier = shaped.aspectRatio(aspectRatio),
         state = mapState,
-        overlays = MapOverlays(plannedRoute = points),
+        // The same orange line with a green start and chequered finish as on the Maps tab and in cards.
+        overlays = MapOverlays(activityRoute = if (points.size >= 2) ActivityRouteOverlay(points, colorByPace = false) else null),
         textureMode = true,
     )
 }

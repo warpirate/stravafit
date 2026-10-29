@@ -135,6 +135,15 @@ fun ActivityDetailContent(
     snackbar: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     val content = state as? ActivityDetailUiState.Content
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val heroPx = with(androidx.compose.ui.platform.LocalDensity.current) { (HERO_MAP_HEIGHT - COLLAPSE_BEFORE).toPx() }
+    // Collapsing app bar: over the hero map the buttons float; once the map scrolls away (or without a
+    // map) a solid bar with the title takes over, so nothing scrolls under the clock or the buttons.
+    val collapsed by androidx.compose.runtime.remember(content?.activity?.hasRoute) {
+        androidx.compose.runtime.derivedStateOf {
+            content?.activity?.hasRoute != true || listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > heroPx
+        }
+    }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         contentWindowInsets = WindowInsets(0),
@@ -153,24 +162,62 @@ fun ActivityDetailContent(
                     modifier = Modifier.align(Alignment.Center),
                 )
                 is ActivityDetailUiState.Content -> {
-                    DetailBody(state.activity)
+                    DetailBody(state.activity, listState)
                     if (state.dialogs.confirmDelete) DeleteActivityDialog(actions.onConfirmDelete, actions.onDismissDelete)
                     state.dialogs.exportFormats?.let { options ->
                         ExportFileSheet(options, state.dialogs.exporting, actions.onExport, actions.onDismissExport)
                     }
                 }
             }
-            Row(
-                Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = Spacing.gutter, vertical = Spacing.s),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                FloatingRound(Icons.AutoMirrored.Rounded.ArrowBack, "Navigate up", actions.onBack)
-                Spacer(Modifier.weight(1f))
-                if (content != null) DetailMenu(actions)
+            if (collapsed && content != null) {
+                CollapsedBar(content.activity.title, actions)
+            } else {
+                Row(
+                    Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = Spacing.gutter, vertical = Spacing.s),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    FloatingRound(Icons.AutoMirrored.Rounded.ArrowBack, "Navigate up", actions.onBack)
+                    Spacer(Modifier.weight(1f))
+                    if (content != null) DetailMenu(actions)
+                }
             }
         }
     }
 }
+
+/** The solid top bar once the hero map has scrolled away: back, the title, share and more. */
+@Composable
+private fun CollapsedBar(title: String, actions: DetailActions) {
+    Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
+        Row(
+            Modifier.fillMaxWidth().statusBarsPadding().height(56.dp).padding(horizontal = Spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = actions.onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Navigate up") }
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f).padding(horizontal = Spacing.s),
+            )
+            IconButton(onClick = actions.onShare) { Icon(Icons.Outlined.Share, contentDescription = "Share") }
+            BarMenu(actions)
+        }
+    }
+}
+
+@Composable
+private fun BarMenu(actions: DetailActions) {
+    var open by rememberSaveable { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) { Icon(Icons.Rounded.MoreHoriz, contentDescription = "More options") }
+        MenuItems(open, { open = false }, actions)
+    }
+}
+
+/** How far before the hero map's bottom edge the bar turns solid. */
+private val COLLAPSE_BEFORE = 120.dp
 
 /** 44 dp round button floating over the hero map. */
 @Composable
@@ -217,16 +264,21 @@ private fun DetailMenu(actions: DetailActions) {
     Spacer(Modifier.width(Spacing.m))
     Box {
         FloatingRound(Icons.Rounded.MoreHoriz, "More options") { open = true }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            MenuItem("Edit activity", Icons.Rounded.Edit) { open = false; actions.onEdit() }
-            MenuItem("Share & export", Icons.Rounded.IosShare) { open = false; actions.onShare() }
-            MenuItem("Export file", Icons.Rounded.FileDownload) { open = false; actions.onExportFile() }
-            DropdownMenuItem(
-                text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
-                leadingIcon = { Icon(Icons.Rounded.Delete, null, tint = MaterialTheme.colorScheme.error) },
-                onClick = { open = false; actions.onDelete() },
-            )
-        }
+        MenuItems(open, { open = false }, actions)
+    }
+}
+
+@Composable
+private fun MenuItems(open: Boolean, close: () -> Unit, actions: DetailActions) {
+    DropdownMenu(expanded = open, onDismissRequest = close) {
+        MenuItem("Edit activity", Icons.Rounded.Edit) { close(); actions.onEdit() }
+        MenuItem("Share & export", Icons.Rounded.IosShare) { close(); actions.onShare() }
+        MenuItem("Export file", Icons.Rounded.FileDownload) { close(); actions.onExportFile() }
+        DropdownMenuItem(
+            text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+            leadingIcon = { Icon(Icons.Rounded.Delete, null, tint = MaterialTheme.colorScheme.error) },
+            onClick = { close(); actions.onDelete() },
+        )
     }
 }
 

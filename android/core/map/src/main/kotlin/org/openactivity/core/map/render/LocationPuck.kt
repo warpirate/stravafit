@@ -27,11 +27,40 @@ internal class LocationPuck(
     private val onTrackingDismissed: () -> Unit,
 ) {
     private var follow = false
+    private var released = false
     private var activePalette: MapPalette? = null
+    private val main = android.os.Handler(android.os.Looper.getMainLooper())
 
+    /**
+     * Only the athlete's own pan leaves follow mode. MapLibre also dismisses tracking for its own reasons
+     * (a new map view after rotation, a resize, a style reload); then tracking is simply re-applied, so the
+     * puck stays centred and the locate button keeps showing "following".
+     */
     private val trackingListener = object : OnCameraTrackingChangedListener {
-        override fun onCameraTrackingDismissed() = onTrackingDismissed()
+        override fun onCameraTrackingDismissed() {
+            if (released || !follow) return
+            main.post {
+                val component = map.locationComponent
+                if (!released && follow && component.isLocationComponentActivated && component.isLocationComponentEnabled) {
+                    applyTracking(component)
+                }
+            }
+        }
         override fun onCameraTrackingChanged(currentMode: Int) = Unit
+    }
+
+    private val moveListener = object : MapLibreMap.OnMoveListener {
+        override fun onMoveBegin(detector: org.maplibre.android.gestures.MoveGestureDetector) {
+            if (released || !follow) return
+            follow = false
+            onTrackingDismissed()
+        }
+        override fun onMove(detector: org.maplibre.android.gestures.MoveGestureDetector) = Unit
+        override fun onMoveEnd(detector: org.maplibre.android.gestures.MoveGestureDetector) = Unit
+    }
+
+    init {
+        map.addOnMoveListener(moveListener)
     }
 
     /**
@@ -41,6 +70,7 @@ internal class LocationPuck(
     @SuppressLint("MissingPermission")
     fun update(style: Style, location: MapLocation?, palette: MapPalette) {
         val component = map.locationComponent
+        location?.let { org.openactivity.core.map.compose.LastMapCamera.rememberLocation(it.position) }
         if (location == null) {
             if (component.isLocationComponentActivated) component.isLocationComponentEnabled = false
             return
@@ -72,11 +102,15 @@ internal class LocationPuck(
 
     /** Stops camera tracking immediately, e.g. before a programmatic camera move. */
     fun cancelTracking() {
+        follow = false
         val component = map.locationComponent
         if (component.isLocationComponentActivated) component.cameraMode = CameraMode.NONE
     }
 
     fun release() {
+        released = true
+        main.removeCallbacksAndMessages(null)
+        map.removeOnMoveListener(moveListener)
         val component = map.locationComponent
         if (component.isLocationComponentActivated) component.removeOnCameraTrackingChangedListener(trackingListener)
     }

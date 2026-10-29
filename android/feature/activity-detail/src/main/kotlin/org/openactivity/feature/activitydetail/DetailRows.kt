@@ -57,8 +57,32 @@ data class EffortRow(val name: String, val result: String, val isPersonalBest: B
 
 /** Builds the detail screen's display rows from stored data. Pure, so it is unit-tested directly. */
 object DetailRows {
-    /** Stats grid: distance, moving and elapsed time, pace/speed, elevation gain, heart rate. Calories are omitted. */
-    fun stats(activity: SavedActivity, units: UnitSystem, hasElevation: Boolean): List<Stat> = buildList {
+    /**
+     * Stats grid: distance, pace/speed, moving time, elevation gain, elapsed time, heart rate and sensors.
+     * Rows are always full (three per row, as in the mockup): a partial last row is completed with Avg
+     * Heart Rate (a dash without a sensor), Elev Loss and the maximum pace or speed.
+     */
+    fun stats(activity: SavedActivity, units: UnitSystem, hasElevation: Boolean): List<Stat> {
+        val base = baseStats(activity, units, hasElevation)
+        if (base.size % STAT_COLUMNS == 0) return base
+        val labels = base.map { it.label }.toSet()
+        val fillers = buildList {
+            if ("Avg Heart Rate" !in labels) add(Stat("Avg Heart Rate", "\u2014", null, "no heart rate sensor"))
+            if (hasElevation) {
+                val loss = DetailFormat.elevation(activity.elevationLossMeters, units)
+                add(Stat("Elev Loss", loss.value, loss.unit, loss.spokenUnit))
+            }
+            val max = DetailFormat.speed(activity.maxSpeedMps, activity.sport, units)
+            val maxLabel = if (activity.sport.displaysPace) "Max Pace" else "Max Speed"
+            if (max != null && maxLabel !in labels) add(Stat(maxLabel, max.value, max.unit, max.spokenUnit))
+        }
+        val missing = STAT_COLUMNS - base.size % STAT_COLUMNS
+        return base + fillers.take(missing)
+    }
+
+    private const val STAT_COLUMNS = 3
+
+    private fun baseStats(activity: SavedActivity, units: UnitSystem, hasElevation: Boolean): List<Stat> = buildList {
         val distance = DetailFormat.distance(activity.distanceMeters, units)
         add(Stat("Distance", distance.value, distance.unit, distance.spokenUnit))
         val speed = DetailFormat.speed(activity.averageSpeedMps, activity.sport, units)

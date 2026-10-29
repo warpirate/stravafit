@@ -146,6 +146,16 @@ class RepositoryTest {
         assertNull(routes.getRoute(id))
     }
 
+    @Test
+    fun `a route that ends downhill reports its elevation loss`() = runTest {
+        // 570 -> 577 m, then down to 573 m at the very end.
+        val profile = (0..70).map { 570.0 + it * 0.1 } + (1..40).map { 577.0 - it * 0.1 }
+        val points = profile.mapIndexed { i, alt -> RoutePointInput(47.0, 8.0 + i * 0.0002, alt) }
+        val route = routes.getRoute(routes.importRoute("Loop", points))!!.route
+        assertEquals(7.0, route.elevationGainMeters, 1.0)
+        assertEquals(4.0, route.elevationLossMeters, 1.0)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun `a route needs two points`() = runTest {
         routes.importRoute("x", listOf(RoutePointInput(1.0, 1.0)))

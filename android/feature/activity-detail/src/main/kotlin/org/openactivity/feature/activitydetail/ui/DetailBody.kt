@@ -2,6 +2,14 @@
 package org.openactivity.feature.activitydetail.ui
 
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import org.openactivity.core.designsystem.component.AthleteAvatar
+import org.openactivity.core.designsystem.component.LocalAthlete
+import org.openactivity.core.map.camera.MapPadding
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -59,13 +67,22 @@ import org.openactivity.feature.activitydetail.format.DetailFormat
 
 /** The scrolling body of the detail screen. Chart scrubbing and split selection drive the map. */
 @Composable
-internal fun DetailBody(content: DetailContent) {
+internal fun DetailBody(content: DetailContent, listState: LazyListState = rememberLazyListState()) {
     var scrubIndex by remember(content.id) { mutableStateOf<Int?>(null) }
     var selectedSplit by rememberSaveable(content.id) { mutableStateOf<Int?>(null) }
     val marker = scrubIndex?.let { content.chart?.positions?.getOrNull(it) }
     val focus = selectedSplit?.let { content.splits.getOrNull(it) }?.let { content.routeBetween(it.startMeters, it.endMeters) }
 
+    // The route is framed clear of the status bar and the floating back / share / more buttons.
+    val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val fitPadding = MapPadding(
+        HERO_SIDE_PADDING_DP,
+        statusBar.value + TOP_BUTTONS_CLEARANCE.value,
+        HERO_SIDE_PADDING_DP,
+        HERO_SIDE_PADDING_DP,
+    )
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = Spacing.x4),
     ) {
@@ -79,6 +96,7 @@ internal fun DetailBody(content: DetailContent) {
                     focus = focus,
                     height = HERO_MAP_HEIGHT,
                     shape = RectangleShape,
+                    fitPadding = fitPadding,
                 )
             } else {
                 Spacer(Modifier.statusBarsPadding().height(TOP_BUTTONS_CLEARANCE))
@@ -169,23 +187,23 @@ internal fun DetailBody(content: DetailContent) {
 @Composable
 private fun Header(content: DetailContent) {
     Column(Modifier.fillMaxWidth().padding(horizontal = Spacing.gutter).padding(top = Spacing.l, bottom = Spacing.s)) {
+        // Author row (strava direction): avatar, name, "date · place" with the sport icon, and the device.
+        val athlete = LocalAthlete.current
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier.size(44.dp).clip(CircleShape).background(RidgelineTheme.colors.accentArea),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(sportIcon(content.sport), null, tint = RidgelineTheme.colors.accent, modifier = Modifier.size(24.dp))
-            }
+            AthleteAvatar(athlete, size = AUTHOR_AVATAR)
             Column(Modifier.padding(start = Spacing.m)) {
-                Text(content.sportName, style = MaterialTheme.typography.titleSmall)
+                Text(athlete.name, style = MaterialTheme.typography.titleSmall)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(sportIcon(content.sport), null, tint = RidgelineTheme.colors.textMuted, modifier = Modifier.size(14.dp))
+                    Icon(sportIcon(content.sport), content.sportName, tint = RidgelineTheme.colors.textMuted, modifier = Modifier.size(14.dp))
                     Text(
-                        content.startedAt,
+                        listOf(content.startedAt, athlete.location).filter { it.isNotBlank() }.joinToString(" · "),
                         style = MaterialTheme.typography.bodyMedium,
                         color = RidgelineTheme.colors.textMuted,
                         modifier = Modifier.padding(start = Spacing.xs),
                     )
+                }
+                if (athlete.device.isNotBlank()) {
+                    Text(athlete.device, style = MaterialTheme.typography.bodyMedium, color = RidgelineTheme.colors.textMuted)
                 }
             }
         }
@@ -245,8 +263,10 @@ private fun PrRow(effort: EffortRow, more: Int) {
 }
 
 private const val STAT_COLUMNS = 3
-private val HERO_MAP_HEIGHT = 300.dp
+internal val HERO_MAP_HEIGHT = 300.dp
 private val TOP_BUTTONS_CLEARANCE = 64.dp
+private const val HERO_SIDE_PADDING_DP = 36f
+private val AUTHOR_AVATAR = 48.dp
 
 @Composable
 private fun Tag(icon: ImageVector?, text: String) {

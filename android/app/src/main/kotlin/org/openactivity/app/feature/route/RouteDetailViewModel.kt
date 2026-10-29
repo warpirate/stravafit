@@ -120,7 +120,11 @@ class RouteDetailViewModel @Inject constructor(
     fun messageShown() = local.update { it.copy(message = null) }
 
     private fun RouteDetail.toUi(formatter: UnitFormatter): RouteDetailUiState {
-        val estimate = RouteEstimates.estimatedSeconds(route.distanceMeters, route.elevationGainMeters, route.sport)
+        // Recomputed from the profile so routes imported before the end-of-profile fix agree with their chart.
+        val totals = org.openactivity.core.data.repository.LocalRouteRepository.routeElevation(points.mapNotNull { it.elevationMeters })
+        val gain = totals?.gain ?: route.elevationGainMeters
+        val loss = totals?.loss ?: route.elevationLossMeters
+        val estimate = RouteEstimates.estimatedSeconds(route.distanceMeters, gain, route.sport)
         return RouteDetailUiState(
             isLoading = false,
             routeId = route.id,
@@ -128,8 +132,8 @@ class RouteDetailViewModel @Inject constructor(
             sport = route.sport,
             stats = listOf(
                 formatter.distance(route.distanceMeters).toStat("Distance"),
-                formatter.elevation(route.elevationGainMeters).toStat("Elev gain"),
-                formatter.elevation(route.elevationLossMeters).toStat("Elev loss"),
+                formatter.elevation(gain).toStat("Elev gain"),
+                formatter.elevation(loss).toStat("Elev loss"),
                 Stat("Est. time", "~${UnitFormatter.compactDuration(estimate)}"),
             ),
             points = points.map { LatLng(it.latitude, it.longitude) },
