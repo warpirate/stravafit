@@ -41,4 +41,7 @@ includeIfPresent(
     ":android:core:data", // WP data-service
     ":android:core:recording-service", // WP data-service
     ":android:core:map", // WP maps
+    ":android:core:export", // WP export
+    ":android:core:import", // WP export
+    ":android:feature:share-export", // WP export
 )

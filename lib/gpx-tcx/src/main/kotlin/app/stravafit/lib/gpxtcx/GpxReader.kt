@@ -13,8 +13,8 @@ import app.stravafit.lib.gpxtcx.internal.toFormatException
 import app.stravafit.lib.gpxtcx.internal.toInstantOrNull
 import app.stravafit.lib.gpxtcx.internal.toRoundedIntOrNull
 import java.io.InputStream
-import javax.xml.stream.XMLStreamException
-import javax.xml.stream.XMLStreamReader
+import app.stravafit.lib.gpxtcx.internal.XmlSyntaxException
+import app.stravafit.lib.gpxtcx.internal.XmlPullReader
 
 /**
  * Streaming, tolerant GPX reader (GPX 1.1 and 1.0).
@@ -55,7 +55,7 @@ public class GpxReader(private val recoverPartial: Boolean = false) {
                     else -> xml.skipElement()
                 }
             }
-        } catch (e: XMLStreamException) {
+        } catch (e: XmlSyntaxException) {
             if (recoverPartial && state.hasPoints()) return state.build(truncated = true)
             throw e.toFormatException()
         } finally {
@@ -64,7 +64,7 @@ public class GpxReader(private val recoverPartial: Boolean = false) {
         return state.build(truncated = false)
     }
 
-    private fun readMetadata(xml: XMLStreamReader): GpxMetadata {
+    private fun readMetadata(xml: XmlPullReader): GpxMetadata {
         var metadata = GpxMetadata()
         xml.forEachChild { name ->
             when (name) {
@@ -77,7 +77,7 @@ public class GpxReader(private val recoverPartial: Boolean = false) {
         return metadata
     }
 
-    private fun readTrack(xml: XMLStreamReader, state: DocumentState) {
+    private fun readTrack(xml: XmlPullReader, state: DocumentState) {
         val track = TrackState().also { state.tracks += it }
         xml.forEachChild { name ->
             when (name) {
@@ -95,7 +95,7 @@ public class GpxReader(private val recoverPartial: Boolean = false) {
         }
     }
 
-    private fun readRoute(xml: XMLStreamReader, state: DocumentState) {
+    private fun readRoute(xml: XmlPullReader, state: DocumentState) {
         val route = RouteState().also { state.routes += it }
         xml.forEachChild { name ->
             when (name) {
@@ -108,7 +108,7 @@ public class GpxReader(private val recoverPartial: Boolean = false) {
     }
 
     /** Reads a `trkpt`/`rtept`; returns `null` when it has no valid position. */
-    private fun readPoint(xml: XMLStreamReader): TrackPoint? {
+    private fun readPoint(xml: XmlPullReader): TrackPoint? {
         val point = PointBuilder().apply {
             latitude = xml.attribute("lat").toFiniteDoubleOrNull()
             longitude = xml.attribute("lon").toFiniteDoubleOrNull()
@@ -126,7 +126,7 @@ public class GpxReader(private val recoverPartial: Boolean = false) {
     }
 
     /** Walks every element below `<extensions>`, picking sensor values by (case-insensitive) local name. */
-    private fun readExtensions(xml: XMLStreamReader, point: PointBuilder) {
+    private fun readExtensions(xml: XmlPullReader, point: PointBuilder) {
         xml.forEachChild { name ->
             when (name.lowercase()) {
                 "hr", "heartrate", "heart_rate" -> point.heartRate = xml.readText().toRoundedIntOrNull()

@@ -32,9 +32,13 @@ Catmull–Rom → chunked strokes coloured via OKLab ramp (5–95th percentile n
 ./gradlew :lib:route-art:samples   # writes lib/route-art/samples/*.svg (open gallery.html)
 ```
 
+## Android
+
+`:android:core:export` rasterises these SVGs to PNG with AndroidSVG, prints posters to PDF, writes
+GPX/TCX/FIT/GeoJSON and shares them; `:android:feature:share-export` is the share screen.
+Pass `Track.summary` to print the whole activity's stats on a privacy-trimmed card.
+
 ## Next
 
-- PNG via Android `Canvas` (same geometry) + `FileProvider` share intents
 - MapLibre snapshot basemap under the trace (OSM attribution)
-- GPX / TCX / FIT / GeoJSON writers
 - Swap placeholder theme colours for `design-system/tokens.json`

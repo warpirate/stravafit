@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<resources>
+    <string name="share_export_title">Share and export</string>
+    <string name="share_export_close">Close</string>
+    <string name="share_export_loading">Loading activity</string>
+    <string name="share_export_not_found_title">Activity not found</string>
+    <string name="share_export_not_found_body">It may have been deleted. Go back and pick another activity.</string>
+    <string name="share_export_load_failed_title">Could not open this activity</string>
+    <string name="share_export_retry">Try again</string>
+
+    <string name="share_export_templates">Template</string>
+    <string name="share_export_aspect">Size</string>
+    <string name="share_export_theme">Theme</string>
+    <string name="share_export_color_by">Colour route by</string>
+    <string name="share_export_options">Options</string>
+    <string name="share_export_privacy_trim">Hide start and finish</string>
+    <string name="share_export_privacy_trim_body">Uses your privacy settings so nobody can tell where you live or work.</string>
+    <string name="share_export_privacy_off_warning">Your start and finish will be visible to anyone you share with.</string>
+    <string name="share_export_transparent">Transparent background</string>
+    <string name="share_export_transparent_body">For laying the image over a photo.</string>
+
+    <string name="share_export_preview_description">Preview of the %1$s image</string>
+    <string name="share_export_rendering">Rendering preview</string>
+    <string name="share_export_no_route">This activity has no GPS route, so there is no map to draw. You can still export it as a TCX or FIT file.</string>
+    <string name="share_export_route_hidden">Your privacy settings hide this whole route. Turn off \"Hide start and finish\" to make an image only you keep, or export the data.</string>
+    <string name="share_export_no_elevation">This activity has no elevation data for a profile.</string>
+    <string name="share_export_render_failed">The preview could not be drawn.</string>
+
+    <string name="share_export_share">Share</string>
+    <string name="share_export_story">Instagram story</string>
+    <string name="share_export_save_image">Save image</string>
+    <string name="share_export_export_file">Export file</string>
+
+    <string name="share_export_sheet_title">Export file</string>
+    <string name="share_export_sheet_privacy_on">Start and finish are removed from the files.</string>
+    <string name="share_export_sheet_privacy_off">Files include your full route.</string>
+    <string name="share_export_format_share">Share %1$s</string>
+    <string name="share_export_format_save">Save %1$s to device</string>
+    <string name="share_export_needs_route">Needs a GPS route</string>
+    <string name="share_export_needs_times">Needs recorded times</string>
+    <string name="share_export_format_gpx">Route and samples for maps and other apps</string>
+    <string name="share_export_format_tcx">Laps, heart rate and power for training logs</string>
+    <string name="share_export_format_fit">Device format, read by watches and coaching tools</string>
+    <string name="share_export_format_geojson">Route geometry for GIS and web maps</string>
+    <string name="share_export_format_svg">The current image as a vector graphic</string>
+    <string name="share_export_format_png">The current image at full resolution</string>
+    <string name="share_export_format_pdf">The current image on a printable A4 page</string>
+
+    <string name="share_export_saved">Saved to Pictures/%1$s</string>
+    <string name="share_export_saved_document">Saved %1$s</string>
+    <string name="share_export_failed">Something went wrong: %1$s</string>
+    <string name="share_export_no_app">No app on this device can receive this file.</string>
+    <string name="share_export_story_unavailable">Instagram could not take the story. Use Share instead.</string>
+    <string name="share_export_permission_denied">Saving needs storage permission on this Android version.</string>
+    <string name="share_export_chooser">Share activity</string>
+</resources>

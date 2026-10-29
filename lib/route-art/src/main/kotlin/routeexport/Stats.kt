@@ -15,7 +15,7 @@ data class Stats(
 private const val MOVING_SPEED_MPS = 0.6
 private const val ELEVATION_HYSTERESIS_M = 3.0
 
-fun Track.stats(): Stats = statsOf(points)
+fun Track.stats(): Stats = summary ?: statsOf(points)
 
 fun statsOf(points: List<TrackPoint>): Stats {
     val hasTime = points.size > 1 && points.all { it.time != null }
