@@ -13,11 +13,16 @@
 		reverse_proxy tiles:8080
 	}
 
-	# Supabase API gateway: /auth/v1, /rest/v1, /storage/v1, /realtime/v1, /functions/v1.
-	# Studio (the admin dashboard) is NOT exposed here on purpose; reach it
-	# through an SSH tunnel to the host instead.
-	handle {
+	# Supabase API gateway, allow-listed. The gateway also routes `/` (Studio),
+	# `/pg/` (postgres-meta), `/mcp` and the realtime admin API; none of those
+	# are reachable from the internet. Reach Studio through an SSH tunnel.
+	@api path /auth/v1/* /rest/v1/* /storage/v1/* /functions/v1/* /graphql/v1 /graphql/v1/* /realtime/v1/websocket*
+	handle @api {
 		reverse_proxy api-gw:8000
+	}
+
+	handle {
+		respond 404
 	}
 
 	header {

@@ -69,7 +69,9 @@ Map data is © OpenStreetMap contributors (ODbL). The app shows the attribution.
 
 ## Security notes
 
-- **Studio is not exposed through Caddy.** Reach it with an SSH tunnel: `ssh -L 3000:localhost:3000 <host>`. Studio's port binding comes from the upstream file. Firewall every port except 80 and 443 (see `docker compose ps` for what is published).
+- **Only the client APIs go through Caddy.** The Caddyfile allow-lists `/auth/v1`, `/rest/v1`, `/storage/v1`, `/functions/v1`, `/graphql/v1` and the realtime websocket, and answers 404 for everything else, including Studio (`/`) and postgres-meta (`/pg/`).
+- **Published ports.** The upstream file publishes the API gateway (8000) and the pooler (`POSTGRES_PORT`, 6543) on the host. Docker writes its own iptables rules, so a host firewall such as `ufw` does **not** block them. Our `.env.example` binds the gateway and the transaction pooler to `127.0.0.1`; the session pooler port (`POSTGRES_PORT`, 5432) cannot be rebound this way, so block it in your cloud provider's firewall or with a `DOCKER-USER` iptables rule.
+- **Studio** is reached through an SSH tunnel to the loopback-bound gateway: `ssh -L 8000:127.0.0.1:8000 <host>`, then open `http://localhost:8000` and sign in with `DASHBOARD_USERNAME`/`DASHBOARD_PASSWORD` from `.env`.
 - Keep `.env` private and back it up. `SERVICE_ROLE_KEY` bypasses row level security.
 - Back up the `db` volume and the storage volume, which holds original uploads and photos. Activity files are personal health and location data.
 
