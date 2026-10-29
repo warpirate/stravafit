@@ -88,6 +88,7 @@ androidComponents {
 
 dependencies {
     implementation(project(":android:core:designsystem"))
+    implementation(project(":android:core:map")) // WP maps
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

@@ -21,6 +21,7 @@ robolectric = "4.14.1"
 androidx-test-junit = "1.2.1"
 espresso = "3.6.1"
 roborazzi = "1.39.0" # WP app-shell
+maplibre = "11.13.5" # WP maps
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -72,6 +73,7 @@ androidx-test-espresso = { module = "androidx.test.espresso:espresso-core", vers
 roborazzi = { module = "io.github.takahirom.roborazzi:roborazzi", version.ref = "roborazzi" } # WP app-shell
 roborazzi-compose = { module = "io.github.takahirom.roborazzi:roborazzi-compose", version.ref = "roborazzi" } # WP app-shell
 roborazzi-junit-rule = { module = "io.github.takahirom.roborazzi:roborazzi-junit-rule", version.ref = "roborazzi" } # WP app-shell
+maplibre-android-sdk = { module = "org.maplibre.gl:android-sdk", version.ref = "maplibre" } # WP maps
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

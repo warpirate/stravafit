@@ -35,4 +35,5 @@ includeIfPresent(
     ":android:core:recording",
     ":android:core:designsystem",
     ":android:app",
+    ":android:core:map", // WP maps
 )
