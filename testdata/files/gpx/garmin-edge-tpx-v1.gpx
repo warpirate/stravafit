@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx creator="Handcrafted Edge-style recorder" version="1.1"
+     xmlns="http://www.topografix.com/GPX/1/1"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xmlns:ns3="http://www.garmin.com/xmlschemas/TrackPointExtension/v1"
+     xmlns:ns2="http://www.garmin.com/xmlschemas/GpxExtensions/v3"
+     xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+  <metadata>
+    <link href="https://example.invalid"><text>Example device</text></link>
+    <time>2026-05-01T06:00:00Z</time>
+  </metadata>
+  <wpt lat="52.5" lon="13.4"><name>Ignored waypoint</name></wpt>
+  <trk>
+    <name>Morning Ride</name>
+    <type>cycling</type>
+    <trkseg>
+      <trkpt lat="52.5200000" lon="13.4050000">
+        <ele>34.2</ele>
+        <time>2026-05-01T06:00:01Z</time>
+        <extensions>
+          <power>210</power>
+          <ns3:TrackPointExtension>
+            <ns3:atemp>14.0</ns3:atemp>
+            <ns3:hr>131</ns3:hr>
+            <ns3:cad>84</ns3:cad>
+          </ns3:TrackPointExtension>
+        </extensions>
+      </trkpt>
+      <trkpt lat="52.5201000" lon="13.4052000">
+        <ele>34.6</ele>
+        <time>2026-05-01T06:00:02Z</time>
+        <extensions>
+          <power>225</power>
+          <ns3:TrackPointExtension>
+            <ns3:atemp>14.0</ns3:atemp>
+            <ns3:hr>133</ns3:hr>
+            <ns3:cad>86</ns3:cad>
+          </ns3:TrackPointExtension>
+        </extensions>
+      </trkpt>
+    </trkseg>
+    <trkseg>
+      <trkpt lat="52.5210000" lon="13.4070000">
+        <ele>35.0</ele>
+        <time>2026-05-01T06:05:00Z</time>
+        <extensions>
+          <ns3:TrackPointExtension>
+            <ns3:atemp>13.5</ns3:atemp>
+            <ns3:hr>120</ns3:hr>
+            <ns3:cad>0</ns3:cad>
+          </ns3:TrackPointExtension>
+        </extensions>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>

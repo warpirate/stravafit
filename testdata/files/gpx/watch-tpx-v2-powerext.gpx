@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Handcrafted watch export with barometer"
+     xmlns="http://www.topografix.com/GPX/1/1"
+     xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v2"
+     xmlns:gpxpx="http://www.garmin.com/xmlschemas/PowerExtension/v1">
+  <metadata><name>Lunch Run</name><desc>Two loops &amp; a hill</desc><time>2026-05-02T12:00:00.000Z</time></metadata>
+  <trk>
+    <name>Lunch Run</name>
+    <type>running</type>
+    <trkseg>
+      <trkpt lat="-33.8688" lon="151.2093">
+        <ele>12.25</ele>
+        <time>2026-05-02T12:00:00.500Z</time>
+        <extensions>
+          <gpxtpx:TrackPointExtension>
+            <gpxtpx:atemp>22</gpxtpx:atemp>
+            <gpxtpx:hr>141.0</gpxtpx:hr>
+            <gpxtpx:cad>88</gpxtpx:cad>
+            <gpxtpx:speed>3.215</gpxtpx:speed>
+            <gpxtpx:course>91.5</gpxtpx:course>
+          </gpxtpx:TrackPointExtension>
+          <gpxpx:PowerExtension><gpxpx:PowerInWatts>305</gpxpx:PowerInWatts></gpxpx:PowerExtension>
+        </extensions>
+      </trkpt>
+      <trkpt lat="-33.86885" lon="151.20945">
+        <ele>12.5</ele>
+        <time>2026-05-02T22:00:01.500+10:00</time>
+        <extensions>
+          <gpxtpx:TrackPointExtension>
+            <gpxtpx:hr>143</gpxtpx:hr>
+            <gpxtpx:cad>89</gpxtpx:cad>
+            <gpxtpx:speed>3.3</gpxtpx:speed>
+          </gpxtpx:TrackPointExtension>
+          <gpxpx:PowerExtension><gpxpx:PowerInWatts>310</gpxpx:PowerInWatts></gpxpx:PowerExtension>
+        </extensions>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>
