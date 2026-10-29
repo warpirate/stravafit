@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Supabase CLI configuration for local development (`supabase start`,
+# `supabase db reset`, `supabase test db`). Production self-hosting uses
+# infra/docker/ instead; both apply the same migrations in ./migrations.
+
+project_id = "stravafit"
+
+[api]
+enabled = true
+port = 54321
+# Only `public` is exposed over REST. The `private` schema (helpers, job queue)
+# is intentionally absent.
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+# Supabase ships Postgres 15 and 17 images. The schema is written for 16+ and
+# is verified in CI on postgis/postgis:16-3.4 (backend/scripts/verify-db.sh).
+major_version = 17
+
+[db.pooler]
+enabled = false
+
+[db.migrations]
+enabled = true
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+
+# Local mail catcher for sign-up confirmations and one-time codes.
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+# Matches the `originals` bucket limit created in the storage migration.
+file_size_limit = "100MiB"
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+# Deep link used by the Android app for email confirmation and magic links.
+additional_redirect_urls = ["stravafit://auth-callback"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+enable_anonymous_sign_ins = false
+enable_manual_linking = false
+minimum_password_length = 10
+password_requirements = "lower_upper_letters_digits"
+
+[auth.rate_limit]
+email_sent = 2
+sms_sent = 0
+anonymous_users = 0
+token_refresh = 150
+sign_in_sign_ups = 30
+token_verifications = 30
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+secure_password_change = true
+# One-time sign-in codes: 6 digits, valid for 5 minutes (blueprint §9 identity).
+max_frequency = "1m0s"
+otp_length = 6
+otp_expiry = 300
+
+[auth.sms]
+enable_signup = false
+
+[auth.mfa]
+max_enrolled_factors = 10
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+# Google sign-in is optional; credentials come from the environment.
+[auth.external.google]
+enabled = false
+client_id = "env(SUPABASE_AUTH_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"
+skip_nonce_check = false
+
+[edge_runtime]
+enabled = true
+policy = "per_worker"
+
+[analytics]
+enabled = false
