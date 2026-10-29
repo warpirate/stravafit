@@ -109,7 +109,7 @@ class MeViewModelTest {
         val vm = viewModel()
         collect(vm)
         val state = vm.uiState.value
-        assertEquals("Running best efforts", state.bestEffortsTitle)
+        assertEquals("Best efforts", state.bestEffortsTitle)
         assertEquals(listOf("5K" to "24:55", "Half marathon" to "1:45:00"), state.bestEfforts.map { it.label to it.time })
         assertEquals(7L, state.bestEfforts.first().activityId)
         assertTrue(activities.bestRequests.last().contains(SportType.TRAIL_RUN))

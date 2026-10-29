@@ -145,6 +145,7 @@ private fun MapViewHost(
         val camera = currentState.camera
         // Without a camera of its own a new map opens where the last one was (or at the last known fix)
         // instead of at world zoom: no world tiles to load first, no blank beige while zooming in.
+        LastMapCamera.load(context)
         m.jumpTo(camera ?: LastMapCamera.value ?: WORLD_CAMERA)
         map = m
     }
@@ -198,7 +199,7 @@ private fun MapViewHost(
         val idle = MapLibreMap.OnCameraIdleListener {
             m.cameraPosition.toMapCameraOrNull()?.let {
                 currentState.camera = it
-                LastMapCamera.remember(it)
+                LastMapCamera.remember(it, context)
             }
         }
         val click = MapLibreMap.OnMapClickListener { p ->

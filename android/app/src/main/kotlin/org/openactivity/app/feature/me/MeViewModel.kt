@@ -163,8 +163,7 @@ class MeViewModel @Inject constructor(
 
     private fun bestEffortsTitle(sport: SportType?, bests: List<PersonalBest>): String? = when {
         bests.isEmpty() -> null
-        sport == null || sport in ProgressFormat.RUN_SPORTS -> "Running best efforts"
-        else -> "Cycling best efforts"
+        else -> "Best efforts"
     }
 
     private fun SavedActivity.toRow(formatter: UnitFormatter) = ActivityRowUi(

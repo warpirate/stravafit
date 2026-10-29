@@ -58,6 +58,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -88,7 +91,10 @@ fun MeScreen(
     onRecord: () -> Unit,
     viewModel: MeViewModel = hiltViewModel(),
 ) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val me by viewModel.uiState.collectAsStateWithLifecycle()
+    val recordingStatus: org.openactivity.app.ui.RecordingStatusViewModel = hiltViewModel()
+    val recording by recordingStatus.active.collectAsStateWithLifecycle()
+    val state = me.copy(recordingInProgress = recording != null)
     MeContent(
         state = state,
         actions = MeActions(
@@ -158,7 +164,7 @@ fun MeContent(state: MeUiState, actions: MeActions, modifier: Modifier = Modifie
                 }
                 item(key = "tabs") { MeTabs(state.tab, actions.onSelectTab) }
                 when {
-                    !state.hasAnyActivity -> item(key = "empty") { NoActivities(actions.onRecord) }
+                    !state.hasAnyActivity -> item(key = "empty") { NoActivities(actions.onRecord, state.recordingInProgress) }
                     state.tab == MeTab.Progress -> progressItems(state, actions)
                     else -> activityItems(state, actions)
                 }
@@ -168,13 +174,17 @@ fun MeContent(state: MeUiState, actions: MeActions, modifier: Modifier = Modifie
 }
 
 @Composable
-private fun NoActivities(onRecord: () -> Unit) {
+private fun NoActivities(onRecord: () -> Unit, recording: Boolean) {
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         EmptyState(
             icon = Icons.Rounded.DirectionsRun,
-            title = "No activities yet",
-            body = "Your weekly progress, totals and best efforts build up from the activities you record.",
-            primaryActionLabel = "Record an activity",
+            title = if (recording) "Recording in progress" else "No activities yet",
+            body = if (recording) {
+                "Your progress, totals and best efforts update once you finish and save it."
+            } else {
+                "Your weekly progress, totals and best efforts build up from the activities you record."
+            },
+            primaryActionLabel = if (recording) "Back to recording" else "Record an activity",
             onPrimaryAction = onRecord,
         )
     }
@@ -223,15 +233,21 @@ private fun SportChips(sports: List<SportType>, selected: SportType?, allLabel: 
     }
 }
 
-/** Circular outlined sport buttons; tapping the selected one again shows all sports. */
+/**
+ * Circular outlined sport buttons (run, ride, walk, then any other sport you did); tapping the selected
+ * one again shows all sports. With a single sport recorded it is the one highlighted, since "all" and
+ * that sport are the same numbers.
+ */
 @Composable
 private fun SportCircles(sports: List<SportType>, selected: SportType?, onSelect: (SportType?) -> Unit) {
+    val shown = (sports + CORE_SPORTS).distinct().take(MAX_SPORT_CIRCLES)
+    val highlighted = selected ?: sports.singleOrNull()
     Row(
         Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.gutter, vertical = Spacing.l),
         horizontalArrangement = Arrangement.spacedBy(Spacing.l),
     ) {
-        sports.take(MAX_SPORT_CIRCLES).forEach { sport ->
-            val isSelected = sport == selected
+        shown.forEach { sport ->
+            val isSelected = sport == highlighted
             Surface(
                 onClick = { onSelect(if (isSelected) null else sport) },
                 shape = CircleShape,
@@ -248,6 +264,9 @@ private fun SportCircles(sports: List<SportType>, selected: SportType?, onSelect
         }
     }
 }
+
+private val CORE_SPORTS = listOf(SportType.RUN, SportType.RIDE, SportType.WALK)
+private const val BEST_EFFORTS_SHOWN = 3
 
 /** A white section on the gap band. */
 @Composable
@@ -269,11 +288,7 @@ private fun SectionTitle(title: String, action: String? = null, onAction: () -> 
 private fun LazyListScope.progressItems(state: MeUiState, actions: MeActions) {
     item(key = "week") {
         Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)) {
-            if (state.sports.size > 1) {
-                SportCircles(state.sports, state.selectedSport, actions.onSelectSport)
-            } else {
-                Spacer(Modifier.height(Spacing.l))
-            }
+            SportCircles(state.sports, state.selectedSport, actions.onSelectSport)
             Column(Modifier.padding(horizontal = Spacing.gutter).padding(bottom = Spacing.l)) {
                 Text(
                     listOf("This week", state.weekRange).filter { it.isNotEmpty() }.joinToString(" · "),
@@ -302,9 +317,11 @@ private fun LazyListScope.progressItems(state: MeUiState, actions: MeActions) {
     }
     state.bestEffortsTitle?.let { title ->
         item(key = "bests") {
+            var all by rememberSaveable { mutableStateOf(false) }
+            val more = state.bestEfforts.size > BEST_EFFORTS_SHOWN
             Section {
-                SectionTitle(title)
-                BestEffortsTable(state.bestEfforts, actions.onOpenActivity)
+                SectionTitle(title, action = if (more) (if (all) "Less" else "All") else null, onAction = { all = !all })
+                BestEffortsTable(if (all) state.bestEfforts else state.bestEfforts.take(BEST_EFFORTS_SHOWN), actions.onOpenActivity)
             }
         }
     }

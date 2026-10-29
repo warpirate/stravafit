@@ -66,6 +66,8 @@ data class BestEffortUi(
  */
 data class MeUiState(
     val isLoading: Boolean = true,
+    /** A recording is in progress: the empty state points to it rather than to a new one. */
+    val recordingInProgress: Boolean = false,
     val header: ProfileHeaderUi? = null,
     val tab: MeTab = MeTab.Progress,
     val hasAnyActivity: Boolean = false,
