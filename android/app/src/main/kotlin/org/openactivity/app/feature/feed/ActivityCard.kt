@@ -5,6 +5,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
+import org.openactivity.core.activityextras.ui.PhotoThumbnail
+import org.openactivity.core.designsystem.component.Badge
 import androidx.compose.material.icons.automirrored.outlined.Comment
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.ui.graphics.RectangleShape
@@ -100,16 +107,7 @@ fun ActivityCard(card: ActivityCardUi, actions: ActivityCardActions, modifier: M
             }
             Spacer(Modifier.height(Spacing.l))
         }
-        if (card.route != null) {
-            RouteMapThumbnail(
-                card.route,
-                contentDescription = "Route map of ${card.title}",
-                aspectRatio = MAP_ASPECT,
-                shape = RectangleShape,
-            )
-        } else {
-            SportTile(card.sport, Modifier.padding(horizontal = Spacing.cardPadding))
-        }
+        CardMedia(card)
         Column(Modifier.padding(horizontal = Spacing.cardPadding)) {
             Spacer(Modifier.height(Spacing.m))
             HighFiveCount(card.highFiveCount)
@@ -121,6 +119,82 @@ fun ActivityCard(card: ActivityCardUi, actions: ActivityCardActions, modifier: M
         )
     }
 }
+
+/**
+ * The card's media (home-feed 2.5, 2.6): the route map first, then the attached photos, as a
+ * swipeable carousel with page dots underneath. One page shows no dots; an activity without GPS
+ * or photos shows its sport tile instead of an empty map.
+ */
+@Composable
+private fun CardMedia(card: ActivityCardUi) {
+    val hasMap = card.route != null
+    val pageCount = (if (hasMap) 1 else 0) + card.photos.size
+    when {
+        pageCount == 0 -> SportTile(card.sport, Modifier.padding(horizontal = Spacing.cardPadding))
+        pageCount == 1 && hasMap -> MapPage(card)
+        else -> {
+            val pager = rememberPagerState { pageCount }
+            Column {
+                HorizontalPager(
+                    state = pager,
+                    modifier = Modifier.fillMaxWidth().aspectRatio(MAP_ASPECT),
+                    key = { page -> if (hasMap && page == 0) "map" else card.photos[if (hasMap) page - 1 else page].id },
+                ) { page ->
+                    if (hasMap && page == 0) {
+                        MapPage(card)
+                    } else {
+                        val index = if (hasMap) page - 1 else page
+                        PhotoThumbnail(
+                            photo = card.photos[index],
+                            contentDescription = "Photo ${index + 1} of ${card.photos.size} from ${card.title}",
+                            targetSize = PHOTO_TARGET,
+                            placeholder = RidgelineTheme.colors.surfaceSunken,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                }
+                if (pageCount > 1) PageDots(pageCount, pager.currentPage, Modifier.align(Alignment.CenterHorizontally))
+            }
+        }
+    }
+}
+
+@Composable
+private fun MapPage(card: ActivityCardUi) {
+    RouteMapThumbnail(
+        card.route.orEmpty(),
+        contentDescription = "Route map of ${card.title}",
+        aspectRatio = MAP_ASPECT,
+        shape = RectangleShape,
+        cacheId = "activity-${card.id}",
+    )
+}
+
+/** Carousel position: one dot per page, the current one filled in the text colour. */
+@Composable
+internal fun PageDots(count: Int, current: Int, modifier: Modifier = Modifier) {
+    Row(
+        modifier
+            .padding(top = Spacing.s)
+            .clearAndSetSemantics { contentDescription = "Page ${current + 1} of $count" },
+        horizontalArrangement = Arrangement.spacedBy(DOT_GAP),
+    ) {
+        repeat(count) { i ->
+            Box(
+                Modifier
+                    .size(DOT_SIZE)
+                    .background(
+                        if (i == current) MaterialTheme.colorScheme.onSurface else RidgelineTheme.colors.borderStrong,
+                        CircleShape,
+                    ),
+            )
+        }
+    }
+}
+
+private val DOT_SIZE = 6.dp
+private val DOT_GAP = 6.dp
+private val PHOTO_TARGET = 360.dp
 
 /** High-five, comment and share, evenly spaced, with no hairline above. */
 @Composable
@@ -150,7 +224,19 @@ private fun CardHeader(card: ActivityCardUi, actions: ActivityCardActions) {
         ProfileAvatar(card.athleteName, card.athletePhotoPath, size = 40.dp)
         Spacer(Modifier.width(Spacing.m))
         Column(Modifier.weight(1f)) {
-            Text(card.athleteName, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    card.athleteName,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (card.isNew) {
+                    Spacer(Modifier.width(Spacing.s))
+                    Badge("New")
+                }
+            }
             Spacer(Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(card.sport.icon, contentDescription = card.sport.label, modifier = Modifier.size(14.dp), tint = RidgelineTheme.colors.textMuted)

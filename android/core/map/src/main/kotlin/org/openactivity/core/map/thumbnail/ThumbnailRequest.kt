@@ -20,6 +20,9 @@ import java.security.MessageDigest
  * @property density pixels per dp, so line widths match the rest of the UI.
  * @property style base map under the route.
  * @property palette route colours.
+ * @property subjectId what the picture shows, e.g. `activity-42` or `route-7`, or null. It joins the
+ *   cache key, so each activity or route keeps its own files per theme and size; the route itself is
+ *   still part of the key, so editing or cropping the route re-renders it.
  */
 data class ThumbnailRequest(
     val points: List<LatLng>,
@@ -28,6 +31,7 @@ data class ThumbnailRequest(
     val density: Float,
     val style: MapStyleKind,
     val palette: MapPalette,
+    val subjectId: String? = null,
 ) {
     init {
         require(widthPx > 0 && heightPx > 0) { "thumbnail size must be positive: ${widthPx}x$heightPx" }
@@ -52,7 +56,7 @@ data class ThumbnailRequest(
     val cacheKey: String by lazy {
         val digest = MessageDigest.getInstance("SHA-256")
         val material = buildString {
-            append(KEY_VERSION).append('|').append(style.name).append('|')
+            append(KEY_VERSION).append('|').append(subjectId.orEmpty()).append('|').append(style.name).append('|')
             append(widthPx).append('x').append(heightPx).append('@').append(density).append('|')
             append(palette.hashCode()).append('|')
             append(PolylineCodec.encode(points))
@@ -67,7 +71,7 @@ data class ThumbnailRequest(
         /** Short routes are not zoomed in further than this. */
         const val MAX_ZOOM: Double = 16.0
 
-        private const val KEY_VERSION = 2
+        private const val KEY_VERSION = 3
     }
 }
 

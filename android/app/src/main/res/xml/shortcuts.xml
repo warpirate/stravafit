@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!--
+    Launcher long-press shortcuts (platform-extras): open the recorder with the sport preselected.
+    They go through the same link as everything else (openactivity://record?sport=...), handled by
+    the navigation graph. The target package differs between debug and release builds, so it comes
+    from a generated string (see build.gradle.kts).
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="record_run"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_run"
+        android:shortcutShortLabel="@string/shortcut_record_run_short"
+        android:shortcutLongLabel="@string/shortcut_record_run_long"
+        android:shortcutDisabledMessage="@string/shortcut_disabled">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="openactivity://record?sport=RUN"
+            android:targetClass="org.openactivity.app.MainActivity"
+            android:targetPackage="@string/shortcut_target_package" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="record_ride"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_ride"
+        android:shortcutShortLabel="@string/shortcut_record_ride_short"
+        android:shortcutLongLabel="@string/shortcut_record_ride_long"
+        android:shortcutDisabledMessage="@string/shortcut_disabled">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="openactivity://record?sport=RIDE"
+            android:targetClass="org.openactivity.app.MainActivity"
+            android:targetPackage="@string/shortcut_target_package" />
+    </shortcut>
+</shortcuts>

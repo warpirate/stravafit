@@ -3,4 +3,11 @@
 <resources>
     <!-- Placeholder public name (ADR-004). Renaming the app is a one-line change here. -->
     <string name="app_name">OpenActivity</string>
+
+    <!-- Launcher shortcuts (long-press the app icon). Short labels fit in about 10 characters. -->
+    <string name="shortcut_record_run_short">Record Run</string>
+    <string name="shortcut_record_run_long">Record a run</string>
+    <string name="shortcut_record_ride_short">Record Ride</string>
+    <string name="shortcut_record_ride_long">Record a ride</string>
+    <string name="shortcut_disabled">This shortcut is no longer available</string>
 </resources>

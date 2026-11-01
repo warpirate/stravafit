@@ -26,6 +26,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.openactivity.core.designsystem.component.ActivityCardSkeleton
 import org.openactivity.core.designsystem.component.Avatar
+import org.openactivity.core.designsystem.component.Badge
+import org.openactivity.core.designsystem.component.BadgeTone
 import org.openactivity.core.designsystem.component.AvatarSize
 import org.openactivity.core.designsystem.component.EmptyState
 import org.openactivity.core.designsystem.component.Facepile
@@ -98,6 +100,13 @@ private fun Gallery() {
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 RidgelineFilterChip("Following", selected = true, onClick = {})
                 RidgelineFilterChip("Run", selected = false, onClick = {}, leadingIcon = Icons.Rounded.DirectionsRun)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                Badge("New")
+                Badge("PR", tone = BadgeTone.Gold)
+                Badge("2nd", tone = BadgeTone.Silver)
+                Badge("3rd", tone = BadgeTone.Bronze)
+                Badge("Only you", tone = BadgeTone.Neutral)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 Avatar("Ana Ruiz", size = AvatarSize.l)

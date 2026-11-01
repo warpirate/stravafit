@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
+import androidx.navigation.NavDeepLink
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.compose.composable
@@ -21,18 +22,24 @@ import org.openactivity.feature.shareexport.ExportActivityProvider
 @Serializable
 data class ActivityDetailRoute(val activityId: Long)
 
-/** The "Import activity file" screen. */
+/**
+ * The "Import activity file" screen.
+ *
+ * @property uris content URIs of files shared to the app ("Open with", the share sheet), imported as
+ *   soon as the screen opens; empty when the user picks files on the screen.
+ */
 @Serializable
-data object ImportActivitiesRoute
+data class ImportActivitiesRoute(val uris: List<String> = emptyList())
 
 /** Opens the detail screen of [activityId]. */
 fun NavController.navigateToActivityDetail(activityId: Long, builder: NavOptionsBuilder.() -> Unit = { launchSingleTop = true }) {
     navigate(ActivityDetailRoute(activityId), builder)
 }
 
-/** Opens the import screen. */
-fun NavController.navigateToImportActivities() {
-    navigate(ImportActivitiesRoute) { launchSingleTop = true }
+/** Opens the import screen; [uris] are files shared to the app, imported right away. */
+fun NavController.navigateToImportActivities(uris: List<String> = emptyList()) {
+    // Shared files always get a fresh screen, so a second share is not swallowed by launchSingleTop.
+    navigate(ImportActivitiesRoute(uris)) { launchSingleTop = uris.isEmpty() }
 }
 
 /**
@@ -48,9 +55,9 @@ data class ActivityDetailNavigation(
     val onShare: (Long) -> Unit,
 )
 
-/** Adds the activity detail destination. */
-fun NavGraphBuilder.activityDetailScreen(navigation: ActivityDetailNavigation) {
-    composable<ActivityDetailRoute> {
+/** Adds the activity detail destination, reachable from [deepLinks] too. */
+fun NavGraphBuilder.activityDetailScreen(navigation: ActivityDetailNavigation, deepLinks: List<NavDeepLink> = emptyList()) {
+    composable<ActivityDetailRoute>(deepLinks = deepLinks) {
         ActivityDetailScreen(navigation = navigation)
     }
 }

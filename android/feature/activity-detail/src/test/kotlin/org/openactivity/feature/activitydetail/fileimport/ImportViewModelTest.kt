@@ -2,6 +2,7 @@
 package org.openactivity.feature.activitydetail.fileimport
 
 import android.net.Uri
+import androidx.lifecycle.SavedStateHandle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -63,6 +64,26 @@ class ImportViewModelTest : RepositoryBackedTest() {
         assertTrue(rows[0].activityId != null)
         assertTrue(rows[1].message!!.isNotBlank())
         assertEquals(1, activities.observeActivities().first().size)
+    }
+
+    @Test
+    fun `files shared to the app are imported once, as soon as the screen opens`(): Unit = runBlocking {
+        val shared = file("shared.gpx", Gpx.run()).toString()
+        val handle = SavedStateHandle(mapOf(ImportViewModel.ARG_URIS to arrayOf(shared)))
+        val vm = ImportViewModel(ActivityImporter.create(context), ActivityImportSaver(activities, settings), handle)
+        assertEquals(ImportStatus.IMPORTED, vm.finished().results.single().status)
+
+        // Recreated with the same arguments (rotation, process restore): no second import.
+        val again = ImportViewModel(ActivityImporter.create(context), ActivityImportSaver(activities, settings), handle)
+        assertEquals(ImportUiState(), again.uiState.value)
+        assertEquals(1, activities.observeActivities().first().size)
+    }
+
+    @Test
+    fun `shared uri arguments arrive as an array or a list`() {
+        assertEquals(listOf("content://a"), ImportViewModel.sharedUris(arrayOf("content://a", "")))
+        assertEquals(listOf("content://b"), ImportViewModel.sharedUris(listOf("content://b")))
+        assertTrue(ImportViewModel.sharedUris(null).isEmpty())
     }
 
     @Test

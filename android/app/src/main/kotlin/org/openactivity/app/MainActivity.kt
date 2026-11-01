@@ -26,7 +26,7 @@ import org.openactivity.core.designsystem.theme.RidgelineTheme
 
 /**
  * The single activity. Draws edge to edge, follows the in-app theme preference and shows first-run
- * onboarding until it is finished. Notification taps open the recorder or a saved activity
+ * onboarding until it is finished. Notification taps, shared files and links open their target
  * ([LaunchRequest]).
  */
 @AndroidEntryPoint
@@ -40,7 +40,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        if (savedInstanceState == null) launchRequest.value = LaunchRequest.consume(intent)
+        // Links on a fresh start are left to the navigation graph, which builds the back stack for them.
+        if (savedInstanceState == null) launchRequest.value = LaunchRequest.consume(intent, includeLinks = false)
         setContent {
             val pendingRequest by launchRequest.collectAsStateWithLifecycle()
             val preferences by viewModel.preferences.collectAsStateWithLifecycle()
@@ -76,6 +77,6 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        LaunchRequest.consume(intent)?.let { launchRequest.value = it }
+        LaunchRequest.consume(intent, includeLinks = true)?.let { launchRequest.value = it }
     }
 }

@@ -3,6 +3,8 @@ package org.openactivity.core.map.thumbnail
 
 import android.annotation.SuppressLint
 import android.content.Context
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -17,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
@@ -43,7 +46,12 @@ import org.openactivity.model.LatLng
  * A static route preview for list cards: a cached map snapshot when one exists or the device is
  * online, otherwise the offline drawing. Map snapshots carry a visible OSM credit.
  *
+ * The snapshot renders off the composition (see [RouteThumbnailLoader]); until it arrives the card
+ * shows the route on the plain background, then cross-fades to the map. Offline, the plain drawing
+ * stays and the map replaces it once the device is back online.
+ *
  * @param points the route; nothing but the background is drawn for fewer than two points.
+ * @param cacheId what the picture shows (`activity-42`), so each activity keeps its own cached map.
  * @param loader thumbnail loader; defaults to the app-wide Hilt instance.
  */
 @Composable
@@ -55,6 +63,7 @@ fun RouteMapThumbnail(
     style: MapStyleKind = MapStyleKind.default(isMapThemeDark()),
     loader: RouteThumbnailLoader? = rememberRouteThumbnailLoader(),
     shape: Shape = MaterialTheme.shapes.small,
+    cacheId: String? = null,
 ) {
     val palette = mapPalette()
     val density = LocalDensity.current.density
@@ -70,12 +79,12 @@ fun RouteMapThumbnail(
         val widthPx = constraints.maxWidth
         val heightPx = constraints.maxHeight
         if (widthPx <= 0 || heightPx <= 0 || points.size < 2) return@BoxWithConstraints
-        val request = remember(points, widthPx, heightPx, density, style, palette) {
-            ThumbnailRequest(points, widthPx, heightPx, density, style, palette)
+        val request = remember(points, widthPx, heightPx, density, style, palette, cacheId) {
+            ThumbnailRequest(points, widthPx, heightPx, density, style, palette, cacheId)
         }
         // Lint false positive: the producer does assign `value` (ProduceStateDoesNotAssignValue).
         @SuppressLint("ProduceStateDoesNotAssignValue")
-        val thumbnail by produceState<RouteThumbnail?>(null, request, loader) {
+        val thumbnail by produceState(remember(request, loader) { loader?.peek(request) }, request, loader) {
             if (inspection || loader == null) {
                 // Previews cannot reach Hilt or the native renderer: show the offline drawing.
                 value = OfflineRenderer.renderNow(request)?.let { RouteThumbnail(it, ThumbnailSource.Offline) }
@@ -84,33 +93,45 @@ fun RouteMapThumbnail(
                 loader.loadProgressively(request).collect { value = it }
             }
         }
-        thumbnail?.let { t ->
-            Image(
-                bitmap = remember(t) { t.bitmap.asImageBitmap() },
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-            if (t.source == ThumbnailSource.MapSnapshot) {
-                Box(Modifier.align(Alignment.BottomEnd).padding(2.dp)) {
-                    Text(
-                        // Short form of the style's credits; the topo tiles (CC-BY-SA) need their own.
-                        stringResource(if (style == MapStyleKind.Outdoor) R.string.map_thumbnail_osm_topo else R.string.map_thumbnail_osm),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = RidgelineTheme.colors.textSecondary,
-                        modifier = Modifier
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
-                            .padding(horizontal = 3.dp),
-                    )
+        Crossfade(thumbnail, label = "route thumbnail", animationSpec = tween(FADE_MS)) { t ->
+            if (t == null) return@Crossfade
+            Box(Modifier.fillMaxSize()) {
+                Image(
+                    bitmap = remember(t) { t.bitmap.asImageBitmap() },
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                if (t.source == ThumbnailSource.MapSnapshot) {
+                    Box(Modifier.align(Alignment.BottomEnd).padding(2.dp)) {
+                        Text(
+                            // Short form of the style's credits; the topo tiles (CC-BY-SA) need their own.
+                            stringResource(if (style == MapStyleKind.Outdoor) R.string.map_thumbnail_osm_topo else R.string.map_thumbnail_osm),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = RidgelineTheme.colors.textSecondary,
+                            modifier = Modifier
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
+                                .padding(horizontal = 3.dp),
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-/** The app-wide [RouteThumbnailLoader] from Hilt, or null outside a Hilt application. */
+private const val FADE_MS = 250
+
+/**
+ * Overrides the [RouteThumbnailLoader] of every [RouteMapThumbnail] below, e.g. for screenshot tests
+ * of the snapshot states. Null (the default) uses the app-wide Hilt instance.
+ */
+val LocalRouteThumbnailLoader = staticCompositionLocalOf<RouteThumbnailLoader?> { null }
+
+/** The provided [LocalRouteThumbnailLoader], else the app-wide one from Hilt, or null outside a Hilt application. */
 @Composable
 fun rememberRouteThumbnailLoader(): RouteThumbnailLoader? {
+    LocalRouteThumbnailLoader.current?.let { return it }
     val context = LocalContext.current
     return remember(context) { context.thumbnailLoaderOrNull() }
 }

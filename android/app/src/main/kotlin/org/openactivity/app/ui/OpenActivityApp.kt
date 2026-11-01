@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.ui
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
@@ -14,7 +15,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavDestination
@@ -24,6 +28,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navOptions
 import kotlinx.coroutines.launch
 import org.openactivity.app.LaunchRequest
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -32,14 +37,16 @@ import org.openactivity.app.navigation.ActiveRecordingBar
 import org.openactivity.app.navigation.AppBottomBar
 import org.openactivity.app.navigation.AppNavHost
 import org.openactivity.app.navigation.TopLevelDestination
+import org.openactivity.app.navigation.RouteDetailRoute
 import org.openactivity.feature.activitydetail.navigateToActivityDetail
+import org.openactivity.feature.activitydetail.navigateToImportActivities
 import org.openactivity.feature.record.navigation.navigateToRecord
 
 /**
  * App shell: one scaffold with the bottom bar and a snackbar host around the nav host.
  * The bottom bar shows only on tab roots; Record and Settings are full screen.
  *
- * @param launchRequest a pending request from a notification tap: open the recorder or an activity.
+ * @param launchRequest a pending request from a notification tap, a shared file or a link.
  * @param onLaunchRequestHandled called once [launchRequest] has been navigated to.
  */
 @Composable
@@ -58,14 +65,59 @@ fun OpenActivityApp(
             }
         }
     }
-    // The recording notifications ask for the recorder or for the activity just saved.
+    // Files another app opened with us or shared to us wait here until the user says what they are.
+    var sharedFiles by rememberSaveable { mutableStateOf<List<String>?>(null) }
+    val sharedFilesViewModel: SharedFilesViewModel = hiltViewModel()
+    // The recording notifications ask for the recorder or for the activity just saved; links name a screen.
     LaunchedEffect(launchRequest) {
         when (launchRequest) {
             null -> return@LaunchedEffect
             LaunchRequest.OpenRecorder -> navController.navigateToRecord()
             is LaunchRequest.OpenActivity -> navController.navigateToActivityDetail(launchRequest.id)
+            // Copied into the app first: the sharing app's grant may be gone by the time the user answers.
+            is LaunchRequest.ImportFiles -> sharedFilesViewModel.stage(launchRequest.uris)
+            is LaunchRequest.DeepLink -> try {
+                // A link or shortcut to the screen already on top (Record, say) does not stack a second copy.
+                navController.navigate(launchRequest.uri, navOptions { launchSingleTop = true })
+            } catch (e: IllegalArgumentException) {
+                messenger.show("That link does not lead anywhere in the app.")
+            }
         }
         onLaunchRequestHandled()
+    }
+    LaunchedEffect(sharedFilesViewModel) {
+        sharedFilesViewModel.staged.collect { staged ->
+            when {
+                staged.files.isNotEmpty() -> {
+                    sharedFiles = staged.files.map { it.toString() }
+                    if (staged.rejected > 0) messenger.show("Skipped ${staged.rejected} file(s) that are not GPX, TCX or FIT.")
+                }
+                else -> messenger.show("That is not a GPX, TCX or FIT file, so there is nothing to import.")
+            }
+        }
+    }
+    LaunchedEffect(sharedFilesViewModel) {
+        sharedFilesViewModel.routeResults.collect { result ->
+            when (result) {
+                is SharedRouteImportResult.Done -> {
+                    result.openRouteId?.let { navController.navigate(RouteDetailRoute(it)) { launchSingleTop = true } }
+                    messenger.show(result.message)
+                }
+            }
+        }
+    }
+    sharedFiles?.let { uris ->
+        SharedFilesDialog(
+            count = uris.size,
+            onChoose = { target ->
+                sharedFiles = null
+                when (target) {
+                    SharedFilesTarget.Activity -> navController.navigateToImportActivities(uris)
+                    SharedFilesTarget.Route -> sharedFilesViewModel.importRoutes(uris.map(Uri::parse))
+                }
+            },
+            onDismiss = { sharedFiles = null },
+        )
     }
     val recordingStatus: RecordingStatusViewModel = hiltViewModel()
     val active by recordingStatus.active.collectAsStateWithLifecycle()

@@ -17,10 +17,126 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize">
+            <!-- singleTask: shortcuts, links and shared files reach the running app (onNewIntent) instead of
+                 starting a second copy with its own recorder and import dialog. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Launcher long-press shortcuts: Record Run, Record Ride. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+
+            <!-- Links to screens: openactivity://activity/{id}, route/{id}, record (see AppLinks). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="openactivity" />
+                <data android:host="activity" />
+                <data android:host="route" />
+                <data android:host="record" />
+            </intent-filter>
+
+            <!-- The same as web links on our host (Gradle property openactivity.linkHost). Without one the host
+                 is under .invalid, which nobody can register, and nothing is verified. -->
+            <intent-filter android:autoVerify="${linkAutoVerify}">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="${linkHost}" />
+                <data android:pathPrefix="/activities/" />
+                <data android:pathPrefix="/routes/" />
+                <data android:path="/record" />
+            </intent-filter>
+
+            <!-- "Open with": activity files by their own MIME types (platform-extras F1). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/gpx+xml" />
+                <data android:mimeType="application/gpx" />
+                <data android:mimeType="application/vnd.garmin.tcx+xml" />
+                <data android:mimeType="application/vnd.ant.fit" />
+                <data android:mimeType="application/fit" />
+            </intent-filter>
+
+            <!--
+                "Open with" for providers that report a generic type: only names ending in .gpx, .tcx,
+                .fit or their .gz forms. Android's path patterns stop at the first dot, so the patterns
+                repeat for names with up to two more dots.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="application/gzip" />
+                <data android:mimeType="application/x-gzip" />
+                <data android:mimeType="application/xml" />
+                <data android:mimeType="text/xml" />
+                <data android:pathPattern=".*\\.gpx" />
+                <data android:pathPattern=".*\\..*\\.gpx" />
+                <data android:pathPattern=".*\\..*\\..*\\.gpx" />
+                <data android:pathPattern=".*\\.GPX" />
+                <data android:pathPattern=".*\\..*\\.GPX" />
+                <data android:pathPattern=".*\\..*\\..*\\.GPX" />
+                <data android:pathPattern=".*\\.tcx" />
+                <data android:pathPattern=".*\\..*\\.tcx" />
+                <data android:pathPattern=".*\\..*\\..*\\.tcx" />
+                <data android:pathPattern=".*\\.TCX" />
+                <data android:pathPattern=".*\\..*\\.TCX" />
+                <data android:pathPattern=".*\\..*\\..*\\.TCX" />
+                <data android:pathPattern=".*\\.fit" />
+                <data android:pathPattern=".*\\..*\\.fit" />
+                <data android:pathPattern=".*\\..*\\..*\\.fit" />
+                <data android:pathPattern=".*\\.FIT" />
+                <data android:pathPattern=".*\\..*\\.FIT" />
+                <data android:pathPattern=".*\\..*\\..*\\.FIT" />
+                <data android:pathPattern=".*\\.gpx\\.gz" />
+                <data android:pathPattern=".*\\..*\\.gpx\\.gz" />
+                <data android:pathPattern=".*\\..*\\..*\\.gpx\\.gz" />
+                <data android:pathPattern=".*\\.GPX\\.GZ" />
+                <data android:pathPattern=".*\\..*\\.GPX\\.GZ" />
+                <data android:pathPattern=".*\\..*\\..*\\.GPX\\.GZ" />
+                <data android:pathPattern=".*\\.tcx\\.gz" />
+                <data android:pathPattern=".*\\..*\\.tcx\\.gz" />
+                <data android:pathPattern=".*\\..*\\..*\\.tcx\\.gz" />
+                <data android:pathPattern=".*\\.TCX\\.GZ" />
+                <data android:pathPattern=".*\\..*\\.TCX\\.GZ" />
+                <data android:pathPattern=".*\\..*\\..*\\.TCX\\.GZ" />
+                <data android:pathPattern=".*\\.fit\\.gz" />
+                <data android:pathPattern=".*\\..*\\.fit\\.gz" />
+                <data android:pathPattern=".*\\..*\\..*\\.fit\\.gz" />
+                <data android:pathPattern=".*\\.FIT\\.GZ" />
+                <data android:pathPattern=".*\\..*\\.FIT\\.GZ" />
+                <data android:pathPattern=".*\\..*\\..*\\.FIT\\.GZ" />
+            </intent-filter>
+
+            <!-- Share sheet. Watches and other apps often send FIT files as octet-stream; the importer checks the content. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/gpx+xml" />
+                <data android:mimeType="application/gpx" />
+                <data android:mimeType="application/vnd.garmin.tcx+xml" />
+                <data android:mimeType="application/vnd.ant.fit" />
+                <data android:mimeType="application/fit" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="application/gzip" />
+                <data android:mimeType="application/x-gzip" />
+                <data android:mimeType="application/xml" />
+                <data android:mimeType="text/xml" />
             </intent-filter>
         </activity>
     </application>

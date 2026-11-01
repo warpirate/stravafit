@@ -3,6 +3,7 @@ package org.openactivity.feature.activitydetail.fileimport
 
 import android.net.Uri
 import androidx.compose.runtime.Immutable
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -67,6 +68,7 @@ sealed interface ImportEffect {
 class ImportViewModel @Inject constructor(
     private val importer: ActivityImporter,
     private val saver: ActivityImportSaver,
+    private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ImportUiState())
@@ -80,6 +82,16 @@ class ImportViewModel @Inject constructor(
     val effects: Flow<ImportEffect> = effectChannel.receiveAsFlow()
 
     private var job: Job? = null
+
+    init {
+        // Files shared to the app ("Open with", share sheet) arrive as navigation arguments: import
+        // them straight away, once, even if the screen is recreated.
+        val shared = sharedUris(savedStateHandle.get<Any>(ARG_URIS))
+        if (shared.isNotEmpty() && savedStateHandle.get<Boolean>(KEY_SHARED_STARTED) != true) {
+            savedStateHandle[KEY_SHARED_STARTED] = true
+            import(shared.map(Uri::parse))
+        }
+    }
 
     /** Imports [uris]; ignored while a batch is running or when nothing was picked. */
     fun import(uris: List<Uri>) {
@@ -111,5 +123,18 @@ class ImportViewModel @Inject constructor(
             val single = rows.singleOrNull()
             if (single?.activityId != null) effectChannel.send(ImportEffect.OpenActivity(single.activityId))
         }
+    }
+
+    companion object {
+        /** The name of [org.openactivity.feature.activitydetail.ImportActivitiesRoute.uris]. */
+        const val ARG_URIS = "uris"
+        private const val KEY_SHARED_STARTED = "shared_import_started"
+
+        /** The URI strings of a navigation argument, which arrives as a string array or a list. */
+        fun sharedUris(value: Any?): List<String> = when (value) {
+            is Array<*> -> value.filterIsInstance<String>()
+            is List<*> -> value.filterIsInstance<String>()
+            else -> emptyList()
+        }.filter { it.isNotBlank() }
     }
 }

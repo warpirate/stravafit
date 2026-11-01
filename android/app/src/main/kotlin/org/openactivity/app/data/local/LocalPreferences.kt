@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -42,6 +43,18 @@ class LocalPreferences @Inject constructor(private val dataStore: DataStore<Pref
         )
     }.distinctUntilChanged()
 
+    /**
+     * Home feed "seen" marker: activities with a database id above it have not been seen in the feed
+     * yet (ids only grow, so a late import of an old activity still counts as new). Null before the
+     * feed was ever shown.
+     */
+    val feedSeenThroughId: Flow<Long?> = data.map { it[Keys.FEED_SEEN_THROUGH] }.distinctUntilChanged()
+
+    /** Raises the feed "seen" marker to [id]; it never moves back. */
+    suspend fun markFeedSeenThrough(id: Long) {
+        dataStore.edit { prefs -> if ((prefs[Keys.FEED_SEEN_THROUGH] ?: Long.MIN_VALUE) < id) prefs[Keys.FEED_SEEN_THROUGH] = id }
+    }
+
     suspend fun setReduceMotion(enabled: Boolean) {
         dataStore.edit { it[Keys.REDUCE_MOTION] = enabled }
     }
@@ -69,5 +82,6 @@ class LocalPreferences @Inject constructor(private val dataStore: DataStore<Pref
         val NAME = stringPreferencesKey("profile_name")
         val LOCATION = stringPreferencesKey("profile_location")
         val PHOTO = stringPreferencesKey("profile_photo_path")
+        val FEED_SEEN_THROUGH = longPreferencesKey("feed_seen_through_id")
     }
 }

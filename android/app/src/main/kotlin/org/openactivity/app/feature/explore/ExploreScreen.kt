@@ -469,7 +469,13 @@ private fun RouteCard(route: RouteCardUi, isOnMap: Boolean, onClick: () -> Unit,
         modifier = Modifier.width(CARD_WIDTH).semantics { contentDescription = route.name },
     ) {
         Column {
-            RouteMapThumbnail(route.points, contentDescription = "Route shape of ${route.name}", aspectRatio = CARD_WIDTH / 88.dp, shape = RectangleShape)
+            RouteMapThumbnail(
+                route.points,
+                contentDescription = "Route shape of ${route.name}",
+                aspectRatio = CARD_WIDTH / 88.dp,
+                shape = RectangleShape,
+                cacheId = "route-${route.id}",
+            )
             Column(Modifier.padding(Spacing.m)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(route.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, modifier = Modifier.weight(1f))

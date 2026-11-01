@@ -286,3 +286,22 @@ fun routeDetail(
         routePoints,
     )
 }
+
+/** In-memory activity extras: photos per activity id, no files. */
+class FakeActivityExtrasRepository : org.openactivity.core.activityextras.ActivityExtrasRepository {
+    val state = MutableStateFlow<Map<Long, org.openactivity.core.activityextras.ActivityExtras>>(emptyMap())
+    override fun observe(activityId: Long): Flow<org.openactivity.core.activityextras.ActivityExtras> =
+        state.map { it[activityId] ?: org.openactivity.core.activityextras.ActivityExtras.NONE }
+    override suspend fun get(activityId: Long) = state.value[activityId] ?: org.openactivity.core.activityextras.ActivityExtras.NONE
+    override suspend fun setMuted(activityId: Long, muted: Boolean) = Unit
+    override suspend fun addPhotos(activityId: Long, uris: List<Uri>) = org.openactivity.core.activityextras.AddPhotosResult(0, 0, uris.size)
+    override suspend fun removePhoto(activityId: Long, photoId: String) = Unit
+    override suspend fun deleteAll(activityId: Long) = Unit
+}
+
+/** In-memory feed "seen" marker. */
+class FakeFeedSeenRepository(initial: Long? = null) : org.openactivity.app.data.FeedSeenRepository {
+    val state = MutableStateFlow(initial)
+    override val seenThroughId: Flow<Long?> = state
+    override suspend fun markSeenThrough(id: Long) = state.update { if ((it ?: Long.MIN_VALUE) < id) id else it }
+}

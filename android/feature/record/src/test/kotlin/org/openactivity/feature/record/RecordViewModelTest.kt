@@ -84,6 +84,26 @@ class RecordViewModelTest {
         assertNull(state.recording)
     }
 
+    @Test fun aShortcutPreselectsItsSportWithoutChangingTheDefault() = runTest(dispatcher) {
+        val vm = RecordViewModel(
+            controller, settings, routes, prefs, location, battery, speech, backgroundScope,
+            androidx.lifecycle.SavedStateHandle(mapOf(RecordViewModel.ARG_SPORT to "RUN")),
+        )
+        backgroundScope.launch(dispatcher) { vm.uiState.collect {} }
+        runCurrent()
+        assertEquals(SportType.RUN, vm.uiState.value.sport)
+        assertEquals("the saved default stays", SportType.RIDE, settings.state.value.defaultSport)
+    }
+
+    @Test fun sportArgumentsAcceptEnumAndApiNamesAndIgnoreTheRest() {
+        assertEquals(SportType.RIDE, RecordViewModel.sportArgument("RIDE"))
+        assertEquals(SportType.RUN, RecordViewModel.sportArgument("run"))
+        assertEquals(SportType.MOUNTAIN_BIKE_RIDE, RecordViewModel.sportArgument("MountainBikeRide"))
+        assertNull(RecordViewModel.sportArgument("Quidditch"))
+        assertNull(RecordViewModel.sportArgument(" "))
+        assertNull(RecordViewModel.sportArgument(null))
+    }
+
     @Test fun choosingASportPersistsItAsDefaultAndRecent() = runTest(dispatcher) {
         val vm = viewModel()
         vm.showSheet(RecordSheet.SportPicker)

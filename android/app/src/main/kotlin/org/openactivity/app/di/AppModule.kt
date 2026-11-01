@@ -12,6 +12,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import org.openactivity.app.data.FeedSeenRepository
+import org.openactivity.app.data.LocalFeedSeenRepository
 import org.openactivity.app.data.LocalOnboardingRepository
 import org.openactivity.app.data.LocalProfileRepository
 import org.openactivity.app.data.OnboardingRepository
@@ -53,6 +55,8 @@ abstract class DataModule {
     @Binds abstract fun routeExporter(impl: GpxRouteExporter): RouteExporter
 
     @Binds abstract fun archiveExporter(impl: GpxZipArchiveExporter): ActivityArchiveExporter
+
+    @Binds abstract fun feedSeenRepository(impl: LocalFeedSeenRepository): FeedSeenRepository
 
 }
 

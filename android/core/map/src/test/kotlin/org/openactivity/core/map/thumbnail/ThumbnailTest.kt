@@ -5,6 +5,8 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -27,6 +29,7 @@ import org.robolectric.annotation.GraphicsMode
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [34])
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class ThumbnailTest {
     @get:Rule
     val temp = TemporaryFolder()
@@ -54,6 +57,13 @@ class ThumbnailTest {
         assertNotEquals(request().cacheKey, request(style = MapStyleKind.Dark).cacheKey)
         assertNotEquals(request().cacheKey, request(points = route.reversed()).cacheKey)
         assertNotEquals(request().cacheKey, request().copy(palette = palette.copy(activityRoute = Color.RED)).cacheKey)
+        // One cached map per activity (and per theme, through the style).
+        assertNotEquals(request().copy(subjectId = "activity-1").cacheKey, request().copy(subjectId = "activity-2").cacheKey)
+        assertNotEquals(request().cacheKey, request().copy(subjectId = "activity-1").cacheKey)
+        assertNotEquals(
+            request().copy(subjectId = "activity-1").cacheKey,
+            request(style = MapStyleKind.Dark).copy(subjectId = "activity-1").cacheKey,
+        )
     }
 
     @Test
@@ -185,9 +195,66 @@ class ThumbnailTest {
         val second = loader.loadProgressively(request()).toList()
         assertEquals(listOf(ThumbnailSource.MapSnapshot), second.map { it.source })
 
-        val offline = RouteThumbnailLoader(MemoryCache(), { error("not called offline") }, { fallbackBitmap }, { false })
-        assertEquals(listOf(ThumbnailSource.Offline), offline.loadProgressively(request()).toList().map { it.source })
         assertTrue(loader.loadProgressively(request(points = route.take(1))).toList().isEmpty())
+    }
+
+    @Test
+    fun offlineCardKeepsThePlainDrawingAndGetsTheMapWhenBackOnline() = runTest {
+        val snapshotBitmap = solid(300, 150, Color.BLUE)
+        val fallbackBitmap = solid(300, 150, Color.GRAY)
+        var online = false
+        var snapshots = 0
+        val loader = RouteThumbnailLoader(MemoryCache(), { snapshots++; snapshotBitmap }, { fallbackBitmap }, { online })
+        val seen = mutableListOf<ThumbnailSource>()
+        val job = launch { loader.loadProgressively(request()).collect { seen += it.source } }
+        advanceTimeBy(60_000)
+        assertEquals(listOf(ThumbnailSource.Offline), seen)
+        assertEquals("no snapshot while offline", 0, snapshots)
+        online = true
+        advanceTimeBy(NetworkMonitor.OFFLINE_POLL_MS + 1)
+        job.join()
+        assertEquals(listOf(ThumbnailSource.Offline, ThumbnailSource.MapSnapshot), seen)
+    }
+
+    @Test
+    fun failedSnapshotIsRetried() = runTest {
+        val snapshotBitmap = solid(300, 150, Color.BLUE)
+        var calls = 0
+        val loader = RouteThumbnailLoader(
+            MemoryCache(),
+            { calls++; if (calls < 3) null else snapshotBitmap },
+            { solid(300, 150, Color.GRAY) },
+            { true },
+            retryDelaysMs = listOf(1_000, 1_000, 1_000),
+        )
+        val sources = loader.loadProgressively(request()).toList().map { it.source }
+        assertEquals(listOf(ThumbnailSource.Offline, ThumbnailSource.MapSnapshot), sources)
+        assertEquals(3, calls)
+    }
+
+    @Test
+    fun snapshotFinishesInTheLoaderScopeAfterTheCardLeaves() = runTest {
+        val snapshotBitmap = solid(300, 150, Color.BLUE)
+        val cache = MemoryCache()
+        var renders = 0
+        val loader = RouteThumbnailLoader(
+            cache,
+            { renders++; delay(5_000); snapshotBitmap },
+            { solid(300, 150, Color.GRAY) },
+            { true },
+            scope = backgroundScope,
+            memory = ThumbnailMemoryCache(10 * 1024 * 1024),
+        )
+        // Two cards ask for the same picture; one scrolls away mid-render.
+        val first = launch { loader.loadProgressively(request()).collect {} }
+        val second = launch { loader.loadProgressively(request()).collect {} }
+        advanceTimeBy(1_000)
+        first.cancel()
+        second.join()
+        assertEquals("one shared render", 1, renders)
+        assertSame(snapshotBitmap, cache.map[request().cacheKey])
+        // Scrolled back into view: the memory copy is there synchronously, so no placeholder flash.
+        assertEquals(ThumbnailSource.MapSnapshot, loader.peek(request())?.source)
     }
 
     private class MemoryCache : ThumbnailCache {

@@ -45,7 +45,7 @@ fun ActivityRow(row: ActivityRowUi, onClick: () -> Unit, modifier: Modifier = Mo
     ) {
         Box(Modifier.width(ThumbWidth)) {
             if (row.route != null) {
-                RouteMapThumbnail(row.route, contentDescription = "Route of ${row.title}", aspectRatio = THUMB_RATIO)
+                RouteMapThumbnail(row.route, contentDescription = "Route of ${row.title}", aspectRatio = THUMB_RATIO, cacheId = "activity-${row.id}")
             } else {
                 SportTile(row.sport, aspectRatio = THUMB_RATIO, showLabel = false, iconSize = 24.dp)
             }

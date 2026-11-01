@@ -83,7 +83,13 @@ class RecordViewModel @Inject constructor(
         val batteryExempt: Boolean = true,
     )
 
-    private val local = MutableStateFlow(Local(chosenRouteId = savedStateHandle.get<Long>(ARG_ROUTE_ID)))
+    private val local = MutableStateFlow(
+        Local(
+            chosenRouteId = savedStateHandle.get<Long>(ARG_ROUTE_ID),
+            // A shortcut or link may preselect the sport for this session only; the saved default stays.
+            chosenSport = sportArgument(savedStateHandle.get<String>(ARG_SPORT)),
+        ),
+    )
     private val eventChannel = Channel<RecordEvent>(Channel.BUFFERED)
     private var countdownJob: Job? = null
     private var discardJob: Job? = null
@@ -499,6 +505,15 @@ class RecordViewModel @Inject constructor(
     internal companion object {
         /** Saved route preselected by "Record this route"; the name of [navigation.RecordDestination.routeId]. */
         const val ARG_ROUTE_ID = "routeId"
+
+        /** Sport preselected by a launcher shortcut or link; the name of [navigation.RecordDestination.sport]. */
+        const val ARG_SPORT = "sport"
+
+        /** The sport named [value] (`RUN`, `run`, `Ride`...), or null when it names none. */
+        fun sportArgument(value: String?): SportType? {
+            val name = value?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+            return SportType.entries.firstOrNull { it.name.equals(name, ignoreCase = true) || it.apiName.equals(name, ignoreCase = true) }
+        }
         /** Record checklist 2.5: hint after 20 s without a fix. */
         const val SLOW_FIX_HINT_MS = 20_000L
         const val COUNTDOWN_SECONDS = 3

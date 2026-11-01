@@ -41,7 +41,7 @@ import org.openactivity.feature.shareexport.shareExportScreen
  * The app navigation graph. Every destination is registered exactly once: the four tabs (feed,
  * explore, groups, me), record, settings, save/edit, activity detail, share & export, route detail,
  * file import, edit profile and licences. First-run onboarding is shown by `MainActivity` before
- * this graph exists.
+ * this graph exists. Activity, route and recorder destinations also answer the [AppLinks].
  */
 @Composable
 fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) {
@@ -86,6 +86,7 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
                 }
             },
             durationMillis = motion.enter(motion.long),
+            deepLinks = AppLinks.record(),
         )
         composable<SettingsRoute> {
             SettingsScreen(
@@ -101,7 +102,7 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
         composable<LicensesRoute> {
             LicensesScreen(onNavigateUp = dropUnlessResumed { navController.popBackStack() })
         }
-        composable<RouteDetailRoute> {
+        composable<RouteDetailRoute>(deepLinks = AppLinks.route()) {
             RouteDetailScreen(
                 onNavigateUp = dropUnlessResumed { navController.popBackStack() },
                 onRecordRoute = { routeId -> navController.openRecorder(routeId) },
@@ -113,6 +114,7 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
                 onEdit = { id -> navController.navigateToEditActivity(id) },
                 onShare = { id -> navController.navigateToShareExport(id.toString()) },
             ),
+            deepLinks = AppLinks.activity(),
         )
         saveEditScreen(
             SaveEditNavigation(

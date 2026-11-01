@@ -198,7 +198,14 @@ private fun Tab(selected: TopLevelDestination, content: @Composable () -> Unit) 
 
 @Composable
 private fun Feed() {
-    val vm = remember { FeedViewModel(sampleActivities(), profile, FakePreferencesRepository(), testTimeFormatter()) }
+    val vm = remember { FeedViewModel(
+            sampleActivities(),
+            profile,
+            FakePreferencesRepository(),
+            testTimeFormatter(),
+            org.openactivity.app.testing.FakeActivityExtrasRepository(),
+            org.openactivity.app.testing.FakeFeedSeenRepository(initial = Long.MAX_VALUE),
+        ) }
     val state by vm.uiState.collectAsState()
     FeedContent(state, FeedActions())
 }

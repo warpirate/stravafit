@@ -16,6 +16,10 @@ import org.openactivity.core.map.thumbnail.ConnectivityNetworkMonitor
 import org.openactivity.core.map.thumbnail.DiskThumbnailCache
 import org.openactivity.core.map.thumbnail.RouteThumbnailLoader
 import org.openactivity.core.map.thumbnail.SnapshotThumbnailRenderer
+import org.openactivity.core.map.thumbnail.ThumbnailMemoryCache
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import java.io.File
 import javax.inject.Singleton
 
@@ -44,6 +48,9 @@ object MapModule {
         snapshot = SnapshotThumbnailRenderer(context, styles),
         fallback = CanvasThumbnailRenderer(),
         network = ConnectivityNetworkMonitor(context),
+        // App-lifetime: a snapshot keeps rendering after its card scrolls away, then lands in the cache.
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+        memory = ThumbnailMemoryCache.forRuntime(),
     )
 
     private const val THUMBNAIL_DIR = "route-thumbnails"

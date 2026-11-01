@@ -27,7 +27,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.CloudOff
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.material.icons.rounded.DynamicFeed
 import androidx.compose.material.icons.rounded.FilterAltOff
 import androidx.compose.material3.AlertDialog
@@ -80,6 +86,8 @@ fun FeedScreen(
     val recording by recordingStatus.active.collectAsStateWithLifecycle()
     val state = feed.copy(recordingInProgress = recording != null)
     val messenger = LocalMessenger.current
+    // Leaving the feed (another tab, an activity, the home screen) counts as having seen it all.
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.markAllSeen() }
     LaunchedEffect(state.message) {
         state.message?.let {
             messenger.show(it)
@@ -155,20 +163,25 @@ fun FeedContent(state: FeedUiState, actions: FeedActions, modifier: Modifier = M
                 when {
                     state.isLoading -> items(SKELETON_COUNT) { ActivityCardSkeleton(Modifier.background(MaterialTheme.colorScheme.surface)) }
                     state.isEmpty -> item(key = "empty") { FeedEmpty(state, actions) }
-                    else -> items(state.cards, key = { it.id }) { card ->
-                        ActivityCard(
-                            card,
-                            ActivityCardActions(
-                                onOpen = actions.onOpenActivity,
-                                onDelete = { pendingDelete = it },
-                                onShare = actions.onShareActivity,
-                                onHighFive = { actions.onNotAvailable(OWN_HIGH_FIVE) },
-                            ),
-                        )
+                    else -> state.cards.forEachIndexed { index, card ->
+                        if (state.showCaughtUpDivider && index == state.unseenCount) {
+                            item(key = "caught-up") { CaughtUpDivider() }
+                        }
+                        item(key = card.id) {
+                            ActivityCard(
+                                card,
+                                ActivityCardActions(
+                                    onOpen = actions.onOpenActivity,
+                                    onDelete = { pendingDelete = it },
+                                    onShare = actions.onShareActivity,
+                                    onHighFive = { actions.onNotAvailable(OWN_HIGH_FIVE) },
+                                ),
+                            )
+                        }
                     }
                 }
                 if (!state.isLoading && !state.isEmpty) {
-                    item(key = "follow") { FollowSuggestion(actions) }
+                    item(key = "follow") { FollowSuggestion(actions, caughtUpShownAbove = state.showCaughtUpDivider) }
                 }
             }
         }
@@ -280,11 +293,44 @@ private fun NotificationsAction(unread: Boolean, onClick: () -> Unit) {
 }
 
 /**
- * Closes the feed under the cards instead of leaving a bare grey block: following other athletes needs a
- * server account, said once, honestly.
+ * "You're all caught up" between the unseen and the seen cards (home-feed 1.3): a check in a ring and
+ * the line, centred between two hairlines, on the card surface.
  */
 @Composable
-private fun FollowSuggestion(actions: FeedActions) {
+internal fun CaughtUpDivider(modifier: Modifier = Modifier) {
+    Column(
+        modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = Spacing.cardPadding, vertical = Spacing.l)
+            .semantics(mergeDescendants = true) { heading() },
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            HorizontalDivider(Modifier.weight(1f), color = RidgelineTheme.colors.hairline)
+            Icon(
+                Icons.Rounded.CheckCircle,
+                contentDescription = null,
+                tint = RidgelineTheme.colors.accent,
+                modifier = Modifier.padding(horizontal = Spacing.m).size(28.dp),
+            )
+            HorizontalDivider(Modifier.weight(1f), color = RidgelineTheme.colors.hairline)
+        }
+        Spacer(Modifier.height(Spacing.s))
+        Text(CAUGHT_UP, style = MaterialTheme.typography.titleSmall)
+        Spacer(Modifier.height(2.dp))
+        Text("You've seen all new activities", style = MaterialTheme.typography.bodySmall, color = RidgelineTheme.colors.textSecondary)
+    }
+}
+
+private const val CAUGHT_UP = "You're all caught up"
+
+/**
+ * Closes the feed under the cards instead of leaving a bare grey block: following other athletes needs a
+ * server account, said once, honestly. With the caught-up divider already above, it does not repeat it.
+ */
+@Composable
+private fun FollowSuggestion(actions: FeedActions, caughtUpShownAbove: Boolean = false) {
     Column(
         Modifier
             .fillMaxWidth()
@@ -294,7 +340,7 @@ private fun FollowSuggestion(actions: FeedActions) {
     ) {
         Icon(Icons.Rounded.CloudOff, contentDescription = null, tint = RidgelineTheme.colors.textMuted, modifier = Modifier.size(32.dp))
         Spacer(Modifier.height(Spacing.s))
-        Text("You're all caught up", style = MaterialTheme.typography.titleMedium)
+        Text(if (caughtUpShownAbove) "That's everything for now" else CAUGHT_UP, style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(Spacing.xs))
         Text(
             "Activities from athletes you follow appear here too once following is available. It needs a server account.",

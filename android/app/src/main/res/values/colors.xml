@@ -3,4 +3,6 @@
 <resources>
     <color name="canvas">#FFF1F4F5</color>
     <color name="launcher_background">#FF0B6A75</color>
+    <!-- Launcher shortcut discs: the app accent behind a white glyph. -->
+    <color name="shortcut_background">#FFFC5200</color>
 </resources>

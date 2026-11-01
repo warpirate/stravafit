@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- "Record Run" launcher shortcut: the run glyph on the accent disc. Original artwork. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/shortcut_background" />
+    <foreground android:drawable="@drawable/ic_shortcut_run_glyph" />
+</adaptive-icon>

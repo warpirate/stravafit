@@ -22,6 +22,16 @@ android {
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
+
+        // Web link host for App Links (openactivity.linkHost). Until the project owns a domain the host is
+        // under the reserved .invalid TLD, so no one else can claim our links, and App Links are not verified.
+        val configuredHost = providers.gradleProperty("openactivity.linkHost").orNull
+        val linkHost = configuredHost ?: "links.openactivity.invalid"
+        manifestPlaceholders["linkHost"] = linkHost
+        manifestPlaceholders["linkAutoVerify"] = (configuredHost != null).toString()
+        buildConfigField("String", "LINK_HOST", "\"$linkHost\"")
+        // Launcher shortcuts name their target package; the debug build has its own id (see below).
+        resValue("string", "shortcut_target_package", "org.openactivity.app")
     }
 
     // ADR-011: Play build and a de-Googled F-Droid build. Google-only dependencies go in gmsImplementation.
@@ -39,6 +49,7 @@ android {
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
+            resValue("string", "shortcut_target_package", "org.openactivity.app.debug")
         }
         release {
             isMinifyEnabled = true
