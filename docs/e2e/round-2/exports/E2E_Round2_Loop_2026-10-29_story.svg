@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
+<title>E2E Round2 Loop</title>
+<defs>
+<filter id="shadow1" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="6" flood-color="#000000" flood-opacity="0.45"/></filter>
+<filter id="glow2" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="16.5"/></filter>
+</defs>
+<text x="90" y="200" font-family="Inter, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="56" font-weight="700" fill="#FFFFFF" text-anchor="start" letter-spacing="-1" filter="url(#shadow1)" style="font-variant-numeric: tabular-nums">E2E Round2 Loop</text>
+<text x="90" y="256" font-family="Inter, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="24" font-weight="600" fill="#FFFFFF" text-anchor="start" letter-spacing="4" opacity="0.85" filter="url(#shadow1)" style="font-variant-numeric: tabular-nums">THU 29 OCT 2026  ·  RUN</text>
+<g fill="none" stroke-linecap="round" stroke-linejoin="round">
+<g filter="url(#glow2)" opacity="0.75">
+<path d="M110 1219.99 C252.57 1219.99 822.22 1220.49 965.4 1219.99" stroke="#38BDF8" stroke-width="24.2"/>
+<path d="M965.4 1219.99 C966.99 1219.98 968.31 1218.3 969.08 1216.96" stroke="#8E8BF8" stroke-width="24.2"/>
+<path d="M969.08 1216.96 C969.84 1215.63 970.1 1213.66 970 1211.97" stroke="#9D89F8" stroke-width="24.2"/>
+<path d="M970 1211.97 C969.7 1206.68 967.77 1191.85 967.29 1185.2" stroke="#A488F8" stroke-width="24.2"/>
+<path d="M967.29 1185.2 C966.97 1180.82 967.12 1176.43 967.12 1172.04" stroke="#A289F8" stroke-width="24.2"/>
+<path d="M967.12 1172.04 C967.11 1035.14 967.68 498.95 967.24 363.76" stroke="#DD7CF9" stroke-width="24.2"/>
+<path d="M967.24 363.76 C967.24 362.45 965.7 361.49 964.53 360.91" stroke="#F377B8" stroke-width="24.2"/>
+<path d="M964.53 360.91 C963.27 360.29 961.33 359.91 959.69 360.01" stroke="#F476AF" stroke-width="24.2"/>
+<path d="M959.69 360.01 C955.33 360.28 945.14 362 938.34 362.52" stroke="#F178BF" stroke-width="24.2"/>
+<path d="M938.34 362.52 C931.88 363.01 925.39 363.11 918.91 363.12" stroke="#EB79E6" stroke-width="24.2"/>
+<path d="M918.91 363.12 C829.94 363.19 490.23 363 404.5 362.98" stroke="#EB79E8" stroke-width="24.2"/>
+</g>
+<path d="M110 1219.99 C252.57 1219.99 822.22 1220.49 965.4 1219.99" stroke="#38BDF8" stroke-width="11"/>
+<path d="M965.4 1219.99 C966.99 1219.98 968.31 1218.3 969.08 1216.96" stroke="#8E8BF8" stroke-width="11"/>
+<path d="M969.08 1216.96 C969.84 1215.63 970.1 1213.66 970 1211.97" stroke="#9D89F8" stroke-width="11"/>
+<path d="M970 1211.97 C969.7 1206.68 967.77 1191.85 967.29 1185.2" stroke="#A488F8" stroke-width="11"/>
+<path d="M967.29 1185.2 C966.97 1180.82 967.12 1176.43 967.12 1172.04" stroke="#A289F8" stroke-width="11"/>
+<path d="M967.12 1172.04 C967.11 1035.14 967.68 498.95 967.24 363.76" stroke="#DD7CF9" stroke-width="11"/>
+<path d="M967.24 363.76 C967.24 362.45 965.7 361.49 964.53 360.91" stroke="#F377B8" stroke-width="11"/>
+<path d="M964.53 360.91 C963.27 360.29 961.33 359.91 959.69 360.01" stroke="#F476AF" stroke-width="11"/>
+<path d="M959.69 360.01 C955.33 360.28 945.14 362 938.34 362.52" stroke="#F178BF" stroke-width="11"/>
+<path d="M938.34 362.52 C931.88 363.01 925.39 363.11 918.91 363.12" stroke="#EB79E6" stroke-width="11"/>
+<path d="M918.91 363.12 C829.94 363.19 490.23 363 404.5 362.98" stroke="#EB79E8" stroke-width="11"/>
+</g>
+<circle cx="404.5" cy="362.98" r="24.2" fill="none" stroke="#EE79D6" stroke-width="3.3" opacity="0.45"/>
+<circle cx="404.5" cy="362.98" r="12.1" fill="#EE79D6"/>
+<circle cx="110" cy="1219.99" r="13.2" fill="none" stroke="#2DD4BF" stroke-width="6.05"/>
+<text x="90" y="1400" font-family="Inter, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="26" font-weight="600" fill="#FFFFFF" text-anchor="start" letter-spacing="4" opacity="0.85" filter="url(#shadow1)" style="font-variant-numeric: tabular-nums">DISTANCE</text>
+<text x="90" y="1496" font-family="Inter, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="92" font-weight="700" fill="#FFFFFF" letter-spacing="-1" style="font-variant-numeric: tabular-nums" filter="url(#shadow1)">1.29<tspan font-size="36.8" font-weight="500" fill="#FFFFFF" dx="9.2">km</tspan></text>
+<text x="570" y="1400" font-family="Inter, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="26" font-weight="600" fill="#FFFFFF" text-anchor="start" letter-spacing="4" opacity="0.85" filter="url(#shadow1)" style="font-variant-numeric: tabular-nums">TIME</text>
+<text x="570" y="1496" font-family="Inter, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="92" font-weight="700" fill="#FFFFFF" letter-spacing="-1" style="font-variant-numeric: tabular-nums" filter="url(#shadow1)">7:26</text>
+<text x="90" y="1600" font-family="Inter, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="26" font-weight="600" fill="#FFFFFF" text-anchor="start" letter-spacing="4" opacity="0.85" filter="url(#shadow1)" style="font-variant-numeric: tabular-nums">PACE</text>
+<text x="90" y="1696" font-family="Inter, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="92" font-weight="700" fill="#FFFFFF" letter-spacing="-1" style="font-variant-numeric: tabular-nums" filter="url(#shadow1)">5:47<tspan font-size="36.8" font-weight="500" fill="#FFFFFF" dx="9.2">/km</tspan></text>
+<text x="570" y="1600" font-family="Inter, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="26" font-weight="600" fill="#FFFFFF" text-anchor="start" letter-spacing="4" opacity="0.85" filter="url(#shadow1)" style="font-variant-numeric: tabular-nums">ELEV GAIN</text>
+<text x="570" y="1696" font-family="Inter, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="92" font-weight="700" fill="#FFFFFF" letter-spacing="-1" style="font-variant-numeric: tabular-nums" filter="url(#shadow1)">19<tspan font-size="36.8" font-weight="500" fill="#FFFFFF" dx="9.2">m</tspan></text>
+</svg>

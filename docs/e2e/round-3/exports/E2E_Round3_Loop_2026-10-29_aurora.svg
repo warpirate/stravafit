@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<title>E2E Round3 Loop</title>
+<defs>
+<filter id="glow1" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="13.5"/></filter>
+</defs>
+<g fill="none" stroke-linecap="round" stroke-linejoin="round">
+<g filter="url(#glow1)" opacity="0.75">
+<path d="M132.04 950 C243.99 950 750.09 954.42 803.72 950" stroke="#2DD4BF" stroke-width="19.8"/>
+<path d="M803.72 950 C857.35 945.58 950.4 882.55 950.4 882.55" stroke="#2DD4BF" stroke-width="19.8"/>
+<path d="M950.4 882.55 C950.4 882.55 950.41 140.33 950.4 138.19" stroke="#35C1EF" stroke-width="19.8"/>
+<path d="M950.4 138.19 C950.39 136.05 948.58 133.78 947.34 132.55" stroke="#6EA0F8" stroke-width="19.8"/>
+<path d="M947.34 132.55 C946.1 131.32 944.25 130.83 942.55 130.41" stroke="#69A4F8" stroke-width="19.8"/>
+<path d="M942.55 130.41 C940.86 129.98 938.94 129.92 937.13 130" stroke="#6CA2F8" stroke-width="19.8"/>
+<path d="M937.13 130 C935.33 130.09 929.63 131.02 925.86 131.22" stroke="#918BF8" stroke-width="19.8"/>
+<path d="M925.86 131.22 C922.08 131.42 908.9 131.94 900.41 131.95" stroke="#D080F9" stroke-width="19.8"/>
+<path d="M900.41 131.95 C891.93 131.95 134.86 131.86 133 131.87" stroke="#BE84F9" stroke-width="19.8"/>
+<path d="M133 131.87 C131.15 131.88 129.64 134.43 129.6 136.29" stroke="#B486F9" stroke-width="19.8"/>
+<path d="M129.6 136.29 C129.56 138.15 131.8 160.92 132.09 173.27" stroke="#ED79D8" stroke-width="19.8"/>
+<path d="M132.09 173.27 C132.38 185.62 132.05 230.14 132.04 241.52" stroke="#FA7289" stroke-width="19.8"/>
+</g>
+<path d="M132.04 950 C243.99 950 750.09 954.42 803.72 950" stroke="#2DD4BF" stroke-width="9"/>
+<path d="M803.72 950 C857.35 945.58 950.4 882.55 950.4 882.55" stroke="#2DD4BF" stroke-width="9"/>
+<path d="M950.4 882.55 C950.4 882.55 950.41 140.33 950.4 138.19" stroke="#35C1EF" stroke-width="9"/>
+<path d="M950.4 138.19 C950.39 136.05 948.58 133.78 947.34 132.55" stroke="#6EA0F8" stroke-width="9"/>
+<path d="M947.34 132.55 C946.1 131.32 944.25 130.83 942.55 130.41" stroke="#69A4F8" stroke-width="9"/>
+<path d="M942.55 130.41 C940.86 129.98 938.94 129.92 937.13 130" stroke="#6CA2F8" stroke-width="9"/>
+<path d="M937.13 130 C935.33 130.09 929.63 131.02 925.86 131.22" stroke="#918BF8" stroke-width="9"/>
+<path d="M925.86 131.22 C922.08 131.42 908.9 131.94 900.41 131.95" stroke="#D080F9" stroke-width="9"/>
+<path d="M900.41 131.95 C891.93 131.95 134.86 131.86 133 131.87" stroke="#BE84F9" stroke-width="9"/>
+<path d="M133 131.87 C131.15 131.88 129.64 134.43 129.6 136.29" stroke="#B486F9" stroke-width="9"/>
+<path d="M129.6 136.29 C129.56 138.15 131.8 160.92 132.09 173.27" stroke="#ED79D8" stroke-width="9"/>
+<path d="M132.09 173.27 C132.38 185.62 132.05 230.14 132.04 241.52" stroke="#FA7289" stroke-width="9"/>
+</g>
+<circle cx="132.04" cy="241.52" r="19.8" fill="none" stroke="#FB7185" stroke-width="2.7" opacity="0.45"/>
+<circle cx="132.04" cy="241.52" r="9.9" fill="#FB7185"/>
+<circle cx="132.04" cy="950" r="10.8" fill="none" stroke="#2DD4BF" stroke-width="4.95"/>
+</svg>
