@@ -2,7 +2,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <resources>
     <!-- Placeholder public name (ADR-004). Renaming the app is a one-line change here. -->
-    <string name="app_name">OpenActivity</string>
+    <string name="app_name">StravaFit</string>
 
     <!-- Android notification channels for on-device events (one per category, notifications-search A1). -->
     <string name="channel_achievements_name">Personal records</string>

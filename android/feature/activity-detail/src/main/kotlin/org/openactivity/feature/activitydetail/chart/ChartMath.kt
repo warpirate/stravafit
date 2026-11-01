@@ -3,7 +3,9 @@ package org.openactivity.feature.activitydetail.chart
 
 import androidx.compose.runtime.Immutable
 import org.openactivity.core.data.model.ActivityPoint
+import org.openactivity.metrics.GradeAdjustedPace
 import org.openactivity.metrics.MovingTimeRule
+import org.openactivity.metrics.RunningCost
 import org.openactivity.model.LatLng
 import org.openactivity.model.SportType
 import kotlin.math.abs
@@ -23,6 +25,15 @@ enum class ChartMetric {
 
     /** Heart rate in bpm. */
     HEART_RATE,
+
+    /** Cadence in steps (foot) or revolutions (bike) per minute. */
+    CADENCE,
+
+    /** Power in watts. */
+    POWER,
+
+    /** Grade-adjusted speed in m/s (runs with elevation); drawn as a second line on the pace chart. */
+    GRADE_ADJUSTED_SPEED,
 }
 
 /** Whether the shared x axis is distance (metres) or time since the start (seconds). */
@@ -42,8 +53,16 @@ class ChartSeries(
     val max: Double,
     val average: Double?,
 ) {
-    /** True when at least two values can be drawn. */
-    val isDrawable: Boolean get() = values.count { it.isFinite() } >= 2 && max.isFinite()
+    /**
+     * True when at least two values can be drawn. A cadence or power stream that only ever read 0 (a sensor
+     * that sent nothing real) is not a chart: it would show a flat line labelled "Avg 0".
+     */
+    val isDrawable: Boolean get() = values.count { it.isFinite() } >= 2 && max.isFinite() &&
+        !(metric in ZERO_MEANS_NO_DATA && max <= 0.0)
+
+    private companion object {
+        val ZERO_MEANS_NO_DATA = setOf(ChartMetric.CADENCE, ChartMetric.POWER)
+    }
 }
 
 /**
@@ -78,6 +97,9 @@ object ChartMath {
     /**
      * Builds chart data from stored [points] of a [sport] activity, or null when there are fewer than two
      * samples. The x axis is distance unless the activity hardly moved (indoor sessions), then time.
+     *
+     * Cadence and power series exist only when the samples carry them; grade-adjusted speed only for runs
+     * with elevation. A series without at least two values is not drawable, so its chart is left out.
      */
     fun build(
         points: List<ActivityPoint>,
@@ -98,6 +120,13 @@ object ChartMath {
         val speed = DoubleArray(n) { i -> if (smoothed[i] >= stopBelow) smoothed[i] else Double.NaN }
         val elevation = DoubleArray(n) { points[it].elevationMeters ?: Double.NaN }
         val heartRate = DoubleArray(n) { points[it].heartRate?.toDouble()?.takeIf { hr -> hr in PLAUSIBLE_HR } ?: Double.NaN }
+        val cadence = DoubleArray(n) { i ->
+            points[i].cadence?.takeIf { c -> !points[i].paused && c.isFinite() && c in PLAUSIBLE_CADENCE } ?: Double.NaN
+        }
+        val power = DoubleArray(n) { i ->
+            points[i].powerWatts?.toDouble()?.takeIf { w -> !points[i].paused && w in PLAUSIBLE_POWER } ?: Double.NaN
+        }
+        val gap = if (sport.isRunLike) gradeAdjusted(distance, elevation, speed) else DoubleArray(n) { Double.NaN }
 
         val buckets = buckets(n, maxSamples)
         val x = DoubleArray(buckets.size) { b -> mean(xs, buckets[b]).let { if (it.isNaN()) xs[buckets[b].first] else it } }
@@ -109,11 +138,31 @@ object ChartMath {
             ChartMetric.SPEED to speed,
             ChartMetric.ELEVATION to elevation,
             ChartMetric.HEART_RATE to heartRate,
+            ChartMetric.CADENCE to cadence,
+            ChartMetric.POWER to power,
+            ChartMetric.GRADE_ADJUSTED_SPEED to gap,
         ).map { (metric, values) ->
             val down = DoubleArray(buckets.size) { b -> mean(values, buckets[b]) }
-            ChartSeries(metric, down, minFinite(down), maxFinite(down), timeWeightedAverage(time, values))
+            // Cadence averages leave coasting out (0 rpm), as Strava and the stats card do; power keeps its zeros.
+            val averaged = if (metric == ChartMetric.CADENCE) DoubleArray(n) { i -> values[i].takeIf { it > 0.0 } ?: Double.NaN } else values
+            ChartSeries(metric, down, minFinite(down), maxFinite(down), timeWeightedAverage(time, averaged))
         }
         return ChartData(axis, x, series, positions)
+    }
+
+    /**
+     * Grade-adjusted speed per sample: the smoothed [speed] times the running cost of the grade under it
+     * (grade smoothed over [GradeAdjustedPace.GRADE_WINDOW_M] of [distance]). NaN where the athlete was
+     * stopped; equal to [speed] where the grade is unknown. All NaN without two altitude samples.
+     */
+    fun gradeAdjusted(distance: DoubleArray, altitude: DoubleArray, speed: DoubleArray): DoubleArray {
+        val n = speed.size
+        if (altitude.count { it.isFinite() } < 2) return DoubleArray(n) { Double.NaN }
+        val grade = GradeAdjustedPace.smoothedGrade(distance, altitude)
+        return DoubleArray(n) { i ->
+            val v = speed[i]
+            if (!v.isFinite()) Double.NaN else if (grade[i].isFinite()) v * RunningCost.factor(grade[i]) else v
+        }
     }
 
     /**
@@ -264,11 +313,13 @@ object ChartMath {
         return padded(lo, hi, fraction)
     }
 
-    /** Smallest y span per metric: 0.5 m/s of speed, 20 m of elevation, 20 bpm. */
+    /** Smallest y span per metric: 0.5 m/s of speed, 20 m of elevation, 20 bpm, 20 rpm/spm, 50 W. */
     fun minSpan(metric: ChartMetric): Double = when (metric) {
-        ChartMetric.SPEED -> 0.5
+        ChartMetric.SPEED, ChartMetric.GRADE_ADJUSTED_SPEED -> 0.5
         ChartMetric.ELEVATION -> 20.0
         ChartMetric.HEART_RATE -> 20.0
+        ChartMetric.CADENCE -> 20.0
+        ChartMetric.POWER -> 50.0
     }
 
     private const val ROBUST_MIN_SAMPLES = 20
@@ -313,6 +364,8 @@ object ChartMath {
     private val NICE_STEPS = listOf(1.0, 2.0, 2.5, 5.0, 10.0)
     private val PACE_STEPS_SECONDS = listOf(5.0, 10.0, 15.0, 30.0, 60.0, 120.0, 300.0, 600.0)
     private val PLAUSIBLE_HR = 30.0..230.0
+    private val PLAUSIBLE_CADENCE = 0.0..300.0
+    private val PLAUSIBLE_POWER = 0.0..3000.0
     private const val MAX_GAP_SECONDS = 30.0
 
     /** Below this total distance the x axis switches to time. */

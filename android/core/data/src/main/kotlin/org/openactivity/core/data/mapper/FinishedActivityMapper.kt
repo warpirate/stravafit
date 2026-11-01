@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.core.data.mapper
 
+import org.openactivity.core.data.model.ActivityTitles
 import org.openactivity.core.data.model.DefaultTitles
 import org.openactivity.core.data.model.NewActivity
 import org.openactivity.core.database.entity.ActivityEntity
@@ -47,6 +48,7 @@ object FinishedActivityMapper {
         options: NewActivity,
         recordedUnits: UnitSystem,
         nowMillis: Long,
+        titles: ActivityTitles = DefaultTitles,
     ): ActivityRows {
         val start = finished.startEpochMillis ?: (nowMillis - finished.elapsedTime.inWholeMilliseconds)
         val localStart = Instant.ofEpochMilli(start).atZone(options.timeZone).toLocalTime()
@@ -61,7 +63,7 @@ object FinishedActivityMapper {
             uuid = options.uuid,
             sport = finished.sport.name,
             title = options.title?.takeIf { it.isNotBlank() }
-                ?: DefaultTitles.forActivity(finished.sport, localStart),
+                ?: titles.forActivity(finished.sport, localStart),
             description = options.description,
             visibility = options.visibility.name,
             perceivedExertion = options.perceivedExertion,

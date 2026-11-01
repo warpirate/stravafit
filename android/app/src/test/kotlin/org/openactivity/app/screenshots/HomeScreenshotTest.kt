@@ -46,6 +46,16 @@ import org.openactivity.app.feature.profile.EditProfileUiState
 import org.openactivity.app.feature.route.RouteDetailActions
 import org.openactivity.app.feature.route.RouteDetailContent
 import org.openactivity.app.feature.route.RouteDetailViewModel
+import org.openactivity.app.feature.route.SuggestedRouteViewModel
+import org.openactivity.app.feature.suggest.RouteSuggestionsViewModel
+import org.openactivity.app.feature.suggest.SuggestionsStatus
+import org.openactivity.app.feature.suggest.SuggestionsUiState
+import org.openactivity.app.format.UnitFormatter
+import org.openactivity.app.testing.FakeRouteSuggestions
+import org.openactivity.app.testing.testSuggestion
+import org.openactivity.core.location.LocationAvailability
+import org.openactivity.core.routing.SuggestionSport
+import org.openactivity.model.UnitSystem
 import org.openactivity.app.feature.settings.SettingsActions
 import org.openactivity.app.feature.settings.SettingsContent
 import org.openactivity.app.feature.settings.SettingsUiState
@@ -123,6 +133,32 @@ class HomeScreenshotTest {
     @Test fun exploreDark() = snap("explore_dark", dark = true) { Tab(TopLevelDestination.Explore) { Explore() } }
 
     @Test fun exploreEmpty() = snap("explore_empty_light", dark = false) { Tab(TopLevelDestination.Explore) { Explore(empty = true) } }
+
+    @Test fun feedSuggestionsLight() = snap("feed_suggestions_light", dark = false) {
+        Tab(TopLevelDestination.Feed) { Feed(suggestions = suggestionsState(showIntro = true)) }
+    }
+
+    @Test fun feedSuggestionsDark() = snap("feed_suggestions_dark", dark = true) {
+        Tab(TopLevelDestination.Feed) { Feed(suggestions = suggestionsState()) }
+    }
+
+    @Test fun feedSuggestionsNoLocation() = snap("feed_suggestions_no_location_light", dark = false) {
+        Tab(TopLevelDestination.Feed) { Feed(suggestions = SuggestionsUiState(status = SuggestionsStatus.NoLocation(LocationAvailability.NO_PERMISSION))) }
+    }
+
+    @Test fun exploreSuggestionsLight() = snap("explore_suggestions_light", dark = false) {
+        Tab(TopLevelDestination.Explore) { Explore(suggestions = suggestionsState()) }
+    }
+
+    @Test fun exploreSuggestionsDark() = snap("explore_suggestions_dark", dark = true) {
+        Tab(TopLevelDestination.Explore) { Explore(suggestions = suggestionsState()) }
+    }
+
+    @Test fun exploreSuggestionsOffline() = snap("explore_suggestions_offline_light", dark = false) {
+        Tab(TopLevelDestination.Explore) { Explore(empty = true, suggestions = SuggestionsUiState(status = SuggestionsStatus.Offline)) }
+    }
+
+    @Test fun suggestedRouteLight() = snap("suggested_route_light", dark = false) { SuggestedRoute() }
 
     @Test fun routeDetailLight() = snap("route_detail_light", dark = false) { RouteDetail() }
 
@@ -216,10 +252,26 @@ private fun Tab(selected: TopLevelDestination, content: @Composable () -> Unit) 
 }
 
 @Composable
-private fun Feed() {
+private fun Feed(suggestions: SuggestionsUiState? = null) {
     val vm = remember { FeedViewModel(sampleActivities(), profile, FakePreferencesRepository(), testTimeFormatter(), FakeNotificationRepository()) }
     val state by vm.uiState.collectAsState()
-    FeedContent(state, FeedActions())
+    FeedContent(state, FeedActions(), suggestions = suggestions)
+}
+
+/** Suggestions as the view model formats them, over the test loops near Pune. */
+private fun suggestionsState(showIntro: Boolean = false): SuggestionsUiState {
+    val formatter = UnitFormatter(UnitSystem.METRIC, java.util.Locale.UK)
+    val loops = listOf(
+        testSuggestion("a", name = "Bund Garden Rd loop"),
+        testSuggestion("b", target = 3_000.0, name = "Koregaon Park loop", gain = 12.0, points = RIDE_TRACK + RIDE_TRACK.first()),
+        testSuggestion("c", target = 10_000.0, name = "10 km loop · NE", gain = null),
+    )
+    return SuggestionsUiState(
+        status = SuggestionsStatus.Ready,
+        sport = SuggestionSport.RUN,
+        cards = loops.map { RouteSuggestionsViewModel.card(it, formatter) },
+        showIntro = showIntro,
+    )
 }
 
 @Composable
@@ -238,7 +290,7 @@ private val noImports = object : RouteImporter {
 }
 
 @Composable
-private fun Explore(empty: Boolean = false) {
+private fun Explore(empty: Boolean = false, suggestions: SuggestionsUiState? = null) {
     val vm = remember {
         val routes = if (empty) FakeRouteRepository() else FakeRouteRepository(
             listOf(
@@ -250,7 +302,25 @@ private fun Explore(empty: Boolean = false) {
         ExploreViewModel(routes, FakePreferencesRepository(), noImports)
     }
     val state by vm.uiState.collectAsState()
-    ExploreContent(state, ExploreActions())
+    if (suggestions == null) ExploreContent(state, ExploreActions()) else ExploreContent(state, ExploreActions(), suggestions = suggestions)
+}
+
+@Composable
+private fun SuggestedRoute() {
+    val vm = remember {
+        val exporter = object : RouteExporter {
+            override suspend fun exportGpx(routeId: Long, destination: android.net.Uri) = Unit
+        }
+        SuggestedRouteViewModel(
+            SavedStateHandle(mapOf("suggestionId" to "RUN-5000.0")),
+            FakeRouteSuggestions(),
+            FakeRouteRepository(),
+            FakePreferencesRepository(),
+            exporter,
+        )
+    }
+    val state by vm.uiState.collectAsState()
+    RouteDetailContent(state, RouteDetailActions())
 }
 
 @Composable

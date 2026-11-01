@@ -26,6 +26,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
 import org.openactivity.app.LaunchRequest
+import org.openactivity.core.datastore.LaunchTab
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.openactivity.app.navigation.ActiveRecordingBar
@@ -45,12 +46,14 @@ import org.openactivity.feature.record.navigation.navigateToRecord
  *
  * @param launchRequest a pending request from a notification tap: open the recorder or an activity.
  * @param onLaunchRequestHandled called once [launchRequest] has been navigated to.
+ * @param startTab the tab the app opens on (settings, "Open app on").
  */
 @Composable
 fun OpenActivityApp(
     navController: NavHostController = rememberNavController(),
     launchRequest: LaunchRequest? = null,
     onLaunchRequestHandled: () -> Unit = {},
+    startTab: LaunchTab = LaunchTab.HOME,
 ) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -110,7 +113,7 @@ fun OpenActivityApp(
                 }
             },
         ) { padding ->
-            AppNavHost(navController, Modifier.padding(padding))
+            AppNavHost(navController, startTab, Modifier.padding(padding))
         }
     }
 }

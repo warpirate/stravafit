@@ -83,6 +83,6 @@ public class GallerySaver @Inject constructor(@ApplicationContext private val co
 
     public companion object {
         /** Album (sub-folder of Pictures) that saved images go to. */
-        public const val ALBUM: String = "OpenActivity"
+        public const val ALBUM: String = "StravaFit"
     }
 }

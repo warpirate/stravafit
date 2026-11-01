@@ -102,6 +102,8 @@ dependencies {
     implementation(project(":android:core:export")) // WP home
     implementation(project(":android:core:import")) // WP home
     implementation(project(":shared:polyline")) // WP home
+    implementation(project(":shared:geo")) // route suggestions
+    implementation(project(":android:core:routing")) // route suggestions
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

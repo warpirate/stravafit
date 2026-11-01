@@ -35,7 +35,9 @@ import org.openactivity.feature.activitydetail.ui.AnalysisSection
 import org.openactivity.feature.activitydetail.ui.DetailActions
 import org.openactivity.feature.activitydetail.ui.EffortsList
 import org.openactivity.feature.activitydetail.ui.SplitsTable
+import org.openactivity.model.SportType
 import org.openactivity.model.UnitSystem
+import org.openactivity.recording.FinishedActivity
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
@@ -55,11 +57,14 @@ class DetailScreenshotTest : RepositoryBackedTest() {
     @get:Rule
     val compose = createComposeRule()
 
-    private fun content(): DetailContent = runBlocking {
+    private fun content(
+        finished: FinishedActivity = Recordings.hillyRun(seconds = 1800),
+        title: String = "Sunday hill loop",
+    ): DetailContent = runBlocking {
         Locale.setDefault(Locale.US)
         val id = activities.saveFinished(
-            Recordings.hillyRun(seconds = 1800),
-            NewActivity("shot", title = "Sunday hill loop", description = "Easy start, pushed the climbs.", perceivedExertion = 6),
+            finished,
+            NewActivity("shot-$title", title = title, description = "Easy start, pushed the climbs.", perceivedExertion = 6),
             UnitSystem.METRIC,
         )
         val detail = activities.observeActivityDetail(id).first()!!
@@ -100,6 +105,30 @@ class DetailScreenshotTest : RepositoryBackedTest() {
     }
 
     @Test
+    fun analysisSensorsLight() {
+        val c = content(Recordings.hillyRun(seconds = 1800, withCadence = true, withPower = true), "Hill reps with a footpod")
+        snap("detail_analysis_sensors_light", dark = false) { Sections(c, scrub = c.chart!!.x.size / 2) }
+    }
+
+    @Test
+    fun analysisSensorsDark() {
+        val c = content(Recordings.hillyRun(seconds = 1800, withCadence = true, withPower = true), "Hill reps with a footpod")
+        snap("detail_analysis_sensors_dark", dark = true) { Sections(c, scrub = null) }
+    }
+
+    @Test
+    fun elapsedHeadlineLight() {
+        val c = content(Recordings.hillyRun(seconds = 1800, sport = SportType.ALPINE_SKI, withHeartRate = false), "Bluebird laps")
+        snap("detail_elapsed_headline_light", dark = false) { ActivityDetailContent(ActivityDetailUiState.Content(c), DetailActions()) }
+    }
+
+    @Test
+    fun elapsedHeadlineDark() {
+        val c = content(Recordings.hillyRun(seconds = 1800, sport = SportType.ALPINE_SKI, withHeartRate = false), "Bluebird laps")
+        snap("detail_elapsed_headline_dark", dark = true) { ActivityDetailContent(ActivityDetailUiState.Content(c), DetailActions()) }
+    }
+
+    @Test
     fun notFound() = snap("detail_not_found_light", dark = false) {
         ActivityDetailContent(ActivityDetailUiState.NotFound, DetailActions())
     }
@@ -135,8 +164,8 @@ class DetailScreenshotTest : RepositoryBackedTest() {
                 .padding(Spacing.gutter),
             verticalArrangement = Arrangement.spacedBy(Spacing.xl),
         ) {
-            AnalysisSection(c.chart!!, c.sport, c.units, scrubIndex = scrub, onScrub = {})
-            SplitsTable(c.splits, c.splitUnit, "Pace", selected = 2, onSelect = {})
+            AnalysisSection(c.chart!!, c.sport, c.speedDisplay, c.units, scrubIndex = scrub, onScrub = {}, gapOnByDefault = c.showSplitGap)
+            SplitsTable(c.splits, c.splitUnit, "Pace", selected = 2, onSelect = {}, showGap = c.showSplitGap)
             EffortsList(c.efforts)
         }
     }

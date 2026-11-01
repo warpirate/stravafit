@@ -2,6 +2,7 @@
 package org.openactivity.feature.activitydetail.format
 
 import org.openactivity.model.SpeedDisplay
+import org.openactivity.model.SpeedDisplays
 import org.openactivity.model.SportType
 import org.openactivity.model.UnitConstants
 import org.openactivity.model.UnitSystem
@@ -66,18 +67,23 @@ object DetailFormat {
     /** Heart rate in bpm. */
     fun heartRate(bpm: Double): Measure = Measure(bpm.roundToInt().toString(), "bpm", "beats per minute")
 
+    /** Pace or speed the way [sport] shows it by default (no per-sport setting applied). */
+    fun speed(speedMps: Double, sport: SportType, units: UnitSystem): Measure? =
+        speed(speedMps, SpeedDisplays.resolve(sport, units), units)
+
     /**
-     * Pace or speed the way [sport] prefers: time per km/mile for runs and walks, per 100 m for swims,
-     * per 500 m for rowing, km/h or mph for everything else. Null when not moving.
+     * Pace or speed in [display]: time per km/mile, per 100 m or 100 yd, per 500 m, or km/h or mph.
+     * Null when not moving.
      */
-    fun speed(speedMps: Double, sport: SportType, units: UnitSystem): Measure? {
+    fun speed(speedMps: Double, display: SpeedDisplay, units: UnitSystem): Measure? {
         if (!(speedMps > 0.0) || !speedMps.isFinite()) return null
-        return when (sport.speedDisplay) {
+        return when (display) {
             SpeedDisplay.PACE -> {
                 val unitMeters = units.splitLengthMeters
                 Measure(clock(unitMeters / speedMps), if (units == UnitSystem.METRIC) "/km" else "/mi", if (units == UnitSystem.METRIC) "per kilometre" else "per mile")
             }
             SpeedDisplay.PACE_PER_100M -> Measure(clock(100.0 / speedMps), "/100m", "per 100 metres")
+            SpeedDisplay.PACE_PER_100YD -> Measure(clock(100.0 * UnitConstants.METERS_PER_YARD / speedMps), "/100yd", "per 100 yards")
             SpeedDisplay.PACE_PER_500M -> Measure(clock(500.0 / speedMps), "/500m", "per 500 metres")
             SpeedDisplay.SPEED -> if (units == UnitSystem.METRIC) {
                 Measure(String.format(locale, "%.1f", speedMps * 3.6), "km/h", "kilometres per hour")
@@ -88,15 +94,10 @@ object DetailFormat {
     }
 
     /**
-     * Distance in metres that [sport]'s pace is given per (1000, a mile, 100 or 500), or null when the
-     * sport shows speed instead of pace.
+     * Distance in metres that a [display] pace is given per (1000, a mile, 100 m, 100 yd or 500 m), or
+     * null when [display] is a speed.
      */
-    fun paceUnitMeters(sport: SportType, units: UnitSystem): Double? = when (sport.speedDisplay) {
-        SpeedDisplay.PACE -> units.splitLengthMeters
-        SpeedDisplay.PACE_PER_100M -> 100.0
-        SpeedDisplay.PACE_PER_500M -> 500.0
-        SpeedDisplay.SPEED -> null
-    }
+    fun paceUnitMeters(display: SpeedDisplay, units: UnitSystem): Double? = SpeedDisplays.paceUnitMeters(display, units)
 
     /** Multiplier from m/s to the shown speed unit (km/h or mph). */
     fun speedDisplayFactor(units: UnitSystem): Double =
@@ -106,8 +107,14 @@ object DetailFormat {
     fun elevationDisplayFactor(units: UnitSystem): Double =
         if (units == UnitSystem.METRIC) 1.0 else 1.0 / UnitConstants.METERS_PER_FOOT
 
-    /** "Pace" or "Speed" for [sport]. */
-    fun speedLabel(sport: SportType): String = if (sport.displaysPace) "Pace" else "Speed"
+    /** "Pace" or "Speed" for [display]. */
+    fun speedLabel(display: SpeedDisplay): String = if (display == SpeedDisplay.SPEED) "Speed" else "Pace"
+
+    /** "Avg Pace" or "Avg Speed"; "Max Pace" or "Max Speed" with [prefix] "Max". */
+    fun speedLabel(display: SpeedDisplay, prefix: String): String = "$prefix ${speedLabel(display)}"
+
+    /** "spm" for steps (foot sports), "rpm" for pedal or stroke revolutions. */
+    fun cadenceUnit(sport: SportType): String = if (sport.isRideLike) "rpm" else "spm"
 
     /** Header date and time in the activity's own zone, e.g. "Tuesday, June 3, 2025 at 7:12 AM". */
     fun startedAt(start: Instant, zone: ZoneId, today: LocalDate): String {

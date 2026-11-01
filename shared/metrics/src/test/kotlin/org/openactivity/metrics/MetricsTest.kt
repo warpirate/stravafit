@@ -293,6 +293,22 @@ class GradeAdjustedPaceTest {
     }
 
     @Test
+    fun `one altitude reading gives no gap instead of plain pace`() {
+        val one = phases(600 to 3.0, altitude = { if (it == 0.0) 100.0 else Double.NaN })
+        assertNull(GradeAdjustedPace.averageSpeed(one, MovingTime.timerMask(one)))
+    }
+
+    @Test
+    fun `a long gap in the samples is left out of gap like it is per split`() {
+        val hill = phases(300 to 3.0, altitude = { it * 0.05 })
+        // A 10-minute tunnel between two samples: that interval says nothing about the grade.
+        val time = hill.time.copyOf().also { t -> for (i in 150 until t.size) t[i] += 600.0 }
+        val tunnel = ActivitySamples(time, hill.distance, altitude = hill.altitude)
+        val gap = GradeAdjustedPace.averageSpeed(tunnel, BooleanArray(time.size) { it > 0 })!!
+        assertEquals(GradeAdjustedPace.adjustedSpeed(3.0, 0.05), gap, 1e-6)
+    }
+
+    @Test
     fun `smoothed grade reads the slope`() {
         val dist = DoubleArray(200) { it * 2.0 }
         val alt = DoubleArray(200) { it * 2.0 * 0.08 }

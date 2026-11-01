@@ -36,7 +36,8 @@ internal fun ActivityEntity.toDomain(): SavedActivity = SavedActivity(
     sport = sportOf(sport) ?: SportType.OTHER,
     title = title,
     description = description,
-    visibility = enumOrNull<Visibility>(visibility) ?: Visibility.DEFAULT,
+    // Fail safe: an unreadable stored audience becomes Only You, never a wider one.
+    visibility = Visibility.parseOrPrivate(visibility),
     perceivedExertion = perceivedExertion,
     startTime = Instant.ofEpochMilli(startEpochMillis),
     timeZone = zoneOf(timeZoneId),

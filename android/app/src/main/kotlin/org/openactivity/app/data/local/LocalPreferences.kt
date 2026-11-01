@@ -53,6 +53,20 @@ class LocalPreferences @Inject constructor(private val dataStore: DataStore<Pref
         dataStore.edit { it[Keys.INBOX_WATERMARK] = activityId }
     }
 
+    /** Whether Home and Maps suggest loops near you, sending your position to the routing services. */
+    val routeSuggestionsEnabled: Flow<Boolean> = data.map { it[Keys.SUGGESTIONS_ENABLED] ?: true }.distinctUntilChanged()
+
+    /** True once the one-time explanation of online route suggestions was dismissed. */
+    val routeSuggestionsIntroSeen: Flow<Boolean> = data.map { it[Keys.SUGGESTIONS_INTRO_SEEN] ?: false }.distinctUntilChanged()
+
+    suspend fun setRouteSuggestionsEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.SUGGESTIONS_ENABLED] = enabled }
+    }
+
+    suspend fun setRouteSuggestionsIntroSeen() {
+        dataStore.edit { it[Keys.SUGGESTIONS_INTRO_SEEN] = true }
+    }
+
     suspend fun setReduceMotion(enabled: Boolean) {
         dataStore.edit { it[Keys.REDUCE_MOTION] = enabled }
     }
@@ -81,5 +95,7 @@ class LocalPreferences @Inject constructor(private val dataStore: DataStore<Pref
         val LOCATION = stringPreferencesKey("profile_location")
         val PHOTO = stringPreferencesKey("profile_photo_path")
         val INBOX_WATERMARK = longPreferencesKey("inbox_watermark_activity_id")
+        val SUGGESTIONS_ENABLED = booleanPreferencesKey("route_suggestions_enabled")
+        val SUGGESTIONS_INTRO_SEEN = booleanPreferencesKey("route_suggestions_intro_seen")
     }
 }

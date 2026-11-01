@@ -27,10 +27,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.GpsOff
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PauseCircle
+import androidx.compose.material.icons.rounded.Route
+import androidx.compose.material.icons.rounded.WrongLocation
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -63,6 +66,7 @@ import org.openactivity.core.map.overlay.MapOverlays
 import org.openactivity.feature.record.R
 import org.openactivity.feature.record.RecordUiState
 import org.openactivity.feature.record.RecordingUi
+import org.openactivity.feature.record.RouteFollowUi
 import org.openactivity.feature.record.format.LiveMetrics
 
 /** Map page: live track and route with the locate button. */
@@ -114,10 +118,26 @@ internal fun SplitsPage(recording: RecordingUi) {
     }
 }
 
-/** Auto-pause, GPS-loss and recovery notices. */
+/** Off-route, auto-pause, GPS-loss and recovery notices, and progress along a followed route. */
 @Composable
 internal fun RecordingNotices(recording: RecordingUi, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        recording.route?.let { route ->
+            when {
+                route.offRouteBy != null -> RecordBanner(
+                    stringResource(R.string.record_off_route_banner, route.offRouteBy),
+                    Modifier.fillMaxWidth(),
+                    icon = Icons.Rounded.WrongLocation,
+                )
+                route.completed -> RecordBanner(
+                    stringResource(R.string.record_route_completed_banner),
+                    Modifier.fillMaxWidth(),
+                    icon = Icons.Rounded.Flag,
+                    warning = false,
+                )
+                else -> RouteProgressBanner(route, Modifier.fillMaxWidth())
+            }
+        }
         if (recording.isAutoPaused) {
             RecordBanner(stringResource(R.string.record_auto_paused_banner), Modifier.fillMaxWidth(), icon = Icons.Rounded.PauseCircle)
         }
@@ -315,3 +335,33 @@ private val TOP_ROW_CLEARANCE = 72.dp
 
 /** How long the "recovered after the app was closed" notice stays. */
 internal const val RECOVERED_BANNER_MS = 8_000L
+
+/** "3.20 km to go · about 18:20" with a progress bar, while following a route and on it. */
+@Composable
+private fun RouteProgressBanner(route: RouteFollowUi, modifier: Modifier = Modifier) {
+    Surface(modifier, shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
+        Column(Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.Route, contentDescription = null, modifier = Modifier.size(18.dp), tint = RidgelineTheme.colors.accent)
+                Spacer(Modifier.width(Spacing.s))
+                val text = when {
+                    !route.joined -> stringResource(R.string.record_route_join)
+                    route.remainingTime != null -> stringResource(R.string.record_route_remaining_time, route.remaining, route.remainingTime)
+                    else -> stringResource(R.string.record_route_remaining, route.remaining)
+                }
+                Text(text, style = MaterialTheme.typography.bodySmall)
+            }
+            if (route.joined) {
+                Spacer(Modifier.height(Spacing.xs))
+                LinearProgressIndicator(
+                    progress = { route.fraction },
+                    modifier = Modifier.fillMaxWidth().height(4.dp),
+                    color = RidgelineTheme.colors.accent,
+                    trackColor = RidgelineTheme.colors.hairline,
+                    strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    gapSize = 0.dp,
+                )
+            }
+        }
+    }
+}

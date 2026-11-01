@@ -142,6 +142,18 @@ class FakeSettingsRepository(initial: AppSettings = AppSettings()) : SettingsRep
     override suspend fun setFirstDayOfWeek(day: java.time.DayOfWeek) = state.update { it.copy(firstDayOfWeek = day) }
 
     override suspend fun setNotifications(notifications: org.openactivity.core.datastore.NotificationSettings) = state.update { it.copy(notifications = notifications) }
+    override suspend fun setSpeedOverride(sport: SportType, choice: org.openactivity.model.PaceOrSpeed?) =
+        state.update { it.copy(speedOverrides = if (choice == null) it.speedOverrides - sport else it.speedOverrides + (sport to choice)) }
+
+    override suspend fun setSwimPaceUnit(unit: org.openactivity.model.SwimPaceUnit?) = state.update { it.copy(swimPaceUnit = unit) }
+
+    override suspend fun setVisibilityOverride(sport: SportType, visibility: Visibility?) =
+        state.update { it.copy(visibilityOverrides = if (visibility == null) it.visibilityOverrides - sport else it.visibilityOverrides + (sport to visibility)) }
+
+    override suspend fun setLaunchTab(tab: org.openactivity.core.datastore.LaunchTab) = state.update { it.copy(launchTab = tab) }
+    override suspend fun setAutoLap(meters: Double) = state.update { it.copy(autoLapMeters = meters) }
+
+    override suspend fun setOffRouteAlerts(enabled: Boolean) = state.update { it.copy(offRouteAlerts = enabled) }
 }
 
 /** In-memory [RecordPreferencesRepository]. */

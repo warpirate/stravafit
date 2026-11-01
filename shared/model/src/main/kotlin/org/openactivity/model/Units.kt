@@ -12,6 +12,9 @@ public object UnitConstants {
     /** Metres in one international foot. */
     public const val METERS_PER_FOOT: Double = 0.3048
 
+    /** Metres in one international yard. */
+    public const val METERS_PER_YARD: Double = 0.9144
+
     /** Metres in one kilometre. */
     public const val METERS_PER_KILOMETER: Double = 1000.0
 }

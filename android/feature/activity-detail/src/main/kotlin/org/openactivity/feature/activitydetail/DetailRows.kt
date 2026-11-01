@@ -10,6 +10,9 @@ import org.openactivity.core.data.repository.EffortRanking
 import org.openactivity.core.designsystem.component.Stat
 import org.openactivity.feature.activitydetail.format.DetailFormat
 import org.openactivity.feature.activitydetail.format.Measure
+import org.openactivity.metrics.GradeAdjustedPace
+import org.openactivity.model.SpeedDisplay
+import org.openactivity.model.SpeedDisplays
 import org.openactivity.model.SportType
 import org.openactivity.model.Split
 import org.openactivity.model.UnitSystem
@@ -22,11 +25,15 @@ import kotlin.math.roundToInt
  * @property label split number, or the real distance of a final partial split ("0.43").
  * @property barFraction bar length relative to the fastest split (0..1).
  * @property heartRate average heart rate in the split, or null when it has none (shown as a dash).
+ * @property gap grade-adjusted pace (or speed) of the split, for runs with elevation; null otherwise.
+ * @property gapDiffers true when [gap] reads differently from [speed], i.e. the split was hilly.
  */
 @Immutable
 data class SplitRow(
     val label: String,
     val speed: Measure?,
+    val gap: Measure? = null,
+    val gapDiffers: Boolean = false,
     val barFraction: Float,
     val elevationDelta: String?,
     val heartRate: String?,
@@ -84,12 +91,21 @@ data class EffortRow(
 /** Builds the detail screen's display rows from stored data. Pure, so it is unit-tested directly. */
 object DetailRows {
     /**
-     * Stats grid: distance, pace/speed, moving time, elevation gain, elapsed time, heart rate and sensors.
+     * Stats grid: distance, pace/speed, the headline time, elevation gain, the other time, grade-adjusted
+     * pace (runs), heart rate and sensors. The headline time is the moving time, or the elapsed time for
+     * sports that headline it ([SportType.headlinesElapsedTime], activity-detail 1.1); both are always shown.
      * Rows are always full (three per row, as in the mockup): a partial last row is completed with Avg
      * Heart Rate (a dash without a sensor), Elev Loss and the maximum pace or speed.
+     *
+     * @param display how pace or speed is shown (the athlete's per-sport choice).
      */
-    fun stats(activity: SavedActivity, units: UnitSystem, hasElevation: Boolean): List<Stat> {
-        val base = baseStats(activity, units, hasElevation)
+    fun stats(
+        activity: SavedActivity,
+        units: UnitSystem,
+        hasElevation: Boolean,
+        display: SpeedDisplay = SpeedDisplays.resolve(activity.sport, units),
+    ): List<Stat> {
+        val base = baseStats(activity, units, hasElevation, display)
         if (base.size % STAT_COLUMNS == 0) return base
         val labels = base.map { it.label }.toSet()
         val fillers = buildList {
@@ -98,8 +114,8 @@ object DetailRows {
                 val loss = DetailFormat.elevation(activity.elevationLossMeters, units)
                 add(Stat("Elev Loss", loss.value, loss.unit, loss.spokenUnit))
             }
-            val max = DetailFormat.speed(activity.maxSpeedMps, activity.sport, units)
-            val maxLabel = if (activity.sport.displaysPace) "Max Pace" else "Max Speed"
+            val max = DetailFormat.speed(activity.maxSpeedMps, display, units)
+            val maxLabel = DetailFormat.speedLabel(display, "Max")
             if (max != null && maxLabel !in labels) add(Stat(maxLabel, max.value, max.unit, max.spokenUnit))
         }
         val missing = STAT_COLUMNS - base.size % STAT_COLUMNS
@@ -108,32 +124,51 @@ object DetailRows {
 
     private const val STAT_COLUMNS = 3
 
-    private fun baseStats(activity: SavedActivity, units: UnitSystem, hasElevation: Boolean): List<Stat> = buildList {
+    private fun baseStats(activity: SavedActivity, units: UnitSystem, hasElevation: Boolean, display: SpeedDisplay): List<Stat> = buildList {
         val distance = DetailFormat.distance(activity.distanceMeters, units)
         add(Stat("Distance", distance.value, distance.unit, distance.spokenUnit))
-        val speed = DetailFormat.speed(activity.averageSpeedMps, activity.sport, units)
-        add(Stat(if (activity.sport.displaysPace) "Avg Pace" else "Avg Speed", speed?.value, speed?.unit, speed?.spokenUnit))
-        add(Stat("Moving Time", DetailFormat.duration(activity.movingTime)))
+        val speed = DetailFormat.speed(activity.averageSpeedMps, display, units)
+        add(Stat(DetailFormat.speedLabel(display, "Avg"), speed?.value, speed?.unit, speed?.spokenUnit))
+        val moving = Stat("Moving Time", DetailFormat.duration(activity.movingTime))
+        val elapsed = Stat("Elapsed Time", DetailFormat.duration(activity.elapsedTime))
+        val elapsedFirst = activity.sport.headlinesElapsedTime
+        add(if (elapsedFirst) elapsed else moving)
         if (hasElevation) {
             val gain = DetailFormat.elevation(activity.elevationGainMeters, units)
             add(Stat("Elev Gain", gain.value, gain.unit, gain.spokenUnit))
         }
-        add(Stat("Elapsed Time", DetailFormat.duration(activity.elapsedTime)))
-        if (!activity.sport.displaysPace) {
-            val max = DetailFormat.speed(activity.maxSpeedMps, activity.sport, units)
+        add(if (elapsedFirst) moving else elapsed)
+        gradeAdjusted(activity, display, units)?.let { add(Stat("Avg GAP", it.value, it.unit, it.spokenUnit)) }
+        if (display == SpeedDisplay.SPEED) {
+            val max = DetailFormat.speed(activity.maxSpeedMps, display, units)
             if (max != null) add(Stat("Max Speed", max.value, max.unit, max.spokenUnit))
         }
         activity.averageHeartRate?.let { val hr = DetailFormat.heartRate(it); add(Stat("Avg Heart Rate", hr.value, hr.unit, hr.spokenUnit)) }
         activity.maxHeartRate?.let { val hr = DetailFormat.heartRate(it.toDouble()); add(Stat("Max Heart Rate", hr.value, hr.unit, hr.spokenUnit)) }
         activity.averagePower?.let { add(Stat("Avg Power", it.roundToInt().toString(), "W", "watts")) }
-        activity.averageCadence?.let { add(Stat("Cadence", it.roundToInt().toString(), if (activity.sport.isRideLike) "rpm" else "spm")) }
+        activity.averageCadence?.let { add(Stat("Cadence", it.roundToInt().toString(), DetailFormat.cadenceUnit(activity.sport))) }
     }
 
-    /** Splits table rows for [units]; partial final splits show their real distance. */
-    fun splits(detail: ActivityDetail, units: UnitSystem): List<SplitRow> {
+    /** Average grade-adjusted pace of a run with elevation data, in [display]; null for other activities. */
+    fun gradeAdjusted(activity: SavedActivity, display: SpeedDisplay, units: UnitSystem): Measure? {
+        if (!activity.sport.isRunLike) return null
+        val gap = activity.averageGradeAdjustedSpeedMps ?: return null
+        return DetailFormat.speed(gap, display, units)
+    }
+
+    /**
+     * Splits table rows for [units]; partial final splits show their real distance. Runs with elevation
+     * also get each split's grade-adjusted pace.
+     */
+    fun splits(
+        detail: ActivityDetail,
+        units: UnitSystem,
+        display: SpeedDisplay = SpeedDisplays.resolve(detail.activity.sport, units),
+    ): List<SplitRow> {
         val splits = detail.splits(units)
         if (splits.isEmpty()) return emptyList()
         val sport = detail.activity.sport
+        val gapStream = if (sport.isRunLike) GapStream.of(detail.points) else null
         val speeds = splits.map { it.averageSpeed.metersPerSecond }
         val full = splits.indices.filter { !splits[it].isPartial && speeds[it] > 0 }
         val fastest = full.maxByOrNull { speeds[it] }
@@ -142,9 +177,13 @@ object DetailRows {
         var start = 0.0
         return splits.mapIndexed { i, split ->
             val end = start + split.distance.meters
+            val speed = DetailFormat.speed(speeds[i], display, units)
+            val gap = gapStream?.averageSpeed(start, end)?.let { DetailFormat.speed(it, display, units) }
             val row = SplitRow(
                 label = if (split.isPartial) partialLabel(split, units) else (split.index + 1).toString(),
-                speed = DetailFormat.speed(speeds[i], sport, units),
+                speed = speed,
+                gap = gap,
+                gapDiffers = gap != null && speed != null && gap.value != speed.value,
                 barFraction = (speeds[i] / maxSpeed).toFloat().coerceIn(MIN_BAR, 1f),
                 elevationDelta = split.elevationDelta?.let { DetailFormat.elevationDelta(it.meters, units) },
                 heartRate = averageHeartRate(detail.points, start, end)?.let { it.roundToInt().toString() },
@@ -159,8 +198,18 @@ object DetailRows {
         }
     }
 
+    /**
+     * True when the splits table shows a GAP column: a run where at least one split's grade-adjusted pace
+     * reads differently from its pace (activity-detail 2.2, improved: shown whenever hills change it).
+     */
+    fun showsSplitGap(rows: List<SplitRow>): Boolean = rows.any { it.gapDiffers }
+
     /** Laps table rows; empty unless there are at least two laps worth comparing. */
-    fun laps(detail: ActivityDetail, units: UnitSystem): List<LapRow> {
+    fun laps(
+        detail: ActivityDetail,
+        units: UnitSystem,
+        display: SpeedDisplay = SpeedDisplays.resolve(detail.activity.sport, units),
+    ): List<LapRow> {
         val laps = detail.laps.filterNot { it.isZeroLength }
         if (laps.size < 2) return emptyList()
         val maxSpeed = laps.maxOf { it.averageSpeed.metersPerSecond }.takeIf { it > 0 } ?: 1.0
@@ -169,7 +218,7 @@ object DetailRows {
                 number = i + 1,
                 distance = DetailFormat.distance(lap.distance.meters, units),
                 time = DetailFormat.duration(lap.movingTime),
-                speed = DetailFormat.speed(lap.averageSpeed.metersPerSecond, detail.activity.sport, units),
+                speed = DetailFormat.speed(lap.averageSpeed.metersPerSecond, display, units),
                 barFraction = (lap.averageSpeed.metersPerSecond / maxSpeed).toFloat().coerceIn(MIN_BAR, 1f),
             )
         }
@@ -227,4 +276,39 @@ object DetailRows {
     }
 
     private const val MIN_BAR = 0.12f
+}
+
+/**
+ * Grade-adjusted distance along a stored stream, for per-split GAP. Grade is smoothed over
+ * [GradeAdjustedPace.GRADE_WINDOW_M], the same model as the stored average.
+ */
+internal class GapStream private constructor(
+    private val distance: DoubleArray,
+    private val time: DoubleArray,
+    private val grade: DoubleArray,
+    private val moving: BooleanArray,
+) {
+    /**
+     * Grade-adjusted speed (m/s) over the moving intervals whose middle lies between [startMeters] and
+     * [endMeters] from the start; null when that stretch has no moving time.
+     */
+    fun averageSpeed(startMeters: Double, endMeters: Double): Double? =
+        GradeAdjustedPace.averageSpeed(distance, time, grade, moving) { i ->
+            val mid = (distance[i] + distance[i - 1]) / 2
+            mid >= startMeters && mid < endMeters
+        }
+
+    companion object {
+
+        /** The stream of [points], or null without at least two altitude samples. */
+        fun of(points: List<ActivityPoint>): GapStream? {
+            if (points.size < 2 || points.count { it.elevationMeters != null } < 2) return null
+            val origin = points.first().distanceMeters
+            val distance = DoubleArray(points.size) { points[it].distanceMeters - origin }
+            val altitude = DoubleArray(points.size) { points[it].elevationMeters ?: Double.NaN }
+            val time = DoubleArray(points.size) { (points[it].offsetMillis - points[0].offsetMillis) / 1000.0 }
+            val moving = BooleanArray(points.size) { !points[it].paused }
+            return GapStream(distance, time, GradeAdjustedPace.smoothedGrade(distance, altitude), moving)
+        }
+    }
 }

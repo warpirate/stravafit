@@ -88,6 +88,45 @@ class SaveEditViewModelTest {
     }
 
     @Test
+    fun `the audience follows the sport's default on the save screen until the athlete picks one`(): Unit = runBlocking {
+        settings.state.value = settings.state.value.copy(
+            defaultVisibility = Visibility.FOLLOWERS,
+            visibilityOverrides = mapOf(SportType.WALK to Visibility.ONLY_ME, SportType.RIDE to Visibility.EVERYONE),
+        )
+        val id = activities.saveFinished(
+            steadyRun(),
+            NewActivity("rec", visibility = Visibility.FOLLOWERS, timeZone = ZoneOffset.UTC),
+            UnitSystem.METRIC,
+        )
+        val vm = vm(id)
+        assertEquals(Visibility.FOLLOWERS, vm.editing().form.visibility)
+        vm.setSport(SportType.WALK)
+        assertEquals(Visibility.ONLY_ME, vm.editing().form.visibility)
+        vm.setVisibility(Visibility.EVERYONE)
+        vm.setSport(SportType.RIDE)
+        assertEquals(Visibility.EVERYONE, vm.editing().form.visibility)
+        vm.setVisibility(Visibility.FOLLOWERS)
+        vm.setSport(SportType.RUN)
+        // FOLLOWERS is not Ride's default, so the athlete's pick stays.
+        assertEquals(Visibility.FOLLOWERS, vm.editing().form.visibility)
+    }
+
+    @Test
+    fun `editing a saved activity never changes its audience with the sport`(): Unit = runBlocking {
+        settings.state.value = settings.state.value.copy(visibilityOverrides = mapOf(SportType.WALK to Visibility.ONLY_ME))
+        val vm = vm(stored(), isNew = false)
+        val before = vm.editing().form.visibility
+        vm.setSport(SportType.WALK)
+        assertEquals(before, vm.editing().form.visibility)
+    }
+
+    @Test
+    fun `titles come from the injected localised titles`(): Unit = runBlocking {
+        val vm = SaveEditViewModel(stored(), true, activities, extras, settings) { sport, _ -> "Matin ${sport.apiName}" }
+        assertEquals("Matin Run", vm.editing().facts.defaultTitle)
+    }
+
+    @Test
     fun `saving from the edit screen reports an edit, not a first save`(): Unit = runBlocking {
         val id = stored()
         val vm = vm(id, isNew = false)

@@ -4,6 +4,7 @@ package org.openactivity.core.datastore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
@@ -11,11 +12,15 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.openactivity.model.PaceOrSpeed
+import org.openactivity.model.SpeedDisplay
 import org.openactivity.model.SportType
+import org.openactivity.model.SwimPaceUnit
 import org.openactivity.model.UnitSystem
 import org.openactivity.model.Visibility
 import java.io.File
@@ -103,5 +108,65 @@ class SettingsDataSourceTest {
         val s = SettingsDataSource(store) { Locale.UK }.settings.first()
         assertEquals(UnitSystem.METRIC, s.units)
         assertEquals(SportType.RUN, s.defaultSport)
+    }
+
+    @Test
+    fun `pace or speed overrides round-trip and resolve per sport`() = runTest(UnconfinedTestDispatcher()) {
+        val source = SettingsDataSource(newStore()) { Locale.UK }
+        val defaults = source.settings.first()
+        assertEquals(SpeedDisplay.PACE, defaults.speedDisplay(SportType.RUN))
+        assertEquals(SpeedDisplay.SPEED, defaults.speedDisplay(SportType.RIDE))
+        assertEquals(SpeedDisplay.PACE_PER_100M, defaults.speedDisplay(SportType.SWIM))
+        assertNull(defaults.swimPaceUnit)
+
+        source.setSpeedOverride(SportType.RUN, PaceOrSpeed.SPEED)
+        source.setSpeedOverride(SportType.RIDE, PaceOrSpeed.PACE)
+        source.setSpeedOverride(SportType.RIDE, PaceOrSpeed.SPEED)
+        source.setSwimPaceUnit(SwimPaceUnit.YARDS)
+        val s = source.settings.first()
+        assertEquals(mapOf(SportType.RUN to PaceOrSpeed.SPEED, SportType.RIDE to PaceOrSpeed.SPEED), s.speedOverrides)
+        assertEquals(SpeedDisplay.SPEED, s.speedDisplay(SportType.RUN))
+        assertEquals(PaceOrSpeed.SPEED, s.paceOrSpeed(SportType.RUN))
+        assertEquals(SpeedDisplay.PACE_PER_100YD, s.speedDisplay(SportType.SWIM))
+
+        source.setSpeedOverride(SportType.RUN, null)
+        source.setSwimPaceUnit(null)
+        val reset = source.settings.first()
+        assertEquals(SpeedDisplay.PACE, reset.speedDisplay(SportType.RUN))
+        assertNull(reset.swimPaceUnit)
+    }
+
+    @Test
+    fun `per-sport default visibility falls back to the account default`() = runTest(UnconfinedTestDispatcher()) {
+        val source = SettingsDataSource(newStore())
+        source.setDefaultVisibility(Visibility.EVERYONE)
+        source.setVisibilityOverride(SportType.WALK, Visibility.ONLY_ME)
+        val s = source.settings.first()
+        assertEquals(Visibility.ONLY_ME, s.defaultVisibility(SportType.WALK))
+        assertEquals(Visibility.EVERYONE, s.defaultVisibility(SportType.RUN))
+        source.setVisibilityOverride(SportType.WALK, null)
+        assertEquals(Visibility.EVERYONE, source.settings.first().defaultVisibility(SportType.WALK))
+    }
+
+    @Test
+    fun `an unreadable stored visibility fails safe to only me`() = runTest(UnconfinedTestDispatcher()) {
+        val store = newStore()
+        store.edit {
+            it[stringPreferencesKey("default_visibility")] = "PUBLIC_TO_ALIENS"
+            it[stringSetPreferencesKey("visibility_overrides")] = setOf("RUN=nonsense", "QUIDDITCH=EVERYONE", "RIDE=FOLLOWERS")
+        }
+        val s = SettingsDataSource(store).settings.first()
+        assertEquals(Visibility.ONLY_ME, s.defaultVisibility)
+        assertEquals(Visibility.ONLY_ME, s.defaultVisibility(SportType.RUN))
+        assertEquals(Visibility.FOLLOWERS, s.defaultVisibility(SportType.RIDE))
+        assertEquals(setOf(SportType.RUN, SportType.RIDE), s.visibilityOverrides.keys)
+    }
+
+    @Test
+    fun `launch tab defaults to home and round-trips`() = runTest(UnconfinedTestDispatcher()) {
+        val source = SettingsDataSource(newStore())
+        assertEquals(LaunchTab.HOME, source.settings.first().launchTab)
+        source.setLaunchTab(LaunchTab.RECORD)
+        assertEquals(LaunchTab.RECORD, source.settings.first().launchTab)
     }
 }

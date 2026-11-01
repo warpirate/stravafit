@@ -59,6 +59,8 @@ data class ChartColors(
  * [yLabel] formats tick values (pace sports pass speed values and print them as pace).
  *
  * @param backgroundMetric optional series drawn as a silhouette behind the line (elevation under pace).
+ * @param overlayMetric optional second line on the same scale (grade-adjusted pace over pace), drawn in
+ * [overlayColor]; the y range then covers both lines.
  * @param tickValues picks the labelled y values for the padded value range; round numbers by default
  * (pace charts pass [ChartMath.paceTicks] so the labels are round paces).
  */
@@ -77,11 +79,16 @@ fun ActivityChart(
     backgroundMetric: ChartMetric? = null,
     tickValues: ((ClosedFloatingPointRange<Double>) -> List<Double>)? = null,
     average: Double? = data.seriesFor(metric)?.average,
+    overlayMetric: ChartMetric? = null,
+    overlayColor: Color = Color.Unspecified,
 ) {
     val series = data.seriesFor(metric) ?: return
     val background = backgroundMetric?.let { data.seriesFor(it) }
+    val overlay = overlayMetric?.let { data.seriesFor(it) }
     val measurer = rememberTextMeasurer()
-    val range = remember(series) { ChartMath.robustRange(series.values, ChartMath.minSpan(metric)) }
+    val range = remember(series, overlay) {
+        ChartMath.robustRange(if (overlay == null) series.values else series.values + overlay.values, ChartMath.minSpan(metric))
+    }
     val ticks = remember(range, tickValues) {
         (tickValues?.invoke(range) ?: ChartMath.niceTicks(range.start, range.endInclusive, 3)).filter { it in range }
     }
@@ -127,6 +134,9 @@ fun ActivityChart(
         }
         if (colors.fill != Color.Unspecified) {
             drawArea(data, series.values, ::xOf, range.start, range.endInclusive, colors.fill)
+        }
+        if (overlay != null && overlayColor != Color.Unspecified) {
+            clipRect { drawSeriesLine(overlay.values, ::xOf, range.start, range.endInclusive, overlayColor) }
         }
         clipRect { drawSeriesLine(series.values, ::xOf, range.start, range.endInclusive, colors.line) }
         average?.takeIf { it in range }?.let { avg ->

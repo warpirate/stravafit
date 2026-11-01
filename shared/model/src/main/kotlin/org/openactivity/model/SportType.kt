@@ -40,6 +40,9 @@ public enum class SpeedDisplay {
     /** Time per 100 metres. */
     PACE_PER_100M,
 
+    /** Time per 100 yards (swims for athletes who use yards). */
+    PACE_PER_100YD,
+
     /** Time per 500 metres. */
     PACE_PER_500M,
 
@@ -153,7 +156,19 @@ public enum class SportType(
     /** True for cycling sports. */
     public val isRideLike: Boolean get() = category == SportCategory.BIKE
 
+    /**
+     * True when the headline time is the elapsed (wall-clock) time rather than the moving time
+     * (activity-detail 1.1): gym and studio sessions, racket and ball games, climbing, and sports with
+     * natural rests such as downhill skiing, snowboarding and surfing. Average speed still uses moving time.
+     */
+    public val headlinesElapsedTime: Boolean
+        get() = category == SportCategory.FITNESS || category == SportCategory.RACKET_BALL || this in ELAPSED_HEADLINE
+
     public companion object {
+        private val ELAPSED_HEADLINE: Set<SportType> = setOf(
+            ALPINE_SKI, BACKCOUNTRY_SKI, SNOWBOARD, SURFING, KITESURF, WINDSURF, ROCK_CLIMBING,
+        )
+
         private val byApiName: Map<String, SportType> = entries.associateBy { it.apiName.lowercase() }
 
         /** Looks up a sport by its [apiName], ignoring case and surrounding blanks; null for unknown names. */
