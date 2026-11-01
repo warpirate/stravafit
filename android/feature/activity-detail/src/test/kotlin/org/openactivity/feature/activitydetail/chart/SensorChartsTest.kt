@@ -65,7 +65,7 @@ class SensorChartsTest {
         val points = List(400) { i -> point(i, elevation = if (i < 200) 0.3 * i else 60.0) }
         val run = ChartMath.build(points, SportType.RUN, maxSamples = 1000)!!
         val speed = run.seriesFor(ChartMetric.SPEED)!!.values
-        val gap = assertNotNull(run.seriesFor(ChartMetric.GRADE_ADJUSTED_SPEED)).values
+        val gap = run.seriesFor(ChartMetric.GRADE_ADJUSTED_SPEED)!!.values
         assertTrue("uphill GAP should be faster", gap[100] > speed[100] * 1.3)
         assertEquals(speed[350], gap[350], 1e-6)
 
