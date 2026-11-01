@@ -48,4 +48,5 @@ includeIfPresent(
     ":android:core:activity-extras", // WP detail
     ":android:feature:save-edit", // WP detail
     ":android:feature:activity-detail", // WP detail
+    ":android:core:routing", // route suggestions
 )

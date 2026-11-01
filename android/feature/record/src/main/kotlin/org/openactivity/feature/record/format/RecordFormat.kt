@@ -19,6 +19,19 @@ object RecordFormat {
     fun distance(meters: Double, units: UnitSystem): String =
         String.format(locale, "%.2f", meters.coerceAtLeast(0.0) / units.splitLengthMeters)
 
+    /** "120 m" or "400 ft" (rounded to 10) below a kilometre or mile, else "1.20 km". */
+    fun shortDistance(meters: Double, units: UnitSystem): String {
+        val m = meters.coerceAtLeast(0.0)
+        if (m >= units.splitLengthMeters) return "${distance(m, units)} ${distanceUnit(units)}"
+        return if (units == UnitSystem.METRIC) {
+            "${(m / 10).roundToLong() * 10} m"
+        } else {
+            "${(m / METERS_PER_FOOT / 10).roundToLong() * 10} ft"
+        }
+    }
+
+    private const val METERS_PER_FOOT = 0.3048
+
     /** "km" or "mi". */
     fun distanceUnit(units: UnitSystem): String = if (units == UnitSystem.METRIC) "km" else "mi"
 

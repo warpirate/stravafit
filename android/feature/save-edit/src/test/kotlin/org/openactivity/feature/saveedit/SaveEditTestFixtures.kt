@@ -65,6 +65,9 @@ class FakeSettings(initial: AppSettings = AppSettings(units = UnitSystem.METRIC)
         state.update { it.copy(visibilityOverrides = if (visibility == null) it.visibilityOverrides - sport else it.visibilityOverrides + (sport to visibility)) }
 
     override suspend fun setLaunchTab(tab: org.openactivity.core.datastore.LaunchTab) = state.update { it.copy(launchTab = tab) }
+    override suspend fun setAutoLap(meters: Double) = Unit
+
+    override suspend fun setOffRouteAlerts(enabled: Boolean) = Unit
 }
 
 /** In-memory extras; added photos point at placeholder files. */

@@ -126,4 +126,7 @@ internal class InMemorySettingsRepository(initial: AppSettings = AppSettings()) 
         settings.update { it.copy(visibilityOverrides = if (visibility == null) it.visibilityOverrides - sport else it.visibilityOverrides + (sport to visibility)) }
 
     override suspend fun setLaunchTab(tab: org.openactivity.core.datastore.LaunchTab) = settings.update { it.copy(launchTab = tab) }
+    override suspend fun setAutoLap(meters: Double) = settings.update { it.copy(autoLapMeters = meters) }
+
+    override suspend fun setOffRouteAlerts(enabled: Boolean) = settings.update { it.copy(offRouteAlerts = enabled) }
 }

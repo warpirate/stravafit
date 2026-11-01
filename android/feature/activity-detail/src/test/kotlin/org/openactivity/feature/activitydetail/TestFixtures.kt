@@ -112,6 +112,9 @@ class FakeSettingsRepository(initial: AppSettings = AppSettings()) : SettingsRep
         state.update { it.copy(visibilityOverrides = if (visibility == null) it.visibilityOverrides - sport else it.visibilityOverrides + (sport to visibility)) }
 
     override suspend fun setLaunchTab(tab: org.openactivity.core.datastore.LaunchTab) = state.update { it.copy(launchTab = tab) }
+    override suspend fun setAutoLap(meters: Double) { state.value = state.value.copy(autoLapMeters = meters) }
+
+    override suspend fun setOffRouteAlerts(enabled: Boolean) { state.value = state.value.copy(offRouteAlerts = enabled) }
 }
 
 /** In-memory extras without photo files. */

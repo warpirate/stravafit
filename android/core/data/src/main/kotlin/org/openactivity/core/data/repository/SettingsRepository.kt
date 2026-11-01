@@ -47,6 +47,11 @@ interface SettingsRepository {
 
     /** The tab a cold launch opens on. */
     suspend fun setLaunchTab(tab: LaunchTab)
+    /** Distance auto-lap every [meters]; 0 turns it off. */
+    suspend fun setAutoLap(meters: Double)
+
+    /** Banner, buzz and spoken alert when leaving a followed route. */
+    suspend fun setOffRouteAlerts(enabled: Boolean)
 }
 
 /** [SettingsRepository] over DataStore. */
@@ -78,4 +83,7 @@ class DataStoreSettingsRepository @Inject constructor(
         source.setVisibilityOverride(sport, visibility)
 
     override suspend fun setLaunchTab(tab: LaunchTab) = source.setLaunchTab(tab)
+    override suspend fun setAutoLap(meters: Double) = source.setAutoLap(meters)
+
+    override suspend fun setOffRouteAlerts(enabled: Boolean) = source.setOffRouteAlerts(enabled)
 }

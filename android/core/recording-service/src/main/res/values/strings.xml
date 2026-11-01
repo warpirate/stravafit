@@ -33,6 +33,28 @@
     <string name="cue_distance">Distance %1$s.</string>
     <string name="cue_time">Time %1$s.</string>
     <string name="cue_split_pace">Split pace %1$s per %2$s.</string>
+    <string name="cue_split_speed">Split speed %1$s.</string>
+    <string name="cue_split">Split %1$d.</string>
+    <string name="cue_lap">Lap %1$d.</string>
+    <string name="cue_auto_lap">Auto lap %1$d.</string>
+    <string name="cue_lap_time">Lap time %1$s.</string>
+    <string name="cue_lap_pace">Lap pace %1$s per %2$s.</string>
+    <string name="cue_lap_speed">Lap speed %1$s.</string>
+    <string name="cue_average_pace">Average pace %1$s per %2$s.</string>
+    <string name="cue_average_speed">Average speed %1$s.</string>
+    <string name="cue_off_route">Off route. The route is %1$s away.</string>
+    <string name="cue_back_on_route">Back on route</string>
+    <string name="cue_route_completed">Route completed</string>
+    <string name="cue_kmh">%1$s kilometres per hour</string>
+    <string name="cue_mph">%1$s miles per hour</string>
+    <plurals name="cue_meters">
+        <item quantity="one">%1$d metre</item>
+        <item quantity="other">%1$d metres</item>
+    </plurals>
+    <plurals name="cue_feet">
+        <item quantity="one">%1$d foot</item>
+        <item quantity="other">%1$d feet</item>
+    </plurals>
     <string name="cue_unit_kilometer">kilometre</string>
     <string name="cue_unit_mile">mile</string>
     <plurals name="cue_kilometers">

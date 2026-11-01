@@ -26,19 +26,66 @@ enum class LaunchTab {
 }
 
 /**
- * Spoken feedback while recording.
+ * Spoken feedback while recording (record detail 7.1-7.4, A10): a master switch plus one toggle per kind
+ * of cue, so an athlete can keep the split readouts and silence the rest, or the other way round.
  *
  * @property enabled master switch for all cues.
- * @property distanceInterval announce every this many kilometres or miles (following the unit setting).
+ * @property distanceInterval announce every this many kilometres or miles (following the unit setting),
+ *   when [distanceCues] is on.
  * @property announceAutoPause speak when auto-pause stops or restarts the timer (record detail 7.4).
+ * @property announceStatus "Activity started", paused, resumed and saved.
+ * @property announceSplits each completed kilometre or mile split, with its pace.
+ * @property announceLaps each lap, manual or automatic.
+ * @property announceRoute off route, back on route and route finished, while following a route.
+ * @property distanceCues the custom distance interval cue ([distanceInterval]).
+ * @property timeIntervalMinutes a time and distance readout every this many minutes of timer time; 0 is off.
  */
 data class AudioCueSettings(
     val enabled: Boolean = true,
     val distanceInterval: Double = 1.0,
     val announceAutoPause: Boolean = true,
+    val announceStatus: Boolean = true,
+    val announceSplits: Boolean = true,
+    val announceLaps: Boolean = true,
+    val announceRoute: Boolean = true,
+    val distanceCues: Boolean = false,
+    val timeIntervalMinutes: Int = 0,
 ) {
     init {
         require(distanceInterval > 0.0 && distanceInterval.isFinite()) { "interval must be positive" }
+        require(timeIntervalMinutes >= 0) { "time interval must not be negative" }
+    }
+
+    companion object {
+        /** Distance interval choices, in kilometres or miles (record detail 7.3, plus longer ones). */
+        val DISTANCE_INTERVALS: List<Double> = listOf(0.25, 0.5, 1.0, 2.0, 5.0)
+
+        /** Time interval choices in minutes; 0 is off. */
+        val TIME_INTERVALS: List<Int> = listOf(0, 5, 10, 15, 30)
+    }
+}
+
+/**
+ * Distance auto-lap choices (record detail 3.10). [CUSTOM] uses [AppSettings.autoLapMeters] as stored.
+ */
+enum class AutoLapChoice {
+    OFF,
+    KILOMETER,
+    MILE,
+    CUSTOM,
+    ;
+
+    companion object {
+        const val KILOMETER_METERS: Double = 1000.0
+        const val MILE_METERS: Double = 1609.344
+
+        /** The choice a stored [meters] value corresponds to. */
+        fun of(meters: Double): AutoLapChoice = when {
+            meters <= 0.0 -> OFF
+            kotlin.math.abs(meters - KILOMETER_METERS) < 0.5 -> KILOMETER
+            kotlin.math.abs(meters - MILE_METERS) < 0.5 -> MILE
+            else -> CUSTOM
+        }
     }
 }
 
@@ -72,6 +119,9 @@ data class PrivacySettings(
  * @property swimPaceUnit per 100 m or per 100 yd for swims; null follows [units].
  * @property visibilityOverrides per-sport default visibility; sports without one use [defaultVisibility].
  * @property launchTab the tab a cold launch opens on.
+ * @property autoLapMeters distance auto-lap: a lap closes every this many metres; 0 is off.
+ * @property offRouteAlerts banner, vibration and (with route cues on) a spoken alert when leaving a followed
+ *   route; on by default (record detail 10.1).
  */
 data class AppSettings(
     val units: UnitSystem = UnitSystem.METRIC,
@@ -85,6 +135,8 @@ data class AppSettings(
     val swimPaceUnit: SwimPaceUnit? = null,
     val visibilityOverrides: Map<SportType, Visibility> = emptyMap(),
     val launchTab: LaunchTab = LaunchTab.HOME,
+    val autoLapMeters: Double = 0.0,
+    val offRouteAlerts: Boolean = true,
 ) {
     /** Whether auto-pause is on for [sport]. */
     fun autoPauseEnabled(sport: SportType): Boolean = autoPauseOverrides[sport] ?: defaultAutoPause(sport)

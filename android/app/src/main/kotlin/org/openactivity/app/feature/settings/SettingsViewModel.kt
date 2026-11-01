@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.openactivity.app.BuildConfig
 import org.openactivity.app.data.PreferencesRepository
+import org.openactivity.app.data.SuggestionSettings
 import org.openactivity.app.data.export.ActivityArchiveExporter
 import org.openactivity.app.data.export.ArchiveSummary
 import org.openactivity.app.distribution.Distribution
@@ -27,6 +28,7 @@ import org.openactivity.core.data.repository.SettingsRepository
 import org.openactivity.core.datastore.AppSettings
 import org.openactivity.core.datastore.AudioCueSettings
 import org.openactivity.core.datastore.LaunchTab
+import org.openactivity.core.datastore.AutoLapChoice
 import org.openactivity.core.datastore.PrivacySettings
 import org.openactivity.model.SportType
 import org.openactivity.model.UnitSystem
@@ -44,6 +46,8 @@ import javax.inject.Inject
 data class SettingsUiState(
     val settings: AppSettings = AppSettings(),
     val reduceMotion: Boolean = false,
+    /** Online route suggestions on Home and Maps. */
+    val routeSuggestions: Boolean = true,
     val distribution: Distribution,
     val versionName: String,
     val isExporting: Boolean = false,
@@ -60,7 +64,13 @@ data class SettingsUiState(
         val AUTO_PAUSE_SPORTS: List<SportType> = SPORTS.filter { it.usesGps }
 
         /** Audio cue intervals in kilometres or miles. */
-        val CUE_INTERVALS: List<Double> = listOf(0.5, 1.0, 2.0, 5.0)
+        val CUE_INTERVALS: List<Double> = AudioCueSettings.DISTANCE_INTERVALS
+
+        /** Time readout intervals in minutes; 0 is off. */
+        val CUE_TIME_INTERVALS: List<Int> = AudioCueSettings.TIME_INTERVALS
+
+        /** Distance auto-lap choices in metres; 0 is off (400 m is one track lap). */
+        val AUTO_LAP_METERS: List<Double> = listOf(0.0, 400.0, AutoLapChoice.KILOMETER_METERS, AutoLapChoice.MILE_METERS, 5_000.0)
 
         /** Start/end hiding radii in metres (settings-privacy-units 7.2: 0 to 1,600 m). */
         val HIDE_RADII: List<Double> = listOf(0.0, 100.0, 200.0, 400.0, 800.0, 1600.0)
@@ -74,6 +84,7 @@ class SettingsViewModel @Inject constructor(
     private val preferencesRepository: PreferencesRepository,
     private val archiveExporter: ActivityArchiveExporter,
     distribution: Distribution,
+    private val suggestionSettings: SuggestionSettings,
 ) : ViewModel() {
 
     private val local = MutableStateFlow(Local())
@@ -83,10 +94,12 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.settings,
         preferencesRepository.preferences,
         local,
-    ) { settings, preferences, local ->
+        suggestionSettings.state,
+    ) { settings, preferences, local, suggestions ->
         initial.copy(
             settings = settings,
             reduceMotion = preferences.reduceMotion,
+            routeSuggestions = suggestions.enabled,
             isExporting = local.exporting,
             message = local.message,
         )
@@ -99,6 +112,8 @@ class SettingsViewModel @Inject constructor(
     fun setReduceMotion(enabled: Boolean) = launch { preferencesRepository.setReduceMotion(enabled) }
 
     fun setLaunchTab(tab: LaunchTab) = launch { settingsRepository.setLaunchTab(tab) }
+    /** Turning suggestions off also deletes the cached ones. */
+    fun setRouteSuggestions(enabled: Boolean) = launch { suggestionSettings.setEnabled(enabled) }
 
     fun setDefaultSport(sport: SportType) = launch { settingsRepository.setDefaultSport(sport) }
 
@@ -109,6 +124,22 @@ class SettingsViewModel @Inject constructor(
     fun setCueInterval(interval: Double) = updateCues { it.copy(distanceInterval = interval) }
 
     fun setAnnounceAutoPause(enabled: Boolean) = updateCues { it.copy(announceAutoPause = enabled) }
+
+    fun setAnnounceStatus(enabled: Boolean) = updateCues { it.copy(announceStatus = enabled) }
+
+    fun setAnnounceSplits(enabled: Boolean) = updateCues { it.copy(announceSplits = enabled) }
+
+    fun setAnnounceLaps(enabled: Boolean) = updateCues { it.copy(announceLaps = enabled) }
+
+    fun setAnnounceRoute(enabled: Boolean) = updateCues { it.copy(announceRoute = enabled) }
+
+    fun setDistanceCues(enabled: Boolean) = updateCues { it.copy(distanceCues = enabled) }
+
+    fun setCueTimeInterval(minutes: Int) = updateCues { it.copy(timeIntervalMinutes = minutes) }
+
+    fun setAutoLap(meters: Double) = launch { settingsRepository.setAutoLap(meters) }
+
+    fun setOffRouteAlerts(enabled: Boolean) = launch { settingsRepository.setOffRouteAlerts(enabled) }
 
     fun setDefaultVisibility(visibility: Visibility) = launch { settingsRepository.setDefaultVisibility(visibility) }
 

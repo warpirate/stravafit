@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-<!-- Placeholder mark: a ridgeline over a route dot. Original artwork; replace with the final brand. -->
+<!-- StravaFit mark: a route curving from a start ring to a finish dot. Original artwork. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -9,11 +9,16 @@
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="6"
+        android:strokeWidth="8"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M30,66 L44,46 L54,58 L64,42 L78,66" />
+        android:pathData="M35,73 C38,60 50,66 55,56 S62,40 74,36" />
     <path
-        android:fillColor="#FFDDF27F"
-        android:pathData="M49,74 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+        android:fillColor="#FFFC5200"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="4"
+        android:pathData="M28.5,73 a6.5,6.5 0 1,0 13,0 a6.5,6.5 0 1,0 -13,0" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M66.5,36 a7.5,7.5 0 1,0 15,0 a7.5,7.5 0 1,0 -15,0" />
 </vector>
