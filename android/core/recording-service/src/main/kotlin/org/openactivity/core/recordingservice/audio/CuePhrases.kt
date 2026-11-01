@@ -22,16 +22,56 @@ class CuePhrases(private val resources: Resources, private val locale: Locale = 
         AudioCue.AutoResumed -> resources.getString(R.string.cue_auto_resumed)
         AudioCue.Saved -> resources.getString(R.string.cue_saved)
         is AudioCue.Milestone -> milestone(cue, units)
+        is AudioCue.Split -> buildList {
+            add(resources.getString(R.string.cue_split, cue.number))
+            add(resources.getString(R.string.cue_time, duration(cue.movingTime.inWholeSeconds)))
+            pace(cue.paceSecondsPerUnit, cue.speed, units, R.string.cue_split_pace, R.string.cue_split_speed)?.let(::add)
+        }.joinToString(" ")
+        is AudioCue.Lap -> buildList {
+            add(resources.getString(if (cue.automatic) R.string.cue_auto_lap else R.string.cue_lap, cue.number))
+            add(resources.getString(R.string.cue_lap_time, duration(cue.lapTime.inWholeSeconds)))
+            pace(cue.paceSecondsPerUnit, cue.speed, units, R.string.cue_lap_pace, R.string.cue_lap_speed)?.let(::add)
+        }.joinToString(" ")
+        is AudioCue.TimeReadout -> buildList {
+            add(resources.getString(R.string.cue_time, duration(cue.timerTime.inWholeSeconds)))
+            add(resources.getString(R.string.cue_distance, distance(cue.distanceMeters, units)))
+            pace(cue.averagePaceSecondsPerUnit, cue.speed, units, R.string.cue_average_pace, R.string.cue_average_speed)?.let(::add)
+        }.joinToString(" ")
+        is AudioCue.OffRoute -> resources.getString(R.string.cue_off_route, shortDistance(cue.distanceMeters, units))
+        AudioCue.BackOnRoute -> resources.getString(R.string.cue_back_on_route)
+        AudioCue.RouteCompleted -> resources.getString(R.string.cue_route_completed)
     }
 
     private fun milestone(cue: AudioCue.Milestone, units: UnitSystem): String = buildList {
         add(resources.getString(R.string.cue_distance, distance(cue.distanceMeters, units)))
         add(resources.getString(R.string.cue_time, duration(cue.movingTime.inWholeSeconds)))
-        cue.intervalPaceSecondsPerUnit?.takeIf { it.isFinite() && it > 0 }?.let { pace ->
-            val unit = resources.getString(if (units == UnitSystem.METRIC) R.string.cue_unit_kilometer else R.string.cue_unit_mile)
-            add(resources.getString(R.string.cue_split_pace, duration(pace.roundToLong()), unit))
-        }
+        pace(cue.intervalPaceSecondsPerUnit, cue.speed, units, R.string.cue_split_pace, R.string.cue_split_speed)?.let(::add)
     }.joinToString(" ")
+
+    /** "Split pace 5 minutes 2 seconds per kilometre." or, for rides, "Split speed 24.5 kilometres per hour." */
+    private fun pace(secondsPerUnit: Double?, speed: Boolean, units: UnitSystem, paceRes: Int, speedRes: Int): String? {
+        val pace = secondsPerUnit?.takeIf { it.isFinite() && it > 0 } ?: return null
+        return if (speed) {
+            val perHour = 3600.0 / pace
+            val text = NumberFormat.getNumberInstance(locale).apply { maximumFractionDigits = 1 }.format(perHour)
+            resources.getString(speedRes, resources.getString(if (units == UnitSystem.METRIC) R.string.cue_kmh else R.string.cue_mph, text))
+        } else {
+            val unit = resources.getString(if (units == UnitSystem.METRIC) R.string.cue_unit_kilometer else R.string.cue_unit_mile)
+            resources.getString(paceRes, duration(pace.roundToLong()), unit)
+        }
+    }
+
+    /** "120 metres" or "400 feet", rounded to 10; a kilometre or mile and up uses [distance]. */
+    fun shortDistance(meters: Double, units: UnitSystem): String {
+        if (meters >= units.splitLengthMeters) return distance(meters, units)
+        return if (units == UnitSystem.METRIC) {
+            val m = ((meters / 10).roundToLong() * 10).toInt().coerceAtLeast(10)
+            resources.getQuantityString(R.plurals.cue_meters, m, m)
+        } else {
+            val ft = ((meters / 0.3048 / 10).roundToLong() * 10).toInt().coerceAtLeast(10)
+            resources.getQuantityString(R.plurals.cue_feet, ft, ft)
+        }
+    }
 
     /** "2 kilometres", "2.5 miles". */
     fun distance(meters: Double, units: UnitSystem): String {

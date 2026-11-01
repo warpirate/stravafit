@@ -14,12 +14,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +29,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.openactivity.core.designsystem.component.MISSING_VALUE
+import org.openactivity.core.designsystem.component.RankMedal
 import org.openactivity.core.designsystem.theme.RidgelineTheme
 import org.openactivity.core.designsystem.theme.Spacing
 import org.openactivity.feature.activitydetail.EffortRow
@@ -41,8 +38,9 @@ import org.openactivity.feature.activitydetail.SplitRow
 import org.openactivity.feature.activitydetail.format.Measure
 
 /**
- * Splits table: number, pace or speed, a bar relative to the fastest split, elevation change and
- * heart rate. Tapping a row selects it (the map frames that split); tapping it again releases it.
+ * Splits table: number, pace or speed, a bar relative to the fastest split, grade-adjusted pace (hilly
+ * runs, [showGap]), elevation change and heart rate. Tapping a row selects it (the map frames that split);
+ * tapping it again releases it.
  */
 @Composable
 internal fun SplitsTable(
@@ -52,11 +50,12 @@ internal fun SplitsTable(
     selected: Int?,
     onSelect: (Int?) -> Unit,
     modifier: Modifier = Modifier,
+    showGap: Boolean = false,
 ) {
     val hasHr = rows.any { it.heartRate != null }
     val hasElev = rows.any { it.elevationDelta != null }
     Column(modifier.fillMaxWidth()) {
-        TableHeader(unitHeader, speedHeader, if (hasElev) "Elev" else null, if (hasHr) "HR" else null)
+        TableHeader(unitHeader, speedHeader, if (showGap) "GAP" else null, if (hasElev) "Elev" else null, if (hasHr) "HR" else null)
         rows.forEachIndexed { i, row ->
             val isSelected = selected == i
             Row(
@@ -73,6 +72,7 @@ internal fun SplitsTable(
                 Text(row.label, style = RidgelineTheme.text.statS.copy(fontWeight = FontWeight.Normal), color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(UNIT_COL))
                 SpeedCell(row.speed, Modifier.width(SPEED_COL))
                 PaceBar(row.barFraction, row.isFastest, Modifier.weight(1f))
+                if (showGap) NumberCell(row.gap?.value, Modifier.width(GAP_COL))
                 if (hasElev) NumberCell(row.elevationDelta, Modifier.width(SMALL_COL))
                 if (hasHr) NumberCell(row.heartRate, Modifier.width(SMALL_COL))
             }
@@ -119,7 +119,10 @@ internal fun LapsTable(rows: List<LapRow>, speedHeader: String, modifier: Modifi
     }
 }
 
-/** Best efforts achieved in this activity; personal bests carry a trophy. */
+/**
+ * Best efforts achieved in this activity. Medalled ones carry a gold, silver or bronze medal (solid for an
+ * all-time place, outlined for a place within the year) and the place in words.
+ */
 @Composable
 internal fun EffortsList(rows: List<EffortRow>, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
@@ -129,23 +132,21 @@ internal fun EffortsList(rows: List<EffortRow>, modifier: Modifier = Modifier) {
                     .fillMaxWidth()
                     .heightIn(min = 44.dp)
                     .clearAndSetSemantics {
-                        contentDescription = "${row.name}, ${row.result}" + if (row.isPersonalBest) ", personal best" else ""
+                        contentDescription = listOfNotNull(row.name, row.result, row.medalLabel?.let(::spokenMedal)).joinToString(", ")
                     },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
-                    if (row.isPersonalBest) {
-                        Box(
-                            Modifier.size(28.dp).clip(CircleShape).background(RidgelineTheme.colors.medalGold),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(Icons.Rounded.EmojiEvents, null, tint = RidgelineTheme.colors.onSignal, modifier = Modifier.size(16.dp))
-                        }
-                    }
+                    row.rank?.let { RankMedal(it, yearly = row.yearly) }
                 }
                 Text(row.name, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(start = Spacing.m).weight(1f))
-                if (row.isPersonalBest) {
-                    Text("PB", style = MaterialTheme.typography.labelMedium, color = RidgelineTheme.colors.signalText, modifier = Modifier.padding(end = Spacing.s))
+                row.medalLabel?.let { label ->
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (row.isPersonalBest) RidgelineTheme.colors.signalText else RidgelineTheme.colors.textSecondary,
+                        modifier = Modifier.padding(end = Spacing.s),
+                    )
                 }
                 Text(row.result, style = RidgelineTheme.text.statS, color = MaterialTheme.colorScheme.onSurface)
             }
@@ -153,12 +154,16 @@ internal fun EffortsList(rows: List<EffortRow>, modifier: Modifier = Modifier) {
     }
 }
 
+/** "PR" read out in full. */
+internal fun spokenMedal(label: String): String = if (label == "PR") "personal record" else label
+
 @Composable
-private fun TableHeader(unit: String, speed: String, elev: String?, hr: String?) {
+private fun TableHeader(unit: String, speed: String, gap: String?, elev: String?, hr: String?) {
     Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.xs, vertical = Spacing.xs)) {
         HeaderText(unit, Modifier.width(UNIT_COL))
         HeaderText(speed, Modifier.width(SPEED_COL))
-        HeaderText("Relative pace", Modifier.weight(1f))
+        HeaderText(if (gap == null) "Relative pace" else "Relative", Modifier.weight(1f))
+        if (gap != null) HeaderText(gap, Modifier.width(GAP_COL))
         if (elev != null) HeaderText(elev, Modifier.width(SMALL_COL))
         if (hr != null) HeaderText(hr, Modifier.width(SMALL_COL))
     }
@@ -201,4 +206,5 @@ private fun PaceBar(fraction: Float, highlight: Boolean, modifier: Modifier) {
 private val UNIT_COL = 44.dp
 private val SPEED_COL = 64.dp
 private val SMALL_COL = 44.dp
+private val GAP_COL = 52.dp
 private val DIST_COL = 76.dp

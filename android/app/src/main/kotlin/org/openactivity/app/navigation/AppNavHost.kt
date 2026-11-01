@@ -13,12 +13,17 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import org.openactivity.app.feature.explore.ExploreScreen
 import org.openactivity.app.feature.feed.FeedScreen
+import org.openactivity.app.feature.goals.GoalsScreen
+import org.openactivity.app.feature.notifications.InboxDestination
+import org.openactivity.app.feature.notifications.NotificationsScreen
 import org.openactivity.app.feature.groups.GroupsScreen
 import org.openactivity.app.feature.me.MeScreen
 import org.openactivity.app.feature.profile.EditProfileScreen
 import org.openactivity.app.feature.route.RouteDetailScreen
+import org.openactivity.app.feature.route.SuggestedRouteScreen
 import org.openactivity.app.feature.settings.LicensesScreen
 import org.openactivity.app.feature.settings.SettingsScreen
+import org.openactivity.core.datastore.LaunchTab
 import org.openactivity.core.designsystem.theme.RidgelineTheme
 import org.openactivity.feature.activitydetail.ActivityDetailNavigation
 import org.openactivity.feature.activitydetail.ImportActivitiesRoute
@@ -40,17 +45,24 @@ import org.openactivity.feature.shareexport.shareExportScreen
 /**
  * The app navigation graph. Every destination is registered exactly once: the four tabs (feed,
  * explore, groups, me), record, settings, save/edit, activity detail, share & export, route detail,
- * file import, edit profile and licences. First-run onboarding is shown by `MainActivity` before
- * this graph exists. Activity, route and recorder destinations also answer the [AppLinks].
+ * suggested route, file import, edit profile, licences, the notifications inbox and goals. First-run
+ * onboarding is shown by `MainActivity` before this graph exists. Activity, route and recorder
+ * destinations also answer the [AppLinks].
  */
 @Composable
-fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) {
+fun AppNavHost(navController: NavHostController, startTab: LaunchTab = LaunchTab.HOME, modifier: Modifier = Modifier) {
     val motion = RidgelineTheme.motion
     val exportProvider = rememberExportActivityProvider()
     val openActivity: (Long) -> Unit = { id -> navController.navigateToActivityDetail(id) }
+    val openSuggestion: (String) -> Unit = { id -> navController.navigate(SuggestedRouteRoute(id)) { launchSingleTop = true } }
     NavHost(
         navController = navController,
-        startDestination = FeedRoute,
+        // Record is not a tab root: the app opens on Home with the recorder on top (see MainActivity).
+        startDestination = when (startTab) {
+            LaunchTab.HOME, LaunchTab.RECORD -> FeedRoute
+            LaunchTab.MAPS -> ExploreRoute
+            LaunchTab.YOU -> MeRoute
+        },
         modifier = modifier,
         enterTransition = { fadeIn(tween(motion.enter(motion.short))) },
         exitTransition = { fadeOut(tween(motion.exit(motion.short))) },
@@ -60,10 +72,15 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
                 onRecord = { navController.openRecorder() },
                 onOpenActivity = openActivity,
                 onShareActivity = { id -> navController.navigateToShareExport(id.toString()) },
+                onOpenNotifications = dropUnlessResumed { navController.navigate(NotificationsRoute) { launchSingleTop = true } },
+                onOpenSuggestion = openSuggestion,
             )
         }
         composable<ExploreRoute> {
-            ExploreScreen(onOpenRoute = { id -> navController.navigate(RouteDetailRoute(id)) { launchSingleTop = true } })
+            ExploreScreen(
+                onOpenRoute = { id -> navController.navigate(RouteDetailRoute(id)) { launchSingleTop = true } },
+                onOpenSuggestion = openSuggestion,
+            )
         }
         composable<GroupsRoute> {
             GroupsScreen(onShowYourActivities = { navController.switchTab(FeedRoute) })
@@ -74,7 +91,17 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
                 onEditProfile = { navController.navigate(EditProfileRoute) { launchSingleTop = true } },
                 onOpenActivity = openActivity,
                 onRecord = { navController.openRecorder() },
+                onOpenGoals = { newGoal -> navController.navigate(GoalsRoute(newGoal)) { launchSingleTop = true } },
             )
+        }
+        composable<NotificationsRoute> {
+            NotificationsScreen(
+                onNavigateUp = dropUnlessResumed { navController.popBackStack() },
+                onOpen = { destination -> navController.openInboxDestination(destination) },
+            )
+        }
+        composable<GoalsRoute> {
+            GoalsScreen(onNavigateUp = dropUnlessResumed { navController.popBackStack() })
         }
         recordScreen(
             onClose = { navController.popBackStack() },
@@ -104,6 +131,12 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
         }
         composable<RouteDetailRoute>(deepLinks = AppLinks.route()) {
             RouteDetailScreen(
+                onNavigateUp = dropUnlessResumed { navController.popBackStack() },
+                onRecordRoute = { routeId -> navController.openRecorder(routeId) },
+            )
+        }
+        composable<SuggestedRouteRoute> {
+            SuggestedRouteScreen(
                 onNavigateUp = dropUnlessResumed { navController.popBackStack() },
                 onRecordRoute = { routeId -> navController.openRecorder(routeId) },
             )
@@ -139,6 +172,15 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
             },
         )
         shareExportScreen(provider = exportProvider, onClose = { navController.popBackStack() })
+    }
+}
+
+/** Opens where an inbox entry leads: the activity, the goals, or the You tab for progress and activities. */
+fun NavHostController.openInboxDestination(destination: InboxDestination) {
+    when (destination) {
+        is InboxDestination.Activity -> navigateToActivityDetail(destination.id)
+        InboxDestination.Goals -> navigate(GoalsRoute()) { launchSingleTop = true }
+        InboxDestination.Progress, InboxDestination.Activities -> switchTab(MeRoute)
     }
 }
 

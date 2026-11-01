@@ -6,12 +6,14 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import org.openactivity.app.navigation.AppLinks
+import org.openactivity.app.notifications.AndroidSystemNotifier
 import org.openactivity.core.recordingservice.notification.RecordingNotifications
 
 /**
  * Where a launch intent asks the app to go, beyond its normal start destination. The recording
  * notifications set extras (the ongoing and interrupted ones open the recorder, "Activity saved"
- * opens the saved activity); other apps open GPX/TCX/FIT files with us or share them to us; links
+ * opens the saved activity; inbox notifications for records, goals and the weekly summary open
+ * their entry's destination); other apps open GPX/TCX/FIT files with us or share them to us; links
  * (`openactivity://...`, our https host, the launcher shortcuts) name a screen.
  */
 sealed interface LaunchRequest {
@@ -30,6 +32,8 @@ sealed interface LaunchRequest {
      * asked to with `includeLinks`.
      */
     data class DeepLink(val uri: Uri) : LaunchRequest
+    /** Open where inbox entry [id] leads, marking it read. */
+    data class OpenInboxEntry(val id: Long) : LaunchRequest
 
     companion object {
         /**
@@ -50,7 +54,13 @@ sealed interface LaunchRequest {
                 intent.clearFiles()
                 // A replayed link must not navigate again either.
                 if (intent.data?.let(AppLinks::isAppLink) == true) intent.data = null
+                intent.removeExtra(AndroidSystemNotifier.EXTRA_INBOX_ID)
                 return null
+            }
+            if (intent.hasExtra(AndroidSystemNotifier.EXTRA_INBOX_ID)) {
+                val id = intent.getLongExtra(AndroidSystemNotifier.EXTRA_INBOX_ID, NO_ID)
+                intent.removeExtra(AndroidSystemNotifier.EXTRA_INBOX_ID)
+                return if (id > 0) OpenInboxEntry(id) else null
             }
             if (intent.getBooleanExtra(RecordingNotifications.EXTRA_OPEN_RECORDING, false)) {
                 intent.removeExtra(RecordingNotifications.EXTRA_OPEN_RECORDING)

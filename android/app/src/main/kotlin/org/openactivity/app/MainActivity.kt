@@ -6,6 +6,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.LaunchedEffect
+import org.openactivity.core.datastore.LaunchTab
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
@@ -40,12 +42,21 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        val coldStart = savedInstanceState == null
         // Links on a fresh start are left to the navigation graph, which builds the back stack for them.
-        if (savedInstanceState == null) launchRequest.value = LaunchRequest.consume(intent, includeLinks = false)
+        if (coldStart) launchRequest.value = LaunchRequest.consume(intent, includeLinks = false)
         setContent {
             val pendingRequest by launchRequest.collectAsStateWithLifecycle()
             val preferences by viewModel.preferences.collectAsStateWithLifecycle()
             val start by viewModel.start.collectAsStateWithLifecycle()
+            val launchTab by viewModel.launchTab.collectAsStateWithLifecycle()
+            // "Open app on Record": a cold launch from the launcher goes straight to the recorder; a
+            // notification tap still goes where it asked to.
+            LaunchedEffect(launchTab) {
+                if (coldStart && launchTab == LaunchTab.RECORD && launchRequest.value == null && intent?.data == null) {
+                    launchRequest.value = LaunchRequest.OpenRecorder
+                }
+            }
             val dark = when (preferences.themeMode) {
                 ThemeMode.System -> isSystemInDarkTheme()
                 ThemeMode.Light -> false
@@ -68,6 +79,7 @@ class MainActivity : ComponentActivity() {
                     AppStart.Ready -> OpenActivityApp(
                         launchRequest = pendingRequest,
                         onLaunchRequestHandled = { launchRequest.value = null },
+                        startTab = launchTab ?: LaunchTab.HOME,
                     )
                 }
             }

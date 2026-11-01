@@ -95,4 +95,5 @@ data class BestEffortWithActivity(
     val sport: String,
     val title: String,
     @ColumnInfo(name = "start_epoch_millis") val startEpochMillis: Long,
+    @ColumnInfo(name = "time_zone_id") val timeZoneId: String,
 )

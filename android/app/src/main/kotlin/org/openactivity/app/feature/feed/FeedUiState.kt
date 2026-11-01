@@ -61,7 +61,7 @@ data class FeedUiState(
     val message: String? = null,
     /** A recording is in progress: the empty state points to it rather than to a new one. */
     val recordingInProgress: Boolean = false,
-    /** The bell shows an unread dot until it has been opened once. */
+    /** The inbox has unread entries: the bell shows its dot. */
     val hasUnreadNotifications: Boolean = true,
     /** The first [unseenCount] cards have not been seen yet; the rest have. Always 0 in the You feed. */
     val unseenCount: Int = 0,

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<resources>
+    <!--
+        Automatic activity titles: the part of the day the activity started (in its own time zone) and
+        the sport name. Translators may reorder the words: %1$s is the sport name.
+    -->
+    <string name="auto_title_morning">Morning %1$s</string>
+    <string name="auto_title_afternoon">Afternoon %1$s</string>
+    <string name="auto_title_evening">Evening %1$s</string>
+    <string name="auto_title_night">Night %1$s</string>
+
+    <!-- Sport names as used inside automatic titles. -->
+    <string name="sport_run">Run</string>
+    <string name="sport_trail_run">Trail Run</string>
+    <string name="sport_virtual_run">Virtual Run</string>
+    <string name="sport_walk">Walk</string>
+    <string name="sport_hike">Hike</string>
+    <string name="sport_snowshoe">Snowshoe</string>
+    <string name="sport_ride">Ride</string>
+    <string name="sport_mountain_bike_ride">Mountain Bike Ride</string>
+    <string name="sport_gravel_ride">Gravel Ride</string>
+    <string name="sport_e_bike_ride">E-Bike Ride</string>
+    <string name="sport_e_mountain_bike_ride">E-Mountain Bike Ride</string>
+    <string name="sport_virtual_ride">Virtual Ride</string>
+    <string name="sport_velomobile">Velomobile</string>
+    <string name="sport_handcycle">Handcycle</string>
+    <string name="sport_swim">Swim</string>
+    <string name="sport_rowing">Rowing</string>
+    <string name="sport_virtual_row">Virtual Row</string>
+    <string name="sport_canoeing">Canoeing</string>
+    <string name="sport_kayaking">Kayaking</string>
+    <string name="sport_stand_up_paddling">Stand Up Paddle</string>
+    <string name="sport_surfing">Surfing</string>
+    <string name="sport_kitesurf">Kitesurf</string>
+    <string name="sport_windsurf">Windsurf</string>
+    <string name="sport_sail">Sail</string>
+    <string name="sport_alpine_ski">Alpine Ski</string>
+    <string name="sport_backcountry_ski">Backcountry Ski</string>
+    <string name="sport_nordic_ski">Nordic Ski</string>
+    <string name="sport_snowboard">Snowboard</string>
+    <string name="sport_ice_skate">Ice Skate</string>
+    <string name="sport_inline_skate">Inline Skate</string>
+    <string name="sport_roller_ski">Roller Ski</string>
+    <string name="sport_skateboard">Skateboard</string>
+    <string name="sport_wheelchair">Wheelchair</string>
+    <string name="sport_workout">Workout</string>
+    <string name="sport_weight_training">Weight Training</string>
+    <string name="sport_crossfit">CrossFit</string>
+    <string name="sport_high_intensity_interval_training">HIIT</string>
+    <string name="sport_elliptical">Elliptical</string>
+    <string name="sport_stair_stepper">Stair Stepper</string>
+    <string name="sport_yoga">Yoga</string>
+    <string name="sport_pilates">Pilates</string>
+    <string name="sport_physical_therapy">Physical Therapy</string>
+    <string name="sport_dance">Dance</string>
+    <string name="sport_badminton">Badminton</string>
+    <string name="sport_pickleball">Pickleball</string>
+    <string name="sport_padel">Padel</string>
+    <string name="sport_racquetball">Racquetball</string>
+    <string name="sport_squash">Squash</string>
+    <string name="sport_table_tennis">Table Tennis</string>
+    <string name="sport_tennis">Tennis</string>
+    <string name="sport_basketball">Basketball</string>
+    <string name="sport_cricket">Cricket</string>
+    <string name="sport_soccer">Soccer</string>
+    <string name="sport_volleyball">Volleyball</string>
+    <string name="sport_golf">Golf</string>
+    <string name="sport_rock_climbing">Rock Climbing</string>
+    <string name="sport_other">Other</string>
+</resources>

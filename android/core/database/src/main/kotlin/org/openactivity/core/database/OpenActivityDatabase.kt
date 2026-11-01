@@ -6,14 +6,19 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+import org.openactivity.core.database.dao.GoalDao
+import org.openactivity.core.database.dao.NotificationDao
 import org.openactivity.core.database.dao.ActivityDao
 import org.openactivity.core.database.dao.RecordingJournalDao
 import org.openactivity.core.database.dao.RouteDao
 import org.openactivity.core.database.entity.ActivityEntity
 import org.openactivity.core.database.entity.ActivityPointEntity
 import org.openactivity.core.database.entity.BestEffortEntity
+import org.openactivity.core.database.entity.GoalEntity
 import org.openactivity.core.database.entity.JournalPointEntity
 import org.openactivity.core.database.entity.LapEntity
+import org.openactivity.core.database.entity.NotificationEntity
 import org.openactivity.core.database.entity.RecordingJournalEntity
 import org.openactivity.core.database.entity.RouteEntity
 import org.openactivity.core.database.entity.RoutePointEntity
@@ -34,6 +39,8 @@ import org.openactivity.core.database.entity.SplitEntity
         JournalPointEntity::class,
         RouteEntity::class,
         RoutePointEntity::class,
+        GoalEntity::class,
+        NotificationEntity::class,
     ],
     version = OpenActivityDatabase.VERSION,
     exportSchema = true,
@@ -45,9 +52,13 @@ abstract class OpenActivityDatabase : RoomDatabase() {
 
     abstract fun routeDao(): RouteDao
 
+    abstract fun goalDao(): GoalDao
+
+    abstract fun notificationDao(): NotificationDao
+
     companion object {
         /** Current schema version. */
-        const val VERSION: Int = 1
+        const val VERSION: Int = 2
 
         /** File name of the on-device database. */
         const val NAME: String = "openactivity.db"
@@ -67,6 +78,27 @@ abstract class OpenActivityDatabase : RoomDatabase() {
 
 /** All schema migrations, oldest first. */
 object DatabaseMigrations {
-    /** Every migration the database knows; empty while only version 1 exists. */
-    val ALL: Array<Migration> = emptyArray()
+    /** Version 2 adds training goals and the on-device notifications inbox; existing rows are untouched. */
+    val MIGRATION_1_2: Migration = object : Migration(1, 2) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `goals` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sport` TEXT, " +
+                    "`period` TEXT NOT NULL, `metric` TEXT NOT NULL, `target` REAL NOT NULL, " +
+                    "`created_at_millis` INTEGER NOT NULL, `updated_at_millis` INTEGER NOT NULL)",
+            )
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `notifications` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`type` TEXT NOT NULL, `title` TEXT NOT NULL, `body` TEXT NOT NULL, `target` TEXT NOT NULL, " +
+                    "`activity_id` INTEGER, `created_at_millis` INTEGER NOT NULL, `is_read` INTEGER NOT NULL, " +
+                    "`dedupe_key` TEXT NOT NULL, FOREIGN KEY(`activity_id`) REFERENCES `activities`(`id`) " +
+                    "ON UPDATE NO ACTION ON DELETE CASCADE )",
+            )
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_notifications_dedupe_key` ON `notifications` (`dedupe_key`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_notifications_activity_id` ON `notifications` (`activity_id`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_notifications_created_at_millis` ON `notifications` (`created_at_millis`)")
+        }
+    }
+
+    /** Every migration the database knows, oldest first. */
+    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2)
 }

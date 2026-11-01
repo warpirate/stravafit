@@ -8,6 +8,8 @@ import org.openactivity.core.export.file.ExportedFile
 import org.openactivity.feature.activitydetail.chart.ChartData
 import org.openactivity.feature.activitydetail.export.FileFormatOption
 import org.openactivity.model.LatLng
+import org.openactivity.model.SpeedDisplay
+import org.openactivity.model.SpeedDisplays
 import org.openactivity.model.SportType
 import org.openactivity.model.UnitSystem
 import org.openactivity.model.Visibility
@@ -33,6 +35,8 @@ sealed interface ActivityDetailUiState {
  * @property chart shared chart samples, or null when there are not enough samples.
  * @property splitUnit "Km" or "Mi", the column header of the splits table.
  * @property notes quality and privacy notes shown under the stats.
+ * @property speedDisplay how pace or speed is shown for this sport (the athlete's per-sport choice).
+ * @property showSplitGap the splits table has a GAP column (hilly runs).
  */
 @Immutable
 data class DetailContent(
@@ -60,6 +64,8 @@ data class DetailContent(
     val notes: List<String>,
     /** The summary average (distance over moving time); the pace chart labels and draws this one. */
     val averageSpeedMps: Double? = null,
+    val speedDisplay: SpeedDisplay = SpeedDisplays.resolve(sport, units),
+    val showSplitGap: Boolean = false,
 ) {
     /** True when there is a route to draw on the map. */
     val hasRoute: Boolean get() = route.size >= 2

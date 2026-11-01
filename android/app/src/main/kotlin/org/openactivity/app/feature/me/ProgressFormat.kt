@@ -5,8 +5,8 @@ import org.openactivity.app.format.UnitFormatter
 import org.openactivity.app.ui.common.toStat
 import org.openactivity.core.data.model.StatTotals
 import org.openactivity.core.data.model.WeekTotals
+import org.openactivity.core.data.repository.EffortRanking
 import org.openactivity.core.designsystem.component.Stat
-import org.openactivity.model.SportCategory
 import org.openactivity.model.SportType
 import java.util.Locale
 import kotlin.math.abs
@@ -16,10 +16,10 @@ import kotlin.math.roundToLong
 internal object ProgressFormat {
 
     /** Sports whose running best efforts are pooled (shared metrics: run distances). */
-    val RUN_SPORTS: Set<SportType> = setOf(SportType.RUN, SportType.TRAIL_RUN, SportType.VIRTUAL_RUN)
+    val RUN_SPORTS: Set<SportType> = EffortRanking.RUN_POOL
 
     /** Sports whose cycling best efforts are pooled. */
-    val RIDE_SPORTS: Set<SportType> = SportType.entries.filter { it.category == SportCategory.BIKE }.toSet()
+    val RIDE_SPORTS: Set<SportType> = EffortRanking.RIDE_POOL
 
     /**
      * Totals as stats. Sports without GPS show time and count only (profile-progress C4); for

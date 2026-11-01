@@ -63,7 +63,18 @@ data class RouteDetailUiState(
     val isExporting: Boolean = false,
     val deleted: Boolean = false,
     val message: String? = null,
+    /** A suggested loop, not (yet) a saved route: no delete, and a Save action until [isSaved]. */
+    val isSuggestion: Boolean = false,
+    val isSaved: Boolean = true,
+    val isSaving: Boolean = false,
+    /** Small print under the stats; the estimate note by default. */
+    val note: String = ESTIMATE_NOTE,
+    /** Set once a suggestion was saved for recording: the screen opens the recorder on this route. */
+    val recordRouteId: Long? = null,
 )
+
+/** The default small print of the route detail screen. */
+const val ESTIMATE_NOTE = "Estimated moving time assumes an easy steady effort and adds time for climbing."
 
 /** Saved route detail: map, distance, elevation profile, estimated time; record, export or delete it. */
 @HiltViewModel

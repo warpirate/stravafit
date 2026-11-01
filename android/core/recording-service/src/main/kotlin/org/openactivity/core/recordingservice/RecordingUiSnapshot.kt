@@ -10,6 +10,7 @@ import org.openactivity.recording.LapProgress
 import org.openactivity.recording.RecordingState
 import org.openactivity.recording.RecordingStatus
 import org.openactivity.recording.TrackPoint
+import org.openactivity.recording.route.RouteProgress
 import java.time.Instant
 import kotlin.time.Duration
 
@@ -31,6 +32,13 @@ data class SplitProgress(val index: Int, val distanceMeters: Double, val movingT
 }
 
 /**
+ * Progress along the route being followed.
+ *
+ * @property remainingTime time to the finish at the average moving pace so far; null early on.
+ */
+data class RouteSnapshot(val progress: RouteProgress, val remainingTime: Duration?)
+
+/**
  * Everything the Record screen and the notification show, published by [RecordingController].
  *
  * @property status [RecordingStatus.IDLE] when nothing is being recorded.
@@ -48,6 +56,7 @@ data class SplitProgress(val index: Int, val distanceMeters: Double, val movingT
  *   stretches that must not be joined (after a resume or a recovered interruption).
  * @property isMockLocation a mock location was seen; the activity will be flagged.
  * @property recoveredAfterInterruption the recording was restored after the app process died.
+ * @property route progress along the followed route, null without one (or when it could not be loaded).
  */
 data class RecordingUiSnapshot(
     val status: RecordingStatus,
@@ -73,6 +82,7 @@ data class RecordingUiSnapshot(
     val isMockLocation: Boolean,
     val recoveredAfterInterruption: Boolean,
     val timerTime: Duration = elapsed,
+    val route: RouteSnapshot? = null,
 ) {
     /** True while running or paused. */
     val isActive: Boolean get() = status.isActive
@@ -122,6 +132,7 @@ data class RecordingUiSnapshot(
             gpsStatus: GpsStatus,
             track: List<TrackPoint>,
             recovered: Boolean,
+            route: RouteSnapshot? = null,
         ): RecordingUiSnapshot {
             val splitDistance = state.splits.sumOf { it.distance.meters }
             val splitMoving = state.splits.fold(Duration.ZERO) { acc, s -> acc + s.movingTime }
@@ -153,6 +164,7 @@ data class RecordingUiSnapshot(
                 isMockLocation = state.isMockLocation,
                 recoveredAfterInterruption = recovered,
                 timerTime = state.timerTime,
+                route = route,
             )
         }
     }

@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -35,6 +36,10 @@ import org.openactivity.core.data.model.StatTotals
 import org.openactivity.core.data.model.WeekTotals
 import org.openactivity.core.data.model.YearTotals
 import org.openactivity.core.data.repository.ActivityRepository
+import org.openactivity.core.data.repository.GoalRepository
+import org.openactivity.core.data.model.Goal
+import org.openactivity.core.data.model.GoalProgress
+import org.openactivity.core.data.model.WeeklyStreak
 import org.openactivity.core.data.repository.RouteRepository
 import org.openactivity.core.data.repository.SettingsRepository
 import org.openactivity.core.datastore.AppSettings
@@ -113,6 +118,22 @@ class FakeSettingsRepository(initial: AppSettings = AppSettings()) : SettingsRep
     override suspend fun setDefaultVisibility(visibility: Visibility) = state.update { it.copy(defaultVisibility = visibility) }
 
     override suspend fun setPrivacy(privacy: PrivacySettings) = state.update { it.copy(privacy = privacy) }
+
+    override suspend fun setFirstDayOfWeek(day: java.time.DayOfWeek) = state.update { it.copy(firstDayOfWeek = day) }
+
+    override suspend fun setNotifications(notifications: org.openactivity.core.datastore.NotificationSettings) = state.update { it.copy(notifications = notifications) }
+    override suspend fun setSpeedOverride(sport: SportType, choice: org.openactivity.model.PaceOrSpeed?) =
+        state.update { it.copy(speedOverrides = if (choice == null) it.speedOverrides - sport else it.speedOverrides + (sport to choice)) }
+
+    override suspend fun setSwimPaceUnit(unit: org.openactivity.model.SwimPaceUnit?) = state.update { it.copy(swimPaceUnit = unit) }
+
+    override suspend fun setVisibilityOverride(sport: SportType, visibility: Visibility?) =
+        state.update { it.copy(visibilityOverrides = if (visibility == null) it.visibilityOverrides - sport else it.visibilityOverrides + (sport to visibility)) }
+
+    override suspend fun setLaunchTab(tab: org.openactivity.core.datastore.LaunchTab) = state.update { it.copy(launchTab = tab) }
+    override suspend fun setAutoLap(meters: Double) = state.update { it.copy(autoLapMeters = meters) }
+
+    override suspend fun setOffRouteAlerts(enabled: Boolean) = state.update { it.copy(offRouteAlerts = enabled) }
 }
 
 /** In-memory [ProfileRepository]; [failPhoto] makes [setPhoto] throw. */
@@ -176,6 +197,12 @@ class FakeActivityRepository(initial: List<SavedActivity> = emptyList()) : Activ
         bestRequests += sports
         return bests
     }
+
+    /** Every effort of every activity, as the ranking reads them; tests fill it. */
+    val effortRecords = MutableStateFlow<List<org.openactivity.core.data.model.EffortRecord>>(emptyList())
+
+    override fun observeEffortRecords(sports: Set<SportType>, kind: EffortKind): Flow<List<org.openactivity.core.data.model.EffortRecord>> =
+        effortRecords.map { list -> list.filter { it.sport in sports } }
 }
 
 /** In-memory [RouteRepository]. */
@@ -200,6 +227,46 @@ class FakeRouteRepository(initial: List<RouteDetail> = emptyList()) : RouteRepos
         val before = routes.value.size
         routes.update { list -> list.filterNot { it.route.id == id } }
         return routes.value.size < before
+    }
+}
+
+/**
+ * In-memory [GoalRepository]. Progress is [current] (by goal id, in the metric's unit) over a fixed
+ * period of 7 days, [elapsed] of the way through, with [daysLeft] days to go.
+ */
+class FakeGoalRepository(initial: List<Goal> = emptyList()) : GoalRepository {
+    val goals = MutableStateFlow(initial)
+    val current = MutableStateFlow<Map<Long, Double>>(emptyMap())
+    val streak = MutableStateFlow(WeeklyStreak.NONE)
+    var elapsed = 0.5
+    var daysLeft = 4
+    val saved = mutableListOf<Goal>()
+    private var nextId = (initial.maxOfOrNull { it.id } ?: 0L) + 1
+
+    override fun observeGoals(): Flow<List<Goal>> = goals
+
+    override fun observeProgress(): Flow<List<GoalProgress>> = combine(goals, current) { list, done ->
+        val start = java.time.LocalDate.now(TEST_CLOCK)
+        list.map { GoalProgress(it, start, start.plusDays(7), done[it.id] ?: 0.0, elapsed, daysLeft) }
+    }
+
+    override fun observeStreak(): Flow<WeeklyStreak> = streak
+
+    override suspend fun getGoal(id: Long): Goal? = goals.value.firstOrNull { it.id == id }
+
+    override suspend fun save(goal: Goal): Long {
+        saved += goal
+        val existing = goal.id != 0L && goals.value.any { it.id == goal.id }
+        val id = if (existing) goal.id else nextId++
+        val stored = goal.copy(id = id)
+        goals.update { list -> if (existing) list.map { if (it.id == id) stored else it } else list + stored }
+        return id
+    }
+
+    override suspend fun delete(id: Long): Boolean {
+        val before = goals.value.size
+        goals.update { list -> list.filterNot { it.id == id } }
+        return goals.value.size < before
     }
 }
 

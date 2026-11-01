@@ -31,11 +31,16 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navOptions
 import kotlinx.coroutines.launch
 import org.openactivity.app.LaunchRequest
+import org.openactivity.core.datastore.LaunchTab
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.openactivity.app.navigation.ActiveRecordingBar
 import org.openactivity.app.navigation.AppBottomBar
+import org.openactivity.app.feature.notifications.InboxLink
+import org.openactivity.app.feature.notifications.InboxLinkViewModel
 import org.openactivity.app.navigation.AppNavHost
+import org.openactivity.app.navigation.NotificationsRoute
+import org.openactivity.app.navigation.openInboxDestination
 import org.openactivity.app.navigation.TopLevelDestination
 import org.openactivity.app.navigation.RouteDetailRoute
 import org.openactivity.feature.activitydetail.navigateToActivityDetail
@@ -48,12 +53,14 @@ import org.openactivity.feature.record.navigation.navigateToRecord
  *
  * @param launchRequest a pending request from a notification tap, a shared file or a link.
  * @param onLaunchRequestHandled called once [launchRequest] has been navigated to.
+ * @param startTab the tab the app opens on (settings, "Open app on").
  */
 @Composable
 fun OpenActivityApp(
     navController: NavHostController = rememberNavController(),
     launchRequest: LaunchRequest? = null,
     onLaunchRequestHandled: () -> Unit = {},
+    startTab: LaunchTab = LaunchTab.HOME,
 ) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -68,7 +75,9 @@ fun OpenActivityApp(
     // Files another app opened with us or shared to us wait here until the user says what they are.
     var sharedFiles by rememberSaveable { mutableStateOf<List<String>?>(null) }
     val sharedFilesViewModel: SharedFilesViewModel = hiltViewModel()
-    // The recording notifications ask for the recorder or for the activity just saved; links name a screen.
+    // The recording notifications ask for the recorder or for the activity just saved; inbox notifications
+    // (records, goals, the weekly summary) for their entry's destination; links name a screen.
+    val inboxLinks: InboxLinkViewModel = hiltViewModel()
     LaunchedEffect(launchRequest) {
         when (launchRequest) {
             null -> return@LaunchedEffect
@@ -81,6 +90,10 @@ fun OpenActivityApp(
                 navController.navigate(launchRequest.uri, navOptions { launchSingleTop = true })
             } catch (e: IllegalArgumentException) {
                 messenger.show("That link does not lead anywhere in the app.")
+            }
+            is LaunchRequest.OpenInboxEntry -> when (val link = inboxLinks.open(launchRequest.id)) {
+                InboxLink.Inbox -> navController.navigate(NotificationsRoute) { launchSingleTop = true }
+                is InboxLink.To -> navController.openInboxDestination(link.destination)
             }
         }
         onLaunchRequestHandled()
@@ -152,7 +165,7 @@ fun OpenActivityApp(
                 }
             },
         ) { padding ->
-            AppNavHost(navController, Modifier.padding(padding))
+            AppNavHost(navController, startTab, Modifier.padding(padding))
         }
     }
 }

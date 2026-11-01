@@ -2,7 +2,15 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <resources>
     <!-- Placeholder public name (ADR-004). Renaming the app is a one-line change here. -->
-    <string name="app_name">OpenActivity</string>
+    <string name="app_name">StravaFit</string>
+
+    <!-- Android notification channels for on-device events (one per category, notifications-search A1). -->
+    <string name="channel_achievements_name">Personal records</string>
+    <string name="channel_achievements_description">New personal records and 2nd or 3rd best efforts</string>
+    <string name="channel_goals_name">Goals</string>
+    <string name="channel_goals_description">A goal reached, and a reminder when you are 80% there</string>
+    <string name="channel_weekly_name">Weekly summary</string>
+    <string name="channel_weekly_description">Totals of the week just ended, on the first morning of the new week</string>
 
     <!-- Launcher shortcuts (long-press the app icon). Short labels fit in about 10 characters. -->
     <string name="shortcut_record_run_short">Record Run</string>

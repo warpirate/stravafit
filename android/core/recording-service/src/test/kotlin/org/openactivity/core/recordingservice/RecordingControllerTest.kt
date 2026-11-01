@@ -23,6 +23,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.openactivity.core.data.repository.LocalActivityRepository
+import org.openactivity.core.data.repository.LocalRouteRepository
 import org.openactivity.core.database.OpenActivityDatabase
 import org.openactivity.core.datastore.AppSettings
 import org.openactivity.core.datastore.PrivacySettings
@@ -81,11 +82,13 @@ class RecordingControllerTest {
         locationSource = location,
         pressureSource = NoBarometer,
         activities = activities,
+        routes = LocalRouteRepository(db.routeDao(), Clock.fixed(Instant.ofEpochMilli(baseWall), ZoneOffset.UTC)),
         settings = settings,
         journal = RecordingJournal(db.recordingJournalDao()),
         clock = FakeClock(scheduler, base, baseWall),
         launcher = launcher,
         speaker = speaker,
+        haptics = AlertHaptics { },
         scope = scope,
     )
 
@@ -133,8 +136,11 @@ class RecordingControllerTest {
         assertTrue(detail.points.size > 1500)
         assertEquals(baseWall, activity.startTime.toEpochMilli())
 
-        val milestones = speaker.spoken.filterIsInstance<AudioCue.Milestone>()
-        assertEquals(listOf(1000.0, 2000.0, 3000.0, 4000.0, 5000.0), milestones.map { it.distanceMeters })
+        // Each kilometre is announced once, as a split (the custom interval is off by default).
+        val splits = speaker.spoken.filterIsInstance<AudioCue.Split>()
+        assertEquals(listOf(1, 2, 3, 4, 5), splits.map { it.number })
+        assertEquals(300.0, splits.first().paceSecondsPerUnit!!, 10.0)
+        assertTrue(speaker.spoken.none { it is AudioCue.Milestone })
         assertEquals(AudioCue.Started(SportType.RUN), speaker.spoken.first())
         assertEquals(AudioCue.Saved, speaker.spoken.last())
     }

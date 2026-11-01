@@ -67,23 +67,44 @@ public object GradeAdjustedPace {
         return out
     }
 
+    /** Intervals longer than this (a GPS gap, a tunnel) are left out: their grade is unknown. */
+    public const val MAX_INTERVAL_SECONDS: Double = 30.0
+
     /**
      * Average grade-adjusted speed over the intervals flagged in [movingMask], or null when the samples have
-     * no altitude or no moving time.
+     * fewer than two altitudes or no usable moving time.
      */
     public fun averageSpeed(samples: ActivitySamples, movingMask: BooleanArray): Double? {
         val altitude = samples.altitude ?: return null
-        val grade = smoothedGrade(samples.distance, altitude)
+        if (altitude.count { it.isFinite() } < 2) return null
+        return averageSpeed(samples.distance, samples.time, smoothedGrade(samples.distance, altitude), movingMask)
+    }
+
+    /**
+     * Average grade-adjusted speed over the intervals (i-1 to i) that are moving in [moving] and pass
+     * [include]. The one rule for the activity average and for per-split GAP: intervals with no time, longer
+     * than [MAX_INTERVAL_SECONDS], or without a known grade are skipped rather than counted as flat, so
+     * GAP never quietly equals plain pace. Null when nothing is left.
+     */
+    public fun averageSpeed(
+        distance: DoubleArray,
+        time: DoubleArray,
+        grade: DoubleArray,
+        moving: BooleanArray,
+        include: (Int) -> Boolean = { true },
+    ): Double? {
         var adjusted = 0.0
         var seconds = 0.0
-        for (i in 1 until samples.size) {
-            if (!movingMask[i]) continue
-            val dd = samples.distance[i] - samples.distance[i - 1]
+        for (i in 1 until distance.size) {
+            if (!moving[i] || !include(i)) continue
+            val dt = time[i] - time[i - 1]
+            if (!(dt > 0.0) || dt > MAX_INTERVAL_SECONDS) continue
             val g = averageOf(grade[i - 1], grade[i])
-            adjusted += if (g.isFinite()) dd * RunningCost.factor(g) else dd
-            seconds += samples.time[i] - samples.time[i - 1]
+            if (!g.isFinite()) continue
+            adjusted += (distance[i] - distance[i - 1]) * RunningCost.factor(g)
+            seconds += dt
         }
-        return if (seconds > 0.0) adjusted / seconds else null
+        return if (seconds > 0.0 && adjusted > 0.0) adjusted / seconds else null
     }
 
     private fun averageOf(a: Double, b: Double): Double = when {

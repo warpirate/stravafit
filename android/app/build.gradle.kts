@@ -113,6 +113,8 @@ dependencies {
     implementation(project(":android:core:export")) // WP home
     implementation(project(":android:core:import")) // WP home
     implementation(project(":shared:polyline")) // WP home
+    implementation(project(":shared:geo")) // route suggestions
+    implementation(project(":android:core:routing")) // route suggestions
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
@@ -123,6 +125,7 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.androidx.work.runtime.ktx) // weekly summary (A3)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)

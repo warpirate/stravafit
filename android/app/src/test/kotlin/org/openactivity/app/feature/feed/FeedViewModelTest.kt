@@ -18,6 +18,7 @@ import org.openactivity.app.model.UserProfile
 import org.openactivity.app.testing.FakeActivityExtrasRepository
 import org.openactivity.app.testing.FakeActivityRepository
 import org.openactivity.app.testing.FakeFeedSeenRepository
+import org.openactivity.app.testing.FakeNotificationRepository
 import org.openactivity.app.testing.FakePreferencesRepository
 import org.openactivity.app.testing.FakeProfileRepository
 import org.openactivity.app.testing.MainDispatcherRule
@@ -26,6 +27,9 @@ import org.openactivity.app.testing.savedActivity
 import org.openactivity.app.testing.testTimeFormatter
 import org.openactivity.core.activityextras.ActivityExtras
 import org.openactivity.core.activityextras.ActivityPhoto
+import org.openactivity.core.data.model.NewNotification
+import org.openactivity.core.data.model.NotificationTarget
+import org.openactivity.core.data.model.NotificationType
 import org.openactivity.model.SportType
 import java.io.File
 import org.openactivity.model.UnitSystem
@@ -44,7 +48,9 @@ class FeedViewModelTest {
     // Everything existing is already seen unless a test says otherwise.
     private val seen = FakeFeedSeenRepository(initial = Long.MAX_VALUE)
 
-    private fun viewModel() = FeedViewModel(activities, profile, preferences, testTimeFormatter(), extras, seen)
+    private val inbox = FakeNotificationRepository()
+
+    private fun viewModel() = FeedViewModel(activities, profile, preferences, testTimeFormatter(), extras, seen, inbox)
 
     private fun kotlinx.coroutines.test.TestScope.collect(vm: FeedViewModel) {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} }
@@ -125,11 +131,14 @@ class FeedViewModelTest {
     }
 
     @Test
-    fun `the bell is unread until opened`() = runTest(main.dispatcher) {
+    fun `the bell has a dot while the inbox has unread entries`() = runTest(main.dispatcher) {
         val vm = viewModel()
         collect(vm)
+        assertFalse(vm.uiState.value.hasUnreadNotifications)
+        val id = inbox.add(NewNotification(NotificationType.GOAL_REACHED, "Goal reached", "", NotificationTarget.GOALS, "k"))!!
+        advanceUntilIdle()
         assertTrue(vm.uiState.value.hasUnreadNotifications)
-        vm.notificationsOpened()
+        inbox.markRead(id)
         advanceUntilIdle()
         assertFalse(vm.uiState.value.hasUnreadNotifications)
     }

@@ -86,10 +86,29 @@ enum class RecordSheet {
 }
 
 /**
+ * Following a route while recording (record detail 10.1-10.3).
+ *
+ * @property remaining distance still to go, with its unit ("3.20 km").
+ * @property remainingTime time to the finish at the average pace so far ("18:20"), null early on.
+ * @property offRouteBy how far the route is while off it ("120 m"), null while on it.
+ * @property fraction share of the route done, 0 to 1.
+ */
+@Immutable
+data class RouteFollowUi(
+    val remaining: String,
+    val remainingTime: String?,
+    val offRouteBy: String?,
+    val fraction: Float,
+    val joined: Boolean,
+    val completed: Boolean,
+)
+
+/**
  * The live recording, ready to draw.
  *
  * @property track accepted points of the live line.
  * @property gpsLost a GPS sport has no fresh fix: time still counts, distance does not (core-screens 3.7).
+ * @property route progress along the followed route, null without one.
  */
 @Immutable
 data class RecordingUi(
@@ -101,6 +120,7 @@ data class RecordingUi(
     val gpsLost: Boolean,
     val recovered: Boolean,
     val mockLocation: Boolean,
+    val route: RouteFollowUi? = null,
 ) {
     /** Paused by the athlete (only they can resume). */
     val isPaused: Boolean get() = status == RecordingStatus.PAUSED

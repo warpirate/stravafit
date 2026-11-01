@@ -18,10 +18,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.openactivity.core.activityextras.ActivityExtrasRepository
 import org.openactivity.core.data.model.ActivityMetadataUpdate
+import org.openactivity.core.data.model.ActivityTitles
 import org.openactivity.core.data.model.DefaultTitles
 import org.openactivity.core.data.model.SavedActivity
 import org.openactivity.core.data.repository.ActivityRepository
 import org.openactivity.core.data.repository.SettingsRepository
+import org.openactivity.core.datastore.AppSettings
 import org.openactivity.model.SportType
 import org.openactivity.model.UnitConstants
 import org.openactivity.model.UnitSystem
@@ -34,7 +36,9 @@ import javax.inject.Inject
  * Edit screen. Field changes stay in memory until [save]; photos are stored as soon as they are added.
  *
  * The title follows the sport while it is still the automatic one: changing Run to Ride turns
- * "Morning Run" into "Morning Ride", but a title the athlete typed is never touched.
+ * "Morning Run" into "Morning Ride", but a title the athlete typed is never touched. On the Save screen the
+ * audience follows the sport the same way: it starts as the sport's default from Settings and moves to the
+ * new sport's default when the sport changes, unless the athlete picked one.
  */
 @HiltViewModel
 class SaveEditViewModel internal constructor(
@@ -43,6 +47,7 @@ class SaveEditViewModel internal constructor(
     private val activities: ActivityRepository,
     private val extras: ActivityExtrasRepository,
     private val settings: SettingsRepository,
+    private val titles: ActivityTitles = DefaultTitles,
 ) : ViewModel() {
 
     @Inject
@@ -51,12 +56,14 @@ class SaveEditViewModel internal constructor(
         activities: ActivityRepository,
         extras: ActivityExtrasRepository,
         settings: SettingsRepository,
+        titles: ActivityTitles,
     ) : this(
         activityId = checkNotNull(savedStateHandle.get<Long>(ARG_ACTIVITY_ID)) { "activityId missing" },
         isNew = savedStateHandle.get<Boolean>(ARG_IS_NEW) ?: false,
         activities = activities,
         extras = extras,
         settings = settings,
+        titles = titles,
     )
 
     private val _uiState = MutableStateFlow<SaveEditUiState>(SaveEditUiState.Loading)
@@ -74,6 +81,7 @@ class SaveEditViewModel internal constructor(
     /** Set once Close was sent, so a double tap on Back cannot pop the screen below too. */
     private var closing = false
     private var activity: SavedActivity? = null
+    private var appSettings: AppSettings = AppSettings()
 
     init {
         viewModelScope.launch { load() }
@@ -90,11 +98,13 @@ class SaveEditViewModel internal constructor(
         }
         activity = a
         val ex = extras.get(activityId)
-        val units = settings.settings.first().units
+        appSettings = settings.settings.first()
+        val units = appSettings.units
         val form = SaveEditForm(
             title = a.title,
             description = a.description,
             sport = a.sport,
+            // A fresh recording is stored with its sport's default audience already (settings, Privacy).
             visibility = a.visibility,
             perceivedExertion = a.perceivedExertion,
             muted = ex.muted,
@@ -127,7 +137,12 @@ class SaveEditViewModel internal constructor(
         editing { state ->
             val form = state.form
             val wasAuto = form.title.isBlank() || form.title.trim() == defaultTitle(a, form.sport)
-            val next = form.copy(sport = sport, title = if (wasAuto && form.title.isNotBlank()) defaultTitle(a, sport) else form.title)
+            val audienceWasDefault = state.isNew && form.visibility == appSettings.defaultVisibility(form.sport)
+            val next = form.copy(
+                sport = sport,
+                title = if (wasAuto && form.title.isNotBlank()) defaultTitle(a, sport) else form.title,
+                visibility = if (audienceWasDefault) appSettings.defaultVisibility(sport) else form.visibility,
+            )
             state.copy(
                 form = next,
                 facts = state.facts.copy(defaultTitle = defaultTitle(a, sport)),
@@ -262,6 +277,9 @@ class SaveEditViewModel internal constructor(
         }
     }
 
+    /** Default title of [a] as [sport], from its start time in its own time zone, in the user's language. */
+    private fun defaultTitle(a: SavedActivity, sport: SportType): String = titles.forActivity(sport, a.startTime, a.timeZone)
+
     private fun updateForm(change: (SaveEditForm) -> SaveEditForm) = editing { state ->
         val next = change(state.form)
         state.copy(form = next, dirty = next != stored)
@@ -276,10 +294,6 @@ class SaveEditViewModel internal constructor(
         const val ARG_IS_NEW = "isNew"
         const val MAX_TITLE = 100
         const val MAX_DESCRIPTION = 4000
-
-        /** Default title of [a] as [sport], from its local start time in its own time zone. */
-        fun defaultTitle(a: SavedActivity, sport: SportType): String =
-            DefaultTitles.forActivity(sport, a.startTime.atZone(a.timeZone).toLocalTime())
 
         /** "5.02 km · 26:14" in [units]. */
         fun summary(a: SavedActivity, units: UnitSystem): String {

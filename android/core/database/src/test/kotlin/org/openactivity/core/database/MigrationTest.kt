@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.room.testing.MigrationTestHelper
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -17,7 +18,7 @@ import java.io.File
 /**
  * Checks the exported schemas against the code: every historic version can be created from its exported
  * JSON, each migration path reaches the current version with the schema Room expects, and data written at
- * version 1 survives.
+ * version 1 survives (version 2 adds goals and the notifications inbox).
  */
 @RunWith(RobolectricTestRunner::class)
 class MigrationTest {
@@ -55,6 +56,40 @@ class MigrationTest {
     }
 
     @Test
+    fun `migration 1 to 2 keeps activities and adds goals and the inbox`() {
+        helper.createDatabase(dbName, 1).apply {
+            execSQL(
+                "INSERT INTO activities (id, uuid, sport, title, description, visibility, start_epoch_millis, " +
+                    "time_zone_id, elapsed_millis, moving_millis, distance_meters, elevation_gain_meters, " +
+                    "elevation_loss_meters, altitude_source, average_speed_mps, max_speed_mps, auto_pause_count, " +
+                    "privacy_hide_start_meters, privacy_hide_end_meters, flags, created_at_millis, updated_at_millis) " +
+                    "VALUES (7, 'u7', 'RUN', 'Morning Run', '', 'EVERYONE', 1000, 'UTC', 60000, 60000, 1000.0, 0.0, " +
+                    "0.0, 'GPS', 3.0, 4.0, 0, 200.0, 200.0, '', 1000, 1000)",
+            )
+            close()
+        }
+        val db = helper.runMigrationsAndValidate(dbName, 2, true, DatabaseMigrations.MIGRATION_1_2)
+        db.query("SELECT title FROM activities WHERE id = 7").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("Morning Run", c.getString(0))
+        }
+        db.execSQL(
+            "INSERT INTO goals (sport, period, metric, target, created_at_millis, updated_at_millis) " +
+                "VALUES ('RUN', 'WEEK', 'DISTANCE', 30000.0, 1, 1)",
+        )
+        db.execSQL(
+            "INSERT INTO notifications (type, title, body, target, activity_id, created_at_millis, is_read, dedupe_key) " +
+                "VALUES ('PERSONAL_RECORD', 'New PR', '', 'ACTIVITY', 7, 2, 0, 'k')",
+        )
+        db.query("SELECT COUNT(*) FROM goals").use { c -> c.moveToFirst(); assertEquals(1, c.getInt(0)) }
+        // Deleting the activity takes its notifications with it.
+        db.execSQL("PRAGMA foreign_keys = ON")
+        db.execSQL("DELETE FROM activities WHERE id = 7")
+        db.query("SELECT COUNT(*) FROM notifications").use { c -> c.moveToFirst(); assertEquals(0, c.getInt(0)) }
+        db.close()
+    }
+
+    @Test
     fun `room opens a migrated database`() = runTest {
         helper.createDatabase(dbName, 1).close()
         val room = Room.databaseBuilder(ApplicationProvider.getApplicationContext(), OpenActivityDatabase::class.java, dbName)
@@ -62,6 +97,7 @@ class MigrationTest {
             .allowMainThreadQueries()
             .build()
         assertEquals(0, room.activityDao().getPoints(1).size)
+        assertEquals(0, room.notificationDao().observeUnreadCount().first())
         room.close()
     }
 }

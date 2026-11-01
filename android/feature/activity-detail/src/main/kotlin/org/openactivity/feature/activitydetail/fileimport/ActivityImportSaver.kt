@@ -4,6 +4,7 @@ package org.openactivity.feature.activitydetail.fileimport
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import org.openactivity.core.data.model.ActivityTitles
 import org.openactivity.core.data.model.DefaultTitles
 import org.openactivity.core.data.model.NewActivity
 import org.openactivity.core.data.model.SavedActivity
@@ -38,6 +39,7 @@ sealed interface SaveOutcome {
 class ActivityImportSaver @Inject constructor(
     private val activities: ActivityRepository,
     private val settings: SettingsRepository,
+    private val titles: ActivityTitles = DefaultTitles,
 ) {
     /** Saves [imported] (in time zone [zone]) unless it is a duplicate. */
     suspend fun save(imported: ImportedActivity, zone: ZoneId = ZoneId.systemDefault()): SaveOutcome {
@@ -54,13 +56,13 @@ class ActivityImportSaver @Inject constructor(
         sameRecording(activities.observeActivities().first(), imported, start, finished.distanceMeters)?.let {
             return SaveOutcome.Duplicate(it.id, it.title)
         }
-        val title = imported.title ?: DefaultTitles.forActivity(imported.sport, start.atZone(zone).toLocalTime())
+        val title = imported.title ?: titles.forActivity(imported.sport, start, zone)
         val id = activities.saveFinished(
             finished,
             NewActivity(
                 uuid = uuid,
                 title = title,
-                visibility = prefs.defaultVisibility,
+                visibility = prefs.defaultVisibility(imported.sport),
                 hideStartMeters = prefs.privacy.hideStartMeters,
                 hideEndMeters = prefs.privacy.hideEndMeters,
                 timeZone = zone,

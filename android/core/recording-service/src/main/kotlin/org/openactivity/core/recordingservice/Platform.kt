@@ -53,3 +53,30 @@ class AndroidRecordingServiceLauncher @Inject constructor(
         }
     }
 }
+
+/** Buzzes the phone for alerts that must be noticed without looking at the screen. */
+fun interface AlertHaptics {
+    /** Leaving a followed route (record detail 10.1): two short pulses. */
+    fun offRoute()
+}
+
+/** [AlertHaptics] on the device vibrator; silent when there is none. */
+class VibratorAlertHaptics @Inject constructor(
+    @ApplicationContext private val context: Context,
+) : AlertHaptics {
+    override fun offRoute() {
+        val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            context.getSystemService(android.os.VibratorManager::class.java)?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(android.os.Vibrator::class.java)
+        }
+        if (vibrator?.hasVibrator() != true) return
+        vibrator.vibrate(android.os.VibrationEffect.createWaveform(OFF_ROUTE_PATTERN, -1))
+    }
+
+    private companion object {
+        /** Off, buzz, off, buzz (milliseconds). */
+        val OFF_ROUTE_PATTERN = longArrayOf(0, 250, 150, 250)
+    }
+}

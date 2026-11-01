@@ -9,7 +9,9 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import org.openactivity.core.recordingservice.AlertHaptics
 import org.openactivity.core.recordingservice.AndroidRecordingServiceLauncher
+import org.openactivity.core.recordingservice.VibratorAlertHaptics
 import org.openactivity.core.recordingservice.DefaultRecordingController
 import org.openactivity.core.recordingservice.RecordingClock
 import org.openactivity.core.recordingservice.RecordingController
@@ -37,6 +39,9 @@ abstract class RecordingServiceModule {
 
     @Binds
     abstract fun launcher(impl: AndroidRecordingServiceLauncher): RecordingServiceLauncher
+
+    @Binds
+    abstract fun haptics(impl: VibratorAlertHaptics): AlertHaptics
 
     @Binds
     abstract fun speaker(impl: TextToSpeechCueSpeaker): CueSpeaker

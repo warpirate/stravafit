@@ -35,6 +35,7 @@ import org.openactivity.core.activityextras.ActivityPhoto
 import org.openactivity.core.data.model.PersonalBest
 import org.openactivity.core.data.model.SavedActivity
 import org.openactivity.core.data.repository.ActivityRepository
+import org.openactivity.core.data.repository.NotificationRepository
 import org.openactivity.model.SportType
 import org.openactivity.model.Visibility
 import java.util.Locale
@@ -55,9 +56,13 @@ class FeedViewModel @Inject constructor(
     private val timeFormatter: RelativeTimeFormatter,
     extrasRepository: ActivityExtrasRepository,
     private val seenRepository: FeedSeenRepository,
+    notifications: NotificationRepository,
 ) : ViewModel() {
 
     private val selection = MutableStateFlow(Selection())
+
+    /** The selection with the inbox's unread count, which lights the bell's dot. */
+    private val selectionAndUnread = combine(selection, notifications.observeUnreadCount()) { s, unread -> s to unread }
 
     /** Personal records by activity id, over runs and rides separately. */
     private val records = combine(
@@ -86,9 +91,9 @@ class FeedViewModel @Inject constructor(
         activityRepository.observeActivities(),
         profileRepository.profile,
         preferencesRepository.preferences,
-        selection,
+        selectionAndUnread,
         records,
-    ) { activities, profile, preferences, selected, prs -> Base(activities, profile, preferences, selected, prs) }
+    ) { activities, profile, preferences, (selected, unread), prs -> Base(activities, profile, preferences, selected, prs, unread) }
 
     val uiState: StateFlow<FeedUiState> = combine(base, photos, seenRepository.seenThroughId) { b, photoMap, seenThrough ->
         val formatter = UnitFormatter(b.preferences.unitSystem, Locale.getDefault())
@@ -114,7 +119,7 @@ class FeedViewModel @Inject constructor(
             sportFilter = filter,
             hasAnyActivity = b.activities.isNotEmpty(),
             message = b.selected.message,
-            hasUnreadNotifications = !b.selected.notificationsSeen,
+            hasUnreadNotifications = b.unread > 0,
             unseenCount = unseen.size,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), FeedUiState())
@@ -153,9 +158,6 @@ class FeedViewModel @Inject constructor(
         }
     }
 
-    /** The bell was opened: its unread dot goes. */
-    fun notificationsOpened() = selection.update { it.copy(notificationsSeen = true) }
-
     /** Clears the one-shot message after the snackbar showed it. */
     fun messageShown() = selection.update { it.copy(message = null) }
 
@@ -188,13 +190,13 @@ class FeedViewModel @Inject constructor(
         val preferences: UserPreferences,
         val selected: Selection,
         val prs: Map<Long, List<PersonalBest>>,
+        val unread: Int,
     )
 
     private data class Selection(
         val scope: FeedScope = FeedScope.Following,
         val sport: SportType? = null,
         val message: String? = null,
-        val notificationsSeen: Boolean = false,
     )
 
     internal companion object {

@@ -36,7 +36,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.LocationOff
@@ -60,6 +59,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import org.openactivity.core.activityextras.ui.PhotoThumbnail
 import org.openactivity.core.designsystem.component.StatGrid
+import org.openactivity.core.designsystem.component.RankMedal
 import org.openactivity.core.designsystem.theme.RidgelineTheme
 import org.openactivity.core.designsystem.theme.Spacing
 import org.openactivity.feature.activitydetail.DetailContent
@@ -107,8 +107,9 @@ internal fun DetailBody(content: DetailContent, listState: LazyListState = remem
         item(key = "stats") {
             Column(Modifier.padding(horizontal = Spacing.gutter, vertical = Spacing.s)) {
                 StatTable(content.stats.filter { it.value != null })
-                content.efforts.firstOrNull { it.isPersonalBest }?.let { pr ->
-                    PrRow(pr, more = content.efforts.count { it.isPersonalBest } - 1)
+                val medalled = content.efforts.filter { it.rank != null }
+                medalled.minWithOrNull(compareBy<EffortRow>({ it.yearly }, { it.rank }))?.let { top ->
+                    PrRow(top, more = medalled.size - 1)
                 }
                 content.notes.forEach { note ->
                     Text(
@@ -142,7 +143,16 @@ internal fun DetailBody(content: DetailContent, listState: LazyListState = remem
         content.chart?.let { chart ->
             item(key = "analysis") {
                 Section("Analysis") {
-                    AnalysisSection(chart, content.sport, content.units, scrubIndex, onScrub = { scrubIndex = it }, averageSpeedMps = content.averageSpeedMps)
+                    AnalysisSection(
+                        data = chart,
+                        sport = content.sport,
+                        display = content.speedDisplay,
+                        units = content.units,
+                        scrubIndex = scrubIndex,
+                        onScrub = { scrubIndex = it },
+                        averageSpeedMps = content.averageSpeedMps,
+                        gapOnByDefault = content.showSplitGap,
+                    )
                 }
             }
         }
@@ -152,7 +162,8 @@ internal fun DetailBody(content: DetailContent, listState: LazyListState = remem
                     SplitsTable(
                         rows = content.splits,
                         unitHeader = content.splitUnit,
-                        speedHeader = DetailFormat.speedLabel(content.sport),
+                        speedHeader = DetailFormat.speedLabel(content.speedDisplay),
+                        showGap = content.showSplitGap,
                         selected = selectedSplit,
                         onSelect = { selectedSplit = it },
                     )
@@ -161,7 +172,7 @@ internal fun DetailBody(content: DetailContent, listState: LazyListState = remem
         }
         if (content.laps.isNotEmpty()) {
             item(key = "laps") {
-                Section("Laps") { LapsTable(content.laps, DetailFormat.speedLabel(content.sport)) }
+                Section("Laps") { LapsTable(content.laps, DetailFormat.speedLabel(content.speedDisplay)) }
             }
         }
         if (content.showEfforts) {
@@ -237,17 +248,15 @@ private fun StatTable(stats: List<Stat>) {
     }
 }
 
-/** "PR · Half marathon   1:56:12   +3 more" with a gold medal. */
+/** "PR · Half marathon   1:56:12   +3 more": the most notable medal of the activity. */
 @Composable
 private fun PrRow(effort: EffortRow, more: Int) {
     Column {
         Row(Modifier.fillMaxWidth().padding(vertical = Spacing.m), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(22.dp).background(RidgelineTheme.colors.medalGold, CircleShape), contentAlignment = Alignment.Center) {
-                Text("1", style = RidgelineTheme.text.caption, color = RidgelineTheme.colors.onMedal, fontWeight = FontWeight.Bold)
-            }
+            RankMedal(effort.rank ?: 1, yearly = effort.yearly)
             Text(
                 buildAnnotatedString {
-                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("PR") }
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(effort.medalLabel.orEmpty()) }
                     append(" · ${effort.name}")
                 },
                 style = MaterialTheme.typography.bodyLarge,

@@ -31,6 +31,11 @@ import org.openactivity.core.data.model.StatTotals
 import org.openactivity.core.data.model.WeekTotals
 import org.openactivity.core.data.model.YearTotals
 import org.openactivity.core.data.repository.ActivityRepository
+import org.openactivity.core.data.repository.GoalRepository
+import org.openactivity.core.data.model.GoalProgress
+import org.openactivity.core.data.model.WeeklyStreak
+import org.openactivity.app.feature.goals.GoalItemUi
+import org.openactivity.app.feature.goals.StreakUi
 import org.openactivity.model.SportType
 import java.time.Clock
 import java.time.LocalDate
@@ -50,6 +55,7 @@ class MeViewModel @Inject constructor(
     preferencesRepository: PreferencesRepository,
     private val timeFormatter: RelativeTimeFormatter,
     private val clock: Clock,
+    goalRepository: GoalRepository,
 ) : ViewModel() {
 
     private val selection = MutableStateFlow(Selection())
@@ -66,7 +72,8 @@ class MeViewModel @Inject constructor(
         currentYear.flatMapLatest(activityRepository::observeYearTotals),
         activityRepository.observeAllTimeTotals(),
         progressSport.flatMapLatest(::bestEfforts),
-    ) { weekly, yearTotals, allTime, bests -> Progress(weekly, yearTotals, allTime, bests) }
+        combine(goalRepository.observeProgress(), goalRepository.observeStreak()) { goals, streak -> goals to streak },
+    ) { weekly, yearTotals, allTime, bests, (goals, streak) -> Progress(weekly, yearTotals, allTime, bests, goals, streak) }
 
     val uiState: StateFlow<MeUiState> = combine(
         activityRepository.observeActivities(),
@@ -108,6 +115,9 @@ class MeViewModel @Inject constructor(
                     activityId = best.activityId,
                 )
             },
+            goals = progress.goals.take(GOALS_SHOWN).map { GoalItemUi.from(it, formatter) },
+            goalCount = progress.goals.size,
+            streak = StreakUi.from(progress.streak),
             query = selected.query,
             activitySport = selected.activitySport,
             weekRange = weekRange(),
@@ -188,6 +198,8 @@ class MeViewModel @Inject constructor(
         val year: YearTotals,
         val allTime: Map<SportType, StatTotals>,
         val bests: List<PersonalBest>,
+        val goals: List<GoalProgress>,
+        val streak: WeeklyStreak,
     )
 
     internal companion object {
@@ -196,6 +208,9 @@ class MeViewModel @Inject constructor(
 
         /** Weeks in the progress chart (profile-progress C2, "3M" = 12 weeks). */
         const val WEEKS = 12
+
+        /** Goal cards on the Progress tab; the rest are on the goals screen. */
+        const val GOALS_SHOWN = 3
 
         /** Case-insensitive title or description match; a blank query matches everything. */
         fun matches(activity: SavedActivity, query: String): Boolean {

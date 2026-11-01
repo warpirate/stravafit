@@ -116,4 +116,20 @@ internal class InMemorySettingsRepository(initial: AppSettings = AppSettings()) 
         settings.update { it.copy(defaultVisibility = visibility) }
 
     override suspend fun setPrivacy(privacy: PrivacySettings) = settings.update { it.copy(privacy = privacy) }
+
+    override suspend fun setFirstDayOfWeek(day: java.time.DayOfWeek) = settings.update { it.copy(firstDayOfWeek = day) }
+
+    override suspend fun setNotifications(notifications: org.openactivity.core.datastore.NotificationSettings) = settings.update { it.copy(notifications = notifications) }
+    override suspend fun setSpeedOverride(sport: SportType, choice: org.openactivity.model.PaceOrSpeed?) =
+        settings.update { it.copy(speedOverrides = if (choice == null) it.speedOverrides - sport else it.speedOverrides + (sport to choice)) }
+
+    override suspend fun setSwimPaceUnit(unit: org.openactivity.model.SwimPaceUnit?) = settings.update { it.copy(swimPaceUnit = unit) }
+
+    override suspend fun setVisibilityOverride(sport: SportType, visibility: Visibility?) =
+        settings.update { it.copy(visibilityOverrides = if (visibility == null) it.visibilityOverrides - sport else it.visibilityOverrides + (sport to visibility)) }
+
+    override suspend fun setLaunchTab(tab: org.openactivity.core.datastore.LaunchTab) = settings.update { it.copy(launchTab = tab) }
+    override suspend fun setAutoLap(meters: Double) = settings.update { it.copy(autoLapMeters = meters) }
+
+    override suspend fun setOffRouteAlerts(enabled: Boolean) = settings.update { it.copy(offRouteAlerts = enabled) }
 }

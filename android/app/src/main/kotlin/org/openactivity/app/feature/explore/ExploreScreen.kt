@@ -33,6 +33,18 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import org.openactivity.app.ui.common.label
+import androidx.compose.foundation.verticalScroll
+import org.openactivity.app.feature.suggest.IntroCard
+import org.openactivity.app.feature.suggest.RefreshButton
+import org.openactivity.app.feature.suggest.RouteSuggestionsViewModel
+import org.openactivity.app.feature.suggest.SuggestionActions
+import org.openactivity.app.feature.suggest.SuggestionsBody
+import org.openactivity.app.feature.suggest.SuggestionsStatus
+import org.openactivity.app.feature.suggest.SuggestionsUiState
+import org.openactivity.app.feature.suggest.rememberSuggestionActions
+import org.openactivity.app.feature.suggest.subtitle
+import org.openactivity.core.designsystem.component.RidgelineFilterChip
+import org.openactivity.core.routing.SuggestionSport
 import org.openactivity.core.designsystem.component.StatValue
 import org.openactivity.core.designsystem.theme.Elevation
 import org.openactivity.core.designsystem.theme.PillShape
@@ -93,8 +105,15 @@ import org.openactivity.core.map.thumbnail.RouteMapThumbnail
 
 /** Explore tab, connected to [ExploreViewModel]. */
 @Composable
-fun ExploreScreen(onOpenRoute: (Long) -> Unit, viewModel: ExploreViewModel = hiltViewModel()) {
+fun ExploreScreen(
+    onOpenRoute: (Long) -> Unit,
+    onOpenSuggestion: (String) -> Unit = {},
+    viewModel: ExploreViewModel = hiltViewModel(),
+    suggestionsViewModel: RouteSuggestionsViewModel = hiltViewModel(),
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val suggestions by suggestionsViewModel.uiState.collectAsStateWithLifecycle()
+    val suggestionActions = rememberSuggestionActions(suggestionsViewModel, onOpenSuggestion)
     val messenger = LocalMessenger.current
     val picker = rememberLauncherForActivityResult(ImportDocumentsContract()) { uris -> viewModel.importRoutes(uris) }
     LaunchedEffect(state.message) {
@@ -111,6 +130,8 @@ fun ExploreScreen(onOpenRoute: (Long) -> Unit, viewModel: ExploreViewModel = hil
             onShowOnMap = viewModel::selectRoute,
             onNotAvailable = messenger::show,
         ),
+        suggestions = suggestions,
+        suggestionActions = suggestionActions,
     )
 }
 
@@ -125,11 +146,17 @@ data class ExploreActions(
 
 /**
  * Stateless Maps tab (strava direction): a full-screen map with a search pill and layers button, a chip
- * row (sport, Heatmap, Routes, Segments), 3D and locate buttons, a dark "Import route" pill, and a
- * bottom sheet of your routes as horizontally scrolling cards.
+ * row (sport, Heatmap, Routes, Segments), 3D and locate buttons, a dark "Create route" pill, and a
+ * bottom sheet with suggested loops near you (sport and distance chips) above your saved routes.
  */
 @Composable
-fun ExploreContent(state: ExploreUiState, actions: ExploreActions, modifier: Modifier = Modifier) {
+fun ExploreContent(
+    state: ExploreUiState,
+    actions: ExploreActions,
+    modifier: Modifier = Modifier,
+    suggestions: SuggestionsUiState = SuggestionsUiState(status = SuggestionsStatus.Disabled),
+    suggestionActions: SuggestionActions = SuggestionActions(),
+) {
     var query by rememberSaveable { mutableStateOf("") }
     var styleKind by rememberSaveable { mutableStateOf<MapStyleKind?>(null) }
     var tilted by rememberSaveable { mutableStateOf(false) }
@@ -147,12 +174,12 @@ fun ExploreContent(state: ExploreUiState, actions: ExploreActions, modifier: Mod
         if (landscape) {
             Row(Modifier.fillMaxSize()) {
                 ExploreMap(state, routes, selected, actions, mapState, query, { query = it }, styleKind, { styleKind = it }, tilted, { tilted = !tilted }, sportFilter, { sportFilter = it }, dark, Modifier.weight(1f).fillMaxHeight())
-                RoutesSheet(routes, selected, state, actions, Modifier.width(SIDE_PANEL_WIDTH).fillMaxHeight(), side = true)
+                RoutesSheet(routes, selected, state, actions, suggestions, suggestionActions, Modifier.width(SIDE_PANEL_WIDTH).fillMaxHeight(), side = true)
             }
         } else {
             Column(Modifier.fillMaxSize()) {
                 ExploreMap(state, routes, selected, actions, mapState, query, { query = it }, styleKind, { styleKind = it }, tilted, { tilted = !tilted }, sportFilter, { sportFilter = it }, dark, Modifier.weight(1f).fillMaxWidth())
-                RoutesSheet(routes, selected, state, actions, Modifier.heightIn(max = sheetMax))
+                RoutesSheet(routes, selected, state, actions, suggestions, suggestionActions, Modifier.heightIn(max = sheetMax))
             }
         }
     }
@@ -370,9 +397,9 @@ private fun CreatePillSurface(importing: Boolean, onClick: () -> Unit, modifier:
 }
 
 /**
- * "Suggested routes" (strava direction) with horizontally scrolling route cards. Without a server the
- * suggestions are the routes saved on this device; with none yet, a compact one-line prompt keeps the
- * map in view. [side] lays the cards out vertically in the landscape side panel.
+ * The sheet (strava direction): "Suggested routes" are real loops routed from where you are, with sport
+ * and distance chips and a refresh icon; "Your routes" below are the routes saved on this device. The
+ * sheet scrolls when both do not fit. [side] is the landscape side panel.
  */
 @Composable
 private fun RoutesSheet(
@@ -380,11 +407,19 @@ private fun RoutesSheet(
     selected: RouteCardUi?,
     state: ExploreUiState,
     actions: ExploreActions,
+    suggestions: SuggestionsUiState,
+    suggestionActions: SuggestionActions,
     modifier: Modifier = Modifier,
     side: Boolean = false,
 ) {
     Surface(modifier, shape = if (side) RectangleShape else SheetTopShape, color = RidgelineTheme.colors.sheetOverMap, shadowElevation = Elevation.sheet) {
-        Column(Modifier.fillMaxWidth().padding(top = Spacing.s, bottom = Spacing.l).let { if (side) it.statusBarsPadding() else it }) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .let { if (side) it.statusBarsPadding() else it }
+                .verticalScroll(rememberScrollState())
+                .padding(top = Spacing.s, bottom = Spacing.l),
+        ) {
             if (!side) {
                 Box(
                     Modifier
@@ -395,45 +430,84 @@ private fun RoutesSheet(
             }
             Row(Modifier.fillMaxWidth().padding(start = Spacing.gutter, end = Spacing.xs, top = Spacing.m), verticalAlignment = Alignment.CenterVertically) {
                 Text("Suggested routes", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                if (state.routes.isNotEmpty()) {
-                    TextButton(onClick = { selected?.let { actions.onOpenRoute(it.id) } }) { Text("See all", color = RidgelineTheme.colors.accentText) }
-                }
+                RefreshButton(suggestions, suggestionActions.onRefresh)
             }
-            if (!state.isLoading && state.routes.isEmpty()) {
-                NoRoutes(state.isImporting, actions.onImport)
-                return@Column
-            }
-            Text(
-                suggestionLine(routes),
-                style = MaterialTheme.typography.bodyMedium,
-                color = RidgelineTheme.colors.textMuted,
-                modifier = Modifier.padding(horizontal = Spacing.gutter),
-            )
-            val card: @Composable (RouteCardUi) -> Unit = { route ->
-                RouteCard(
-                    route,
-                    isOnMap = route.id == selected?.id,
-                    onClick = { if (route.id == selected?.id) actions.onOpenRoute(route.id) else actions.onShowOnMap(route.id) },
-                    onOpen = { actions.onOpenRoute(route.id) },
+            if (suggestions.status != SuggestionsStatus.Disabled) {
+                Text(
+                    subtitle(suggestions),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = RidgelineTheme.colors.textMuted,
+                    modifier = Modifier.padding(horizontal = Spacing.gutter),
                 )
+                if (suggestions.showIntro) IntroCard(suggestionActions, Modifier.padding(horizontal = Spacing.gutter, vertical = Spacing.s))
+                SuggestionChips(suggestions, suggestionActions)
             }
-            if (side) {
-                LazyColumn(
-                    contentPadding = PaddingValues(horizontal = Spacing.gutter, vertical = Spacing.m),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.m),
-                ) { items(routes, key = { it.id }) { card(it) } }
-            } else {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = Spacing.gutter, vertical = Spacing.m),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.m),
-                ) { items(routes, key = { it.id }) { card(it) } }
-            }
+            SuggestionsBody(suggestions, suggestionActions)
+            YourRoutes(routes, selected, state, actions, side)
         }
     }
 }
 
-/** "Run · 3 saved routes · 5–12 km" from the routes shown. */
-private fun suggestionLine(routes: List<RouteCardUi>): String {
+/** Sport chips (Run, Ride, Walk, Hike), then the loop lengths for that sport. */
+@Composable
+private fun SuggestionChips(state: SuggestionsUiState, actions: SuggestionActions) {
+    Row(
+        Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.gutter, vertical = Spacing.s),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SuggestionSport.entries.forEach { sport ->
+            RidgelineFilterChip(sport.label, selected = sport == state.sport, onClick = { actions.onSelectSport(sport) }, leadingIcon = sport.sportType.icon)
+        }
+        Box(Modifier.size(width = 1.dp, height = 24.dp).background(RidgelineTheme.colors.hairline))
+        RidgelineFilterChip("All", selected = state.distanceFilter == null, onClick = { actions.onSelectDistance(null) })
+        state.distanceOptions.forEach { meters ->
+            RidgelineFilterChip("${RouteSuggestionsViewModel.formatKm(meters)} km", selected = state.distanceFilter == meters, onClick = { actions.onSelectDistance(meters) })
+        }
+    }
+}
+
+/** "Your routes": the saved routes, or a one-line import prompt. */
+@Composable
+private fun YourRoutes(routes: List<RouteCardUi>, selected: RouteCardUi?, state: ExploreUiState, actions: ExploreActions, side: Boolean) {
+    Text(
+        "Your routes",
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier.padding(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.m),
+    )
+    if (!state.isLoading && state.routes.isEmpty()) {
+        NoRoutes(state.isImporting, actions.onImport)
+        return
+    }
+    Text(
+        savedLine(routes),
+        style = MaterialTheme.typography.bodyMedium,
+        color = RidgelineTheme.colors.textMuted,
+        modifier = Modifier.padding(horizontal = Spacing.gutter),
+    )
+    val card: @Composable (RouteCardUi) -> Unit = { route ->
+        RouteCard(
+            route,
+            isOnMap = route.id == selected?.id,
+            onClick = { if (route.id == selected?.id) actions.onOpenRoute(route.id) else actions.onShowOnMap(route.id) },
+            onOpen = { actions.onOpenRoute(route.id) },
+        )
+    }
+    if (side) {
+        Column(
+            Modifier.padding(horizontal = Spacing.gutter, vertical = Spacing.m),
+            verticalArrangement = Arrangement.spacedBy(Spacing.m),
+        ) { routes.forEach { card(it) } }
+    } else {
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = Spacing.gutter, vertical = Spacing.m),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.m),
+        ) { items(routes, key = { it.id }) { card(it) } }
+    }
+}
+
+/** "Run · 3 saved routes · on this device" from the routes shown. */
+private fun savedLine(routes: List<RouteCardUi>): String {
     val sports = routes.mapNotNull { it.sport }.distinct()
     val sport = sports.singleOrNull()?.label
     val count = if (routes.size == 1) "1 saved route" else "${routes.size} saved routes"

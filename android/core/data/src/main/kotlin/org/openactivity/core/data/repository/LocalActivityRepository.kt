@@ -15,8 +15,12 @@ import org.openactivity.core.data.mapper.sportOf
 import org.openactivity.core.data.mapper.toDistanceEffort
 import org.openactivity.core.data.mapper.toDomain
 import org.openactivity.core.data.mapper.toDurationEffort
+import org.openactivity.core.data.mapper.zoneOf
 import org.openactivity.core.data.model.ActivityDetail
 import org.openactivity.core.data.model.ActivityMetadataUpdate
+import org.openactivity.core.data.model.EffortRecord
+import org.openactivity.core.data.model.ActivityTitles
+import org.openactivity.core.data.model.DefaultTitles
 import org.openactivity.core.data.model.NewActivity
 import org.openactivity.core.data.model.PersonalBest
 import org.openactivity.core.data.model.SavedActivity
@@ -41,6 +45,7 @@ import javax.inject.Singleton
 class LocalActivityRepository @Inject constructor(
     private val dao: ActivityDao,
     @DataClock private val clock: Clock,
+    private val titles: ActivityTitles = DefaultTitles,
 ) : ActivityRepository {
 
     override fun observeActivities(): Flow<List<SavedActivity>> =
@@ -73,7 +78,7 @@ class LocalActivityRepository @Inject constructor(
 
     override suspend fun saveFinished(finished: FinishedActivity, options: NewActivity, recordedUnits: UnitSystem): Long {
         dao.getByUuid(options.uuid)?.let { return it.id }
-        val rows = FinishedActivityMapper.toRows(finished, options, recordedUnits, clock.millis())
+        val rows = FinishedActivityMapper.toRows(finished, options, recordedUnits, clock.millis(), titles)
         return dao.insertActivityWithChildren(rows.activity, rows.points, rows.laps, rows.splits, rows.bestEfforts)
     }
 
@@ -127,6 +132,21 @@ class LocalActivityRepository @Inject constructor(
                     activityTitle = row.title,
                     sport = sportOf(row.sport) ?: SportType.OTHER,
                     achievedAt = Instant.ofEpochMilli(row.startEpochMillis),
+                )
+            }
+        }
+
+    override fun observeEffortRecords(sports: Set<SportType>, kind: EffortKind): Flow<List<EffortRecord>> =
+        dao.observeBestEfforts(kind.name, sports.map { it.name }).map { rows ->
+            rows.map { row ->
+                EffortRecord(
+                    activityId = row.activityId,
+                    target = row.target,
+                    value = row.value,
+                    startEpochMillis = row.startEpochMillis,
+                    year = Instant.ofEpochMilli(row.startEpochMillis).atZone(zoneOf(row.timeZoneId)).year,
+                    sport = sportOf(row.sport) ?: SportType.OTHER,
+                    activityTitle = row.title,
                 )
             }
         }

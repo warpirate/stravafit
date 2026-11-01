@@ -29,6 +29,13 @@ public enum class Visibility(public val apiName: String) {
         public fun fromApiName(name: String): Visibility? =
             if (name == LEGACY_FOLLOWERS) FOLLOWERS else entries.firstOrNull { it.apiName == name }
 
+        /**
+         * Parses a stored or received value, failing safe: anything unknown, blank or invalid becomes
+         * [ONLY_ME], the most private choice, so a corrupt or future value can never widen the audience.
+         */
+        public fun parseOrPrivate(name: String?): Visibility =
+            name?.trim()?.let { raw -> fromApiName(raw) ?: entries.firstOrNull { it.name == raw } } ?: ONLY_ME
+
         private const val LEGACY_FOLLOWERS = "followers_only"
     }
 }

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.di
 
+import org.openactivity.app.data.LocalSuggestionSettings
+
 import android.content.Context
 import android.text.format.DateFormat
 import androidx.datastore.core.DataStore
@@ -57,6 +59,7 @@ abstract class DataModule {
     @Binds abstract fun archiveExporter(impl: GpxZipArchiveExporter): ActivityArchiveExporter
 
     @Binds abstract fun feedSeenRepository(impl: LocalFeedSeenRepository): FeedSeenRepository
+    @Binds abstract fun suggestionSettings(impl: LocalSuggestionSettings): org.openactivity.app.data.SuggestionSettings
 
 }
 

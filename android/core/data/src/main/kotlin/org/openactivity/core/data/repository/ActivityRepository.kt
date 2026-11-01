@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 import org.openactivity.core.data.mapper.EffortKind
 import org.openactivity.core.data.model.ActivityDetail
 import org.openactivity.core.data.model.ActivityMetadataUpdate
+import org.openactivity.core.data.model.EffortRecord
 import org.openactivity.core.data.model.NewActivity
 import org.openactivity.core.data.model.PersonalBest
 import org.openactivity.core.data.model.SavedActivity
@@ -66,4 +67,10 @@ interface ActivityRepository {
      * furthest distances for [EffortKind.DURATION]. Ordered by target.
      */
     fun observePersonalBests(sports: Set<SportType>, kind: EffortKind = EffortKind.DISTANCE): Flow<List<PersonalBest>>
+
+    /**
+     * Every best effort of [kind] over activities of [sports], for ranking with `EffortRanking`
+     * (podiums, medals on activities).
+     */
+    fun observeEffortRecords(sports: Set<SportType>, kind: EffortKind = EffortKind.DISTANCE): Flow<List<EffortRecord>>
 }

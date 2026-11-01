@@ -23,8 +23,19 @@ typealias RecordRoute = org.openactivity.feature.record.navigation.RecordDestina
 /** Saved route detail (maps-routes): map, elevation profile, record/export/delete. */
 @Serializable data class RouteDetailRoute(val routeId: Long)
 
+/** A suggested loop near the athlete (route suggestions): map, profile, save/record/export. */
+@Serializable data class SuggestedRouteRoute(val suggestionId: String)
+
 /** Edit the local profile: name, location, photo. */
 @Serializable data object EditProfileRoute
 
 /** Open-source licences and map attribution. */
 @Serializable data object LicensesRoute
+
+/** The notifications inbox, from the bell on Home (notifications-search section 2). */
+@Serializable data object NotificationsRoute
+
+/**
+ * Goals: the list with progress, plus the editor. [newGoal] opens the editor for a new goal straight away.
+ */
+@Serializable data class GoalsRoute(val newGoal: Boolean = false)

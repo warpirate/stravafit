@@ -15,6 +15,11 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.ui.semantics.Role
+import org.openactivity.app.feature.goals.GoalCardContent
+import org.openactivity.app.feature.goals.StreakRow
 import org.openactivity.app.ui.common.ProfileAvatar
 import org.openactivity.core.designsystem.component.StatValue
 import androidx.compose.foundation.clickable
@@ -89,6 +94,7 @@ fun MeScreen(
     onEditProfile: () -> Unit,
     onOpenActivity: (Long) -> Unit,
     onRecord: () -> Unit,
+    onOpenGoals: (newGoal: Boolean) -> Unit = {},
     viewModel: MeViewModel = hiltViewModel(),
 ) {
     val me by viewModel.uiState.collectAsStateWithLifecycle()
@@ -106,6 +112,7 @@ fun MeScreen(
             onOpenActivity = onOpenActivity,
             onEditProfile = onEditProfile,
             onRecord = onRecord,
+            onOpenGoals = onOpenGoals,
         ),
     )
 }
@@ -120,6 +127,8 @@ data class MeActions(
     val onOpenActivity: (Long) -> Unit = {},
     val onEditProfile: () -> Unit = {},
     val onRecord: () -> Unit = {},
+    /** Opens the goals screen; true opens it straight on a new goal. */
+    val onOpenGoals: (newGoal: Boolean) -> Unit = {},
 )
 
 /**
@@ -164,7 +173,10 @@ fun MeContent(state: MeUiState, actions: MeActions, modifier: Modifier = Modifie
                 }
                 item(key = "tabs") { MeTabs(state.tab, actions.onSelectTab) }
                 when {
-                    !state.hasAnyActivity -> item(key = "empty") { NoActivities(actions.onRecord, state.recordingInProgress) }
+                    !state.hasAnyActivity -> {
+                        item(key = "empty") { NoActivities(actions.onRecord, state.recordingInProgress) }
+                        if (state.tab == MeTab.Progress) goalItems(state, actions)
+                    }
                     state.tab == MeTab.Progress -> progressItems(state, actions)
                     else -> activityItems(state, actions)
                 }
@@ -307,6 +319,7 @@ private fun LazyListScope.progressItems(state: MeUiState, actions: MeActions) {
             }
         }
     }
+    goalItems(state, actions)
     if (state.weekDays.size == DAYS) {
         item(key = "log") {
             Section {
@@ -339,6 +352,51 @@ private fun LazyListScope.progressItems(state: MeUiState, actions: MeActions) {
                 Spacer(Modifier.height(Spacing.m))
                 StatGrid(state.allTime, columns = 2)
             }
+        }
+    }
+}
+
+/** Goals: up to three goal cards and the weekly streak, or a row to add the first goal. */
+private fun LazyListScope.goalItems(state: MeUiState, actions: MeActions) {
+    item(key = "goals") {
+        Section {
+            SectionTitle(
+                "Goals",
+                action = if (state.goalCount > 0) (if (state.goalCount > state.goals.size) "See all" else "Manage") else null,
+                onAction = { actions.onOpenGoals(false) },
+            )
+            if (state.goals.isEmpty()) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = Spacing.listRowMin)
+                        .clickable(role = Role.Button) { actions.onOpenGoals(true) }
+                        .padding(horizontal = Spacing.gutter, vertical = Spacing.m),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Rounded.Add, contentDescription = null, tint = RidgelineTheme.colors.accent)
+                    Spacer(Modifier.width(Spacing.l))
+                    Column(Modifier.weight(1f)) {
+                        Text("Add a goal", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "A weekly, monthly or yearly target to work towards",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = RidgelineTheme.colors.textSecondary,
+                        )
+                    }
+                    Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = RidgelineTheme.colors.textMuted)
+                }
+            } else {
+                state.goals.forEachIndexed { index, goal ->
+                    if (index > 0) HorizontalDivider(Modifier.padding(horizontal = Spacing.gutter), color = RidgelineTheme.colors.hairline)
+                    GoalCardContent(goal, onClick = { actions.onOpenGoals(false) })
+                }
+            }
+            state.streak?.takeIf { state.hasAnyActivity }?.let { streak ->
+                HorizontalDivider(color = RidgelineTheme.colors.hairline)
+                StreakRow(streak)
+            }
+            Spacer(Modifier.height(Spacing.xs))
         }
     }
 }

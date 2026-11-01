@@ -4,6 +4,7 @@ package org.openactivity.feature.activitydetail
 import android.net.Uri
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.map
 import org.openactivity.core.activityextras.ActivityExtras
 import org.openactivity.core.activityextras.ActivityExtrasRepository
@@ -19,6 +20,7 @@ import org.openactivity.model.SportType
 import org.openactivity.model.UnitSystem
 import org.openactivity.model.Visibility
 import org.openactivity.recording.Action
+import org.openactivity.recording.CadenceSource
 import org.openactivity.recording.EngineInput
 import org.openactivity.recording.FinishedActivity
 import org.openactivity.recording.RecordingConfig
@@ -38,7 +40,13 @@ object Recordings {
      * the climb and quicker on the descent, small stride-to-stride wobble, and a heart rate that settles,
      * follows the effort and drifts up. About 1 km per 330 s at 2.7-3.4 m/s.
      */
-    fun hillyRun(seconds: Int = 1500, sport: SportType = SportType.RUN, withHeartRate: Boolean = true): FinishedActivity {
+    fun hillyRun(
+        seconds: Int = 1500,
+        sport: SportType = SportType.RUN,
+        withHeartRate: Boolean = true,
+        withCadence: Boolean = false,
+        withPower: Boolean = false,
+    ): FinishedActivity {
         val engine = RecordingEngine(RecordingConfig(sport, unitSystem = UnitSystem.METRIC))
         val base = 5_000_000_000L
         var position = LatLng(47.3700, 8.5400)
@@ -65,6 +73,9 @@ object Recordings {
             )
             val heartRate = 118 + 24 * (1 - exp(-s / 120.0)) + 7 * sin(phase + PI / 6) + 6.0 * s / seconds
             if (withHeartRate) engine.process(EngineInput.HeartRate(t, heartRate.roundToInt()))
+            // Steps per minute rise with speed; running power follows speed and the climb.
+            if (withCadence) engine.process(EngineInput.Cadence(t, 166.0 + 8.0 * (speed - 3.0) + 2.0 * sin(2 * PI * s / 53.0), CadenceSource.STEPS))
+            if (withPower) engine.process(EngineInput.Power(t, (250.0 + 40.0 * climbing + 60.0 * (speed - 3.1)).roundToInt()))
             if (s == seconds / 2) engine.process(EngineInput.UserAction(t, Action.LAP))
         }
         engine.process(EngineInput.UserAction(base + (seconds + 1) * 1_000_000_000L, Action.FINISH))
@@ -91,6 +102,22 @@ class FakeSettingsRepository(initial: AppSettings = AppSettings()) : SettingsRep
     override suspend fun setDefaultSport(sport: SportType) = Unit
     override suspend fun setDefaultVisibility(visibility: Visibility) { state.value = state.value.copy(defaultVisibility = visibility) }
     override suspend fun setPrivacy(privacy: PrivacySettings) { state.value = state.value.copy(privacy = privacy) }
+
+    override suspend fun setFirstDayOfWeek(day: java.time.DayOfWeek) { state.value = state.value.copy(firstDayOfWeek = day) }
+
+    override suspend fun setNotifications(notifications: org.openactivity.core.datastore.NotificationSettings) { state.value = state.value.copy(notifications = notifications) }
+    override suspend fun setSpeedOverride(sport: SportType, choice: org.openactivity.model.PaceOrSpeed?) =
+        state.update { it.copy(speedOverrides = if (choice == null) it.speedOverrides - sport else it.speedOverrides + (sport to choice)) }
+
+    override suspend fun setSwimPaceUnit(unit: org.openactivity.model.SwimPaceUnit?) = state.update { it.copy(swimPaceUnit = unit) }
+
+    override suspend fun setVisibilityOverride(sport: SportType, visibility: Visibility?) =
+        state.update { it.copy(visibilityOverrides = if (visibility == null) it.visibilityOverrides - sport else it.visibilityOverrides + (sport to visibility)) }
+
+    override suspend fun setLaunchTab(tab: org.openactivity.core.datastore.LaunchTab) = state.update { it.copy(launchTab = tab) }
+    override suspend fun setAutoLap(meters: Double) { state.value = state.value.copy(autoLapMeters = meters) }
+
+    override suspend fun setOffRouteAlerts(enabled: Boolean) { state.value = state.value.copy(offRouteAlerts = enabled) }
 }
 
 /** In-memory extras without photo files. */
