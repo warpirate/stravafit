@@ -46,7 +46,7 @@ data class BadgeColors(val container: Color, val content: Color)
 
 /** The colours a [tone] badge draws with, from [colors]. */
 fun badgeColors(tone: BadgeTone, colors: RidgelineColors): BadgeColors = when (tone) {
-    BadgeTone.Accent -> BadgeColors(colors.accentArea, colors.accentText)
+    BadgeTone.Accent -> BadgeColors(colors.accentArea, colors.accentOnArea)
     BadgeTone.Neutral -> BadgeColors(colors.surfaceSunken, colors.textSecondary)
     BadgeTone.Gold -> BadgeColors(colors.medalGold, colors.onMedal)
     BadgeTone.Silver -> BadgeColors(colors.medalSilver, colors.onMedal)

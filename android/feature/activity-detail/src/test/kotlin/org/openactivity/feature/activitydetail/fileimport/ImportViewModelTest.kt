@@ -68,10 +68,13 @@ class ImportViewModelTest : RepositoryBackedTest() {
 
     @Test
     fun `files shared to the app are imported once, as soon as the screen opens`(): Unit = runBlocking {
-        val shared = file("shared.gpx", Gpx.run()).toString()
+        // Through SavedStateHandle the URI travels as a string; java.net.URI's form round-trips on every OS
+        // (Uri.fromFile on a Windows host escapes the drive and backslashes into an unreadable path).
+        val shared = File(context.cacheDir, "shared.gpx").apply { writeText(Gpx.run()) }.toURI().toString()
         val handle = SavedStateHandle(mapOf(ImportViewModel.ARG_URIS to arrayOf(shared)))
         val vm = ImportViewModel(ActivityImporter.create(context), ActivityImportSaver(activities, settings), handle)
-        assertEquals(ImportStatus.IMPORTED, vm.finished().results.single().status)
+        val result = vm.finished().results.single()
+        assertEquals(result.toString(), ImportStatus.IMPORTED, result.status)
 
         // Recreated with the same arguments (rotation, process restore): no second import.
         val again = ImportViewModel(ActivityImporter.create(context), ActivityImportSaver(activities, settings), handle)

@@ -23,6 +23,7 @@ object Ref {
     val AccentTextLight = Color(0xFFCC3D00) // small orange text on white, 5.0:1
     val AccentTextDark = Color(0xFFFF6A2B) // small orange text and pressed accent on dark, 6.2:1
     val AccentAreaLight = Color(0x24FC5200) // rgba(252,82,0,.14)
+    val AccentOnAreaLight = Color(0xFFB33600) // small orange text on AccentAreaLight over white, 5.1:1
     val AccentAreaDark = Color(0x1AFC5200) // rgba(252,82,0,.10)
     val Paused = Color(0xFFC43B00) // paused strip, white 14/700 on it is 5.3:1
 
@@ -209,6 +210,11 @@ data class RidgelineColors(
     val accentText: Color,
     val onAccent: Color,
     val accentArea: Color,
+    /**
+     * Small orange text on an [accentArea] tint (the "New" badge). On light the tint lowers [accentText]
+     * to 4.2:1, so it gets a deeper orange (5.1:1); on dark [accentText] already passes.
+     */
+    val accentOnArea: Color = accentText,
     /** `gap`, same as [canvas]. */
     val gap: Color,
     /** `raised`: dialogs. */
@@ -311,6 +317,7 @@ val LightRidgelineColors = RidgelineColors(
     accentText = Ref.AccentTextLight,
     onAccent = Ref.White,
     accentArea = Ref.AccentAreaLight,
+    accentOnArea = Ref.AccentOnAreaLight,
     gap = Ref.GapLight,
     raised = Ref.White,
     float = Ref.White,

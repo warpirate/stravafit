@@ -125,6 +125,7 @@ class FeedCardScreenshotTest {
                 testTimeFormatter(),
                 FakeActivityExtrasRepository(),
                 FakeFeedSeenRepository(initial = 1L),
+                org.openactivity.app.testing.FakeNotificationRepository(),
             )
         }
         val state by vm.uiState.collectAsState()
