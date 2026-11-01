@@ -68,8 +68,9 @@ class DetailScreenshotTest : RepositoryBackedTest() {
             UnitSystem.METRIC,
         )
         val detail = activities.observeActivityDetail(id).first()!!
-        val bests = activities.observePersonalBests(setOf(detail.activity.sport)).first()
-        ActivityDetailViewModel.buildContent(detail, UnitSystem.METRIC, ActivityExtras.NONE, bests, LocalDate.of(2025, 6, 10))
+        val records = activities.observeEffortRecords(org.openactivity.core.data.repository.EffortRanking.poolOf(detail.activity.sport)).first()
+        val medals = org.openactivity.core.data.repository.EffortRanking.medalsOf(records, org.openactivity.core.data.mapper.EffortKind.DISTANCE, id)
+        ActivityDetailViewModel.buildContent(detail, UnitSystem.METRIC, ActivityExtras.NONE, medals, LocalDate.of(2025, 6, 10))
     }
 
     private fun snap(name: String, dark: Boolean, body: @Composable () -> Unit) {

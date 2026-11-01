@@ -152,5 +152,11 @@ class GoalAndInboxRepositoryTest {
         override suspend fun setPrivacy(privacy: PrivacySettings) = Unit
         override suspend fun setFirstDayOfWeek(day: DayOfWeek) = state.update { it.copy(firstDayOfWeek = day) }
         override suspend fun setNotifications(notifications: NotificationSettings) = state.update { it.copy(notifications = notifications) }
+        override suspend fun setSpeedOverride(sport: SportType, choice: org.openactivity.model.PaceOrSpeed?) = Unit
+        override suspend fun setSwimPaceUnit(unit: org.openactivity.model.SwimPaceUnit?) = Unit
+        override suspend fun setVisibilityOverride(sport: SportType, visibility: Visibility?) = Unit
+        override suspend fun setLaunchTab(tab: org.openactivity.core.datastore.LaunchTab) = Unit
+        override suspend fun setAutoLap(meters: Double) = Unit
+        override suspend fun setOffRouteAlerts(enabled: Boolean) = Unit
     }
 }

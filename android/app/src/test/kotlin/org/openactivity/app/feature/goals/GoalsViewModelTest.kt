@@ -62,9 +62,9 @@ class GoalsViewModelTest {
         val run = state.goals[0]
         assertEquals("Weekly run goal", run.title)
         assertEquals("Distance · this week", run.subtitle)
-        assertEquals("24.10 / 30.00 km", run.ofTarget)
+        assertEquals("24.1 / 30 km", run.ofTarget)
         assertEquals(0.8033f, run.fraction, 0.001f)
-        assertEquals("5.90 km to go", run.status)
+        assertEquals("5.9 km to go", run.status)
         assertEquals("4 days left", run.daysLeft)
         assertEquals("On pace", run.pace)
         val count = state.goals[1]
@@ -112,6 +112,7 @@ class GoalsViewModelTest {
         val vm = viewModel()
         collect(vm)
         vm.addGoal()
+        advanceUntilIdle()
         fun editor() = vm.uiState.value.editor!!
 
         assertNull(editor().error)

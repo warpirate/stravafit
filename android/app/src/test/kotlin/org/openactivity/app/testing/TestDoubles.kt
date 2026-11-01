@@ -197,6 +197,12 @@ class FakeActivityRepository(initial: List<SavedActivity> = emptyList()) : Activ
         bestRequests += sports
         return bests
     }
+
+    /** Every effort of every activity, as the ranking reads them; tests fill it. */
+    val effortRecords = MutableStateFlow<List<org.openactivity.core.data.model.EffortRecord>>(emptyList())
+
+    override fun observeEffortRecords(sports: Set<SportType>, kind: EffortKind): Flow<List<org.openactivity.core.data.model.EffortRecord>> =
+        effortRecords.map { list -> list.filter { it.sport in sports } }
 }
 
 /** In-memory [RouteRepository]. */
