@@ -19,6 +19,7 @@ import org.openactivity.app.feature.profile.EditProfileScreen
 import org.openactivity.app.feature.route.RouteDetailScreen
 import org.openactivity.app.feature.settings.LicensesScreen
 import org.openactivity.app.feature.settings.SettingsScreen
+import org.openactivity.core.datastore.LaunchTab
 import org.openactivity.core.designsystem.theme.RidgelineTheme
 import org.openactivity.feature.activitydetail.ActivityDetailNavigation
 import org.openactivity.feature.activitydetail.ImportActivitiesRoute
@@ -44,13 +45,18 @@ import org.openactivity.feature.shareexport.shareExportScreen
  * this graph exists.
  */
 @Composable
-fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) {
+fun AppNavHost(navController: NavHostController, startTab: LaunchTab = LaunchTab.HOME, modifier: Modifier = Modifier) {
     val motion = RidgelineTheme.motion
     val exportProvider = rememberExportActivityProvider()
     val openActivity: (Long) -> Unit = { id -> navController.navigateToActivityDetail(id) }
     NavHost(
         navController = navController,
-        startDestination = FeedRoute,
+        // Record is not a tab root: the app opens on Home with the recorder on top (see MainActivity).
+        startDestination = when (startTab) {
+            LaunchTab.HOME, LaunchTab.RECORD -> FeedRoute
+            LaunchTab.MAPS -> ExploreRoute
+            LaunchTab.YOU -> MeRoute
+        },
         modifier = modifier,
         enterTransition = { fadeIn(tween(motion.enter(motion.short))) },
         exitTransition = { fadeOut(tween(motion.exit(motion.short))) },

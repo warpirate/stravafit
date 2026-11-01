@@ -152,7 +152,7 @@ class DefaultRecordingController @Inject constructor(
                 finished,
                 NewActivity(
                     uuid = s.uuid,
-                    visibility = s.settings.defaultVisibility,
+                    visibility = s.settings.defaultVisibility(finished.sport),
                     routeId = s.routeId,
                     hideStartMeters = s.settings.privacy.hideStartMeters,
                     hideEndMeters = s.settings.privacy.hideEndMeters,

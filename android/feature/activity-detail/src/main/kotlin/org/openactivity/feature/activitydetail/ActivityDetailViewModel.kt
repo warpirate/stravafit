@@ -31,12 +31,16 @@ import org.openactivity.core.data.model.DefaultTitles
 import org.openactivity.core.data.model.PersonalBest
 import org.openactivity.core.data.repository.ActivityRepository
 import org.openactivity.core.data.repository.SettingsRepository
+import org.openactivity.core.datastore.AppSettings
 import org.openactivity.core.export.file.ExportFormat
 import org.openactivity.core.export.file.ExportedFile
 import org.openactivity.feature.activitydetail.chart.ChartMath
 import org.openactivity.feature.activitydetail.export.ActivityFileExporter
 import org.openactivity.feature.activitydetail.format.DetailFormat
 import org.openactivity.model.LatLng
+import org.openactivity.model.SpeedDisplay
+import org.openactivity.model.SpeedDisplays
+import org.openactivity.model.SportType
 import org.openactivity.model.UnitSystem
 import org.openactivity.recording.ActivityFlag
 import java.time.Clock
@@ -93,10 +97,10 @@ class ActivityDetailViewModel internal constructor(
         if (detail == null) return@flatMapLatest flowOf(null)
         val bests = activities.observePersonalBests(setOf(detail.activity.sport))
         combine(
-            settings.settings.map { it.units }.distinctUntilChanged(),
+            settings.settings.map { DisplaySettings.of(it, detail.activity.sport) }.distinctUntilChanged(),
             extras.observe(activityId),
             bests,
-        ) { units, ex, pbs -> buildContent(detail, units, ex, pbs, LocalDate.now(clock)) }
+        ) { display, ex, pbs -> buildContent(detail, display.units, ex, pbs, LocalDate.now(clock), display.speed) }
     }.flowOn(Dispatchers.Default)
 
     /** Current screen state. */
@@ -198,6 +202,13 @@ class ActivityDetailViewModel internal constructor(
         effectChannel.trySend(DetailEffect.Message("No app can receive this file"))
     }
 
+    /** The settings the detail screen is drawn with; anything else changing does not rebuild it. */
+    private data class DisplaySettings(val units: UnitSystem, val speed: SpeedDisplay) {
+        companion object {
+            fun of(settings: AppSettings, sport: SportType) = DisplaySettings(settings.units, settings.speedDisplay(sport))
+        }
+    }
+
     internal companion object {
         const val ARG_ACTIVITY_ID = "activityId"
         private const val STOP_TIMEOUT_MILLIS = 5_000L
@@ -208,6 +219,7 @@ class ActivityDetailViewModel internal constructor(
             extras: ActivityExtras,
             bests: List<PersonalBest>,
             today: LocalDate,
+            display: SpeedDisplay = SpeedDisplays.resolve(detail.activity.sport, units),
         ): DetailContent {
             val a = detail.activity
             val moving = detail.points.filterNot { it.paused }
@@ -218,6 +230,7 @@ class ActivityDetailViewModel internal constructor(
                 if (ActivityFlag.SIGNIFICANT_GPS_GAP in a.flags) add("GPS dropped out for a while; the gap was bridged in a straight line")
                 if (ActivityFlag.RECOVERED_AFTER_INTERRUPTION in a.flags) add("Recording was interrupted and recovered")
             }
+            val splits = DetailRows.splits(detail, units, display)
             return DetailContent(
                 id = a.id,
                 title = a.title,
@@ -230,18 +243,20 @@ class ActivityDetailViewModel internal constructor(
                 muted = extras.muted,
                 photos = extras.photos,
                 units = units,
-                stats = DetailRows.stats(a, units, hasElevation),
+                stats = DetailRows.stats(a, units, hasElevation, display),
                 route = moving.map { LatLng(it.latitude, it.longitude) },
                 routeSpeeds = moving.map { it.speedMps },
                 routeDistances = moving.map { it.distanceMeters - (detail.points.firstOrNull()?.distanceMeters ?: 0.0) },
                 chart = ChartMath.build(detail.points, a.sport),
-                splits = DetailRows.splits(detail, units),
+                splits = splits,
                 splitUnit = if (units == UnitSystem.METRIC) "Km" else "Mi",
-                laps = DetailRows.laps(detail, units),
+                laps = DetailRows.laps(detail, units, display),
                 efforts = DetailRows.efforts(detail, bests, units),
                 showEfforts = DetailRows.hasEfforts(a.sport),
                 notes = notes,
                 averageSpeedMps = a.averageSpeedMps.takeIf { it > 0.0 },
+                speedDisplay = display,
+                showSplitGap = DetailRows.showsSplitGap(splits),
             )
         }
     }

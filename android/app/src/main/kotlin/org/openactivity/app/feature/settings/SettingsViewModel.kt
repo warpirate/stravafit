@@ -26,6 +26,7 @@ import org.openactivity.app.model.toSportType
 import org.openactivity.core.data.repository.SettingsRepository
 import org.openactivity.core.datastore.AppSettings
 import org.openactivity.core.datastore.AudioCueSettings
+import org.openactivity.core.datastore.LaunchTab
 import org.openactivity.core.datastore.PrivacySettings
 import org.openactivity.model.SportType
 import org.openactivity.model.UnitSystem
@@ -96,6 +97,8 @@ class SettingsViewModel @Inject constructor(
     fun setTheme(mode: ThemeMode) = launch { settingsRepository.setTheme(mode.toPreference()) }
 
     fun setReduceMotion(enabled: Boolean) = launch { preferencesRepository.setReduceMotion(enabled) }
+
+    fun setLaunchTab(tab: LaunchTab) = launch { settingsRepository.setLaunchTab(tab) }
 
     fun setDefaultSport(sport: SportType) = launch { settingsRepository.setDefaultSport(sport) }
 

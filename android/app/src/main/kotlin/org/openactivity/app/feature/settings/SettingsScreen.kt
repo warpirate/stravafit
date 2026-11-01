@@ -47,6 +47,7 @@ import org.openactivity.core.designsystem.theme.Spacing
 import org.openactivity.model.SportType
 import org.openactivity.model.UnitSystem
 import org.openactivity.model.Visibility
+import org.openactivity.core.datastore.LaunchTab
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -79,6 +80,7 @@ fun SettingsScreen(
             onUnits = viewModel::setUnits,
             onTheme = viewModel::setTheme,
             onReduceMotion = viewModel::setReduceMotion,
+            onLaunchTab = viewModel::setLaunchTab,
             onDefaultSport = viewModel::setDefaultSport,
             onAutoPause = viewModel::setAutoPause,
             onAudioCues = viewModel::setAudioCuesEnabled,
@@ -102,6 +104,7 @@ data class SettingsActions(
     val onUnits: (UnitSystem) -> Unit = {},
     val onTheme: (ThemeMode) -> Unit = {},
     val onReduceMotion: (Boolean) -> Unit = {},
+    val onLaunchTab: (LaunchTab) -> Unit = {},
     val onDefaultSport: (SportType) -> Unit = {},
     val onAutoPause: (SportType, Boolean) -> Unit = { _, _ -> },
     val onAudioCues: (Boolean) -> Unit = {},
@@ -158,6 +161,15 @@ fun SettingsContent(state: SettingsUiState, actions: SettingsActions, modifier: 
                     }
                     RowDivider()
                     SwitchRow("Reduce motion", "Turns off celebrations, shimmer and transitions", state.reduceMotion, actions.onReduceMotion)
+                    RowDivider()
+                    ChipChoiceRow(
+                        title = "Open app on",
+                        subtitle = "Takes effect the next time the app starts",
+                        options = LaunchTab.entries,
+                        selected = settings.launchTab,
+                        label = { launchTabLabel(it) },
+                        onSelect = actions.onLaunchTab,
+                    )
                 }
 
                 RecordingSettings(state, actions)
@@ -283,3 +295,11 @@ fun visibilityLabel(visibility: Visibility): String = when (visibility) {
 }
 
 private const val OSM_COPYRIGHT_URL = "https://www.openstreetmap.org/copyright"
+
+/** The tab names as the bottom bar shows them. */
+internal fun launchTabLabel(tab: LaunchTab): String = when (tab) {
+    LaunchTab.HOME -> "Home"
+    LaunchTab.MAPS -> "Maps"
+    LaunchTab.RECORD -> "Record"
+    LaunchTab.YOU -> "You"
+}

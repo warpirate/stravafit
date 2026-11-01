@@ -142,7 +142,16 @@ internal fun DetailBody(content: DetailContent, listState: LazyListState = remem
         content.chart?.let { chart ->
             item(key = "analysis") {
                 Section("Analysis") {
-                    AnalysisSection(chart, content.sport, content.units, scrubIndex, onScrub = { scrubIndex = it }, averageSpeedMps = content.averageSpeedMps)
+                    AnalysisSection(
+                        data = chart,
+                        sport = content.sport,
+                        display = content.speedDisplay,
+                        units = content.units,
+                        scrubIndex = scrubIndex,
+                        onScrub = { scrubIndex = it },
+                        averageSpeedMps = content.averageSpeedMps,
+                        gapOnByDefault = content.showSplitGap,
+                    )
                 }
             }
         }
@@ -152,7 +161,8 @@ internal fun DetailBody(content: DetailContent, listState: LazyListState = remem
                     SplitsTable(
                         rows = content.splits,
                         unitHeader = content.splitUnit,
-                        speedHeader = DetailFormat.speedLabel(content.sport),
+                        speedHeader = DetailFormat.speedLabel(content.speedDisplay),
+                        showGap = content.showSplitGap,
                         selected = selectedSplit,
                         onSelect = { selectedSplit = it },
                     )
@@ -161,7 +171,7 @@ internal fun DetailBody(content: DetailContent, listState: LazyListState = remem
         }
         if (content.laps.isNotEmpty()) {
             item(key = "laps") {
-                Section("Laps") { LapsTable(content.laps, DetailFormat.speedLabel(content.sport)) }
+                Section("Laps") { LapsTable(content.laps, DetailFormat.speedLabel(content.speedDisplay)) }
             }
         }
         if (content.showEfforts) {

@@ -6,6 +6,8 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import org.openactivity.core.data.model.ActivityTitles
+import org.openactivity.core.data.model.ResourceActivityTitles
 import org.openactivity.core.data.repository.ActivityRepository
 import org.openactivity.core.data.repository.DataStoreSettingsRepository
 import org.openactivity.core.data.repository.LocalActivityRepository
@@ -29,6 +31,9 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun routeRepository(impl: LocalRouteRepository): RouteRepository
+
+    @Binds
+    abstract fun activityTitles(impl: ResourceActivityTitles): ActivityTitles
 
     @Binds
     abstract fun settingsRepository(impl: DataStoreSettingsRepository): SettingsRepository

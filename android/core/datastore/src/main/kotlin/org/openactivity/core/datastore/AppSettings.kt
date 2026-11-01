@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.core.datastore
 
+import org.openactivity.model.PaceOrSpeed
+import org.openactivity.model.SpeedDisplay
+import org.openactivity.model.SpeedDisplays
 import org.openactivity.model.SportType
+import org.openactivity.model.SwimPaceUnit
 import org.openactivity.model.UnitSystem
 import org.openactivity.model.Visibility
 import java.util.Locale
@@ -11,6 +15,14 @@ enum class ThemePreference {
     SYSTEM,
     LIGHT,
     DARK,
+}
+
+/** The tab the app opens on at a cold launch (settings-privacy-units 2.5). */
+enum class LaunchTab {
+    HOME,
+    MAPS,
+    RECORD,
+    YOU,
 }
 
 /**
@@ -55,7 +67,11 @@ data class PrivacySettings(
  *
  * @property autoPauseOverrides per-sport choices; sports without an entry use [defaultAutoPause].
  * @property defaultSport sport preselected on the Record screen (the last sport recorded).
- * @property defaultVisibility visibility given to new activities.
+ * @property defaultVisibility visibility given to new activities of sports without an override.
+ * @property speedOverrides per-sport pace-or-speed choices; sports without an entry use their default.
+ * @property swimPaceUnit per 100 m or per 100 yd for swims; null follows [units].
+ * @property visibilityOverrides per-sport default visibility; sports without one use [defaultVisibility].
+ * @property launchTab the tab a cold launch opens on.
  */
 data class AppSettings(
     val units: UnitSystem = UnitSystem.METRIC,
@@ -65,9 +81,24 @@ data class AppSettings(
     val defaultSport: SportType = SportType.RUN,
     val defaultVisibility: Visibility = Visibility.DEFAULT,
     val privacy: PrivacySettings = PrivacySettings(),
+    val speedOverrides: Map<SportType, PaceOrSpeed> = emptyMap(),
+    val swimPaceUnit: SwimPaceUnit? = null,
+    val visibilityOverrides: Map<SportType, Visibility> = emptyMap(),
+    val launchTab: LaunchTab = LaunchTab.HOME,
 ) {
     /** Whether auto-pause is on for [sport]. */
     fun autoPauseEnabled(sport: SportType): Boolean = autoPauseOverrides[sport] ?: defaultAutoPause(sport)
+
+    /** How [sport] shows pace or speed for this athlete, everywhere in the app. */
+    fun speedDisplay(sport: SportType): SpeedDisplay =
+        SpeedDisplays.resolve(sport, units, speedOverrides[sport], swimPaceUnit)
+
+    /** Pace or speed for [sport] as currently shown, the value the per-sport setting displays. */
+    fun paceOrSpeed(sport: SportType): PaceOrSpeed =
+        if (speedDisplay(sport) == SpeedDisplay.SPEED) PaceOrSpeed.SPEED else PaceOrSpeed.PACE
+
+    /** Visibility prefilled for a new activity of [sport]. */
+    fun defaultVisibility(sport: SportType): Visibility = visibilityOverrides[sport] ?: defaultVisibility
 
     companion object {
         /** On for rides, off for everything else (record detail 6.2). */
