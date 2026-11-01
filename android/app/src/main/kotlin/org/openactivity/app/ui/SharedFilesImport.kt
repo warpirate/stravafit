@@ -105,8 +105,11 @@ fun SharedFilesDialog(count: Int, onChoose: (SharedFilesTarget) -> Unit, onDismi
     )
 }
 
-/** Shared files copied into the app, and how many were turned away. */
-data class StagedFiles(val files: List<Uri>, val rejected: Int)
+/**
+ * Shared files copied into the app; [rejected] were readable but not activity files, [unreadable] could not
+ * be read at all (the sharing app gave no access, or the file went away).
+ */
+data class StagedFiles(val files: List<Uri>, val rejected: Int, val unreadable: Int = 0)
 
 /**
  * Copies files shared to the app into its cache as they arrive. A shared content URI is readable only
@@ -118,18 +121,25 @@ class SharedFileStager @Inject constructor(@ApplicationContext private val conte
     suspend fun stage(uris: List<Uri>): StagedFiles = withContext(Dispatchers.IO) {
         val dir = File(context.cacheDir, DIR).apply { deleteRecursively(); mkdirs() }
         var rejected = 0
+        var unreadable = 0
         val files = uris.mapIndexedNotNull { index, uri ->
-            val copy = File(dir, "$index-${safeName(displayName(uri) ?: uri.lastPathSegment ?: "file")}")
-            val ok = try {
-                copy(uri, copy) && looksLikeActivityFile(copy)
+            // One folder per file keeps two shared files of the same name apart without renaming them: the
+            // import screen shows the name as the user knows it.
+            val copy = File(File(dir, index.toString()).apply { mkdirs() }, safeName(displayName(uri) ?: uri.lastPathSegment ?: "file"))
+            val read = try {
+                copy(uri, copy)
             } catch (e: IOException) {
                 false
             } catch (e: SecurityException) {
                 false
             }
-            if (ok) Uri.fromFile(copy) else null.also { copy.delete(); rejected++ }
+            when {
+                !read -> null.also { copy.delete(); unreadable++ }
+                !looksLikeActivityFile(copy) -> null.also { copy.delete(); rejected++ }
+                else -> Uri.fromFile(copy)
+            }
         }
-        StagedFiles(files, rejected)
+        StagedFiles(files, rejected, unreadable)
     }
 
     /** Copies at most [MAX_BYTES]; false when the file is bigger or unreadable. */

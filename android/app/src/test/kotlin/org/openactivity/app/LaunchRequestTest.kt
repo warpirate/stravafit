@@ -102,6 +102,15 @@ class LaunchRequestTest {
     }
 
     @Test
+    fun `the notifications summary opens the inbox once, not from recents`() {
+        val intent = Intent().putExtra(AndroidSystemNotifier.EXTRA_OPEN_INBOX, true)
+        assertEquals(LaunchRequest.OpenInbox, LaunchRequest.consume(intent))
+        assertNull(LaunchRequest.consume(intent))
+        val replay = Intent().putExtra(AndroidSystemNotifier.EXTRA_OPEN_INBOX, true).addFlags(Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY)
+        assertNull(LaunchRequest.consume(replay))
+    }
+
+    @Test
     fun `inbox notification opens its entry once, not from recents`() {
         val intent = Intent().putExtra(AndroidSystemNotifier.EXTRA_INBOX_ID, 7L)
         assertEquals(LaunchRequest.OpenInboxEntry(7L), LaunchRequest.consume(intent))

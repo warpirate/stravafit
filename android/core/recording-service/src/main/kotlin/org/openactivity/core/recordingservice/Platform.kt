@@ -72,7 +72,18 @@ class VibratorAlertHaptics @Inject constructor(
             context.getSystemService(android.os.Vibrator::class.java)
         }
         if (vibrator?.hasVibrator() != true) return
-        vibrator.vibrate(android.os.VibrationEffect.createWaveform(OFF_ROUTE_PATTERN, -1))
+        val effect = android.os.VibrationEffect.createWaveform(OFF_ROUTE_PATTERN, -1)
+        // A vibration without a usage counts as UNKNOWN, which some phones and settings silence; tagged as a
+        // notification it follows the ringer the way other alerts do.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            vibrator.vibrate(effect, android.os.VibrationAttributes.createForUsage(android.os.VibrationAttributes.USAGE_NOTIFICATION))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(
+                effect,
+                android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_EVENT).build(),
+            )
+        }
     }
 
     private companion object {

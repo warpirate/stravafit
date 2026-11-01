@@ -91,6 +91,7 @@ fun OpenActivityApp(
             } catch (e: IllegalArgumentException) {
                 messenger.show("That link does not lead anywhere in the app.")
             }
+            LaunchRequest.OpenInbox -> navController.navigate(NotificationsRoute) { launchSingleTop = true }
             is LaunchRequest.OpenInboxEntry -> when (val link = inboxLinks.open(launchRequest.id)) {
                 InboxLink.Inbox -> navController.navigate(NotificationsRoute) { launchSingleTop = true }
                 is InboxLink.To -> navController.openInboxDestination(link.destination)
@@ -103,8 +104,10 @@ fun OpenActivityApp(
             when {
                 staged.files.isNotEmpty() -> {
                     sharedFiles = staged.files.map { it.toString() }
-                    if (staged.rejected > 0) messenger.show("Skipped ${staged.rejected} file(s) that are not GPX, TCX or FIT.")
+                    val skipped = staged.rejected + staged.unreadable
+                    if (skipped > 0) messenger.show("Skipped $skipped file(s) that could not be read or are not GPX, TCX or FIT.")
                 }
+                staged.unreadable > 0 -> messenger.show("Couldn't read the shared file. Share it again from the app it is in.")
                 else -> messenger.show("That is not a GPX, TCX or FIT file, so there is nothing to import.")
             }
         }

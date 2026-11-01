@@ -35,6 +35,9 @@ sealed interface LaunchRequest {
     /** Open where inbox entry [id] leads, marking it read. */
     data class OpenInboxEntry(val id: Long) : LaunchRequest
 
+    /** Open the inbox itself (the notifications' group summary). */
+    data object OpenInbox : LaunchRequest
+
     companion object {
         /**
          * Reads and removes the request from [intent], so a configuration change or a re-delivered
@@ -55,7 +58,12 @@ sealed interface LaunchRequest {
                 // A replayed link must not navigate again either.
                 if (intent.data?.let(AppLinks::isAppLink) == true) intent.data = null
                 intent.removeExtra(AndroidSystemNotifier.EXTRA_INBOX_ID)
+                intent.removeExtra(AndroidSystemNotifier.EXTRA_OPEN_INBOX)
                 return null
+            }
+            if (intent.getBooleanExtra(AndroidSystemNotifier.EXTRA_OPEN_INBOX, false)) {
+                intent.removeExtra(AndroidSystemNotifier.EXTRA_OPEN_INBOX)
+                return OpenInbox
             }
             if (intent.hasExtra(AndroidSystemNotifier.EXTRA_INBOX_ID)) {
                 val id = intent.getLongExtra(AndroidSystemNotifier.EXTRA_INBOX_ID, NO_ID)

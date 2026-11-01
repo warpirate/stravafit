@@ -169,9 +169,17 @@ fun FeedContent(
             }
         },
     ) { padding ->
+        // The pull indicator answers a pull only. Loops still arriving in the background are shown by the
+        // section's own refresh spinner; the big indicator would float over the section's text instead.
+        val loading = suggestions?.isRefreshing == true
+        var pulled by remember { mutableStateOf(false) }
+        LaunchedEffect(loading) { if (!loading) pulled = false }
         PullToRefreshBox(
-            isRefreshing = suggestions?.isRefreshing == true && suggestions.cards.isNotEmpty(),
-            onRefresh = suggestionActions.onRefresh,
+            isRefreshing = pulled && loading,
+            onRefresh = {
+                pulled = true
+                suggestionActions.onRefresh()
+            },
             modifier = Modifier.fillMaxSize().padding(padding),
             contentAlignment = Alignment.TopCenter,
         ) {
