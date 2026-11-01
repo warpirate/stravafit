@@ -61,6 +61,10 @@ abstract class ActivityDao {
     @Query("SELECT * FROM activities ORDER BY start_epoch_millis DESC, id DESC")
     abstract fun observeAll(): Flow<List<ActivityEntity>>
 
+    /** The newest activity, or null when there are none (the home-screen widget's Done state). */
+    @Query("SELECT * FROM activities ORDER BY start_epoch_millis DESC, id DESC LIMIT 1")
+    abstract fun observeLatest(): Flow<ActivityEntity?>
+
     @Query("SELECT * FROM activities WHERE id = :id")
     abstract fun observeById(id: Long): Flow<ActivityEntity?>
 

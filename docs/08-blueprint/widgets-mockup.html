@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StravaFit Widget</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Tokens copied from android/core/designsystem/.../theme/Color.kt */
+:root {
+  --accent: #FC5200; --rec: #E5322D; --paused: #C43B00; --paused-dot: #E8A317; --route-start: #1FA45B;
+  --page: #F4F4F2; --page-ink: #242428; --page-muted: #6D6D78; --page-hair: #E2E2E0; --page-card: #FFFFFF;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --page: #0B0B0C; --page-ink: #F2F2F4; --page-muted: #A3A3AD; --page-hair: #26262B; --page-card: #141416; }
+}
+:root[data-theme="dark"] { --page: #0B0B0C; --page-ink: #F2F2F4; --page-muted: #A3A3AD; --page-hair: #26262B; --page-card: #141416; }
+
+.t-light {
+  --surface: #FFFFFF; --s2: #F5F5F7; --text: #242428; --text2: #45454E; --muted: #6D6D78;
+  --hair: #E5E5EA; --hair-strong: #CBCBD3; --accent-text: #CC3D00; --accent-area: rgba(252,82,0,.12);
+  --ok: #16884A; --route-case: #FFFFFF; --shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 14px rgba(0,0,0,.06);
+}
+.t-dark {
+  --surface: #1C1C1F; --s2: #2A2A2F; --text: #F2F2F4; --text2: #D2D2D8; --muted: #A3A3AD;
+  --hair: #2E2E34; --hair-strong: #43434B; --accent-text: #FF6A2B; --accent-area: rgba(252,82,0,.16);
+  --ok: #3CC47A; --route-case: #121214; --shadow: 0 1px 2px rgba(0,0,0,.4);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Figtree, system-ui, sans-serif; background: var(--page); color: var(--page-ink); -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 56px 16px 96px; }
+code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
+
+header.top { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; margin-bottom: 48px; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+h1 { font-size: 44px; font-weight: 800; letter-spacing: -.025em; line-height: 1.05; margin-top: 8px; }
+.lede { color: var(--page-muted); font-size: 16px; line-height: 1.5; max-width: 600px; margin-top: 14px; }
+.counts { display: flex; gap: 28px; }
+.counts b { display: block; font-size: 40px; font-weight: 800; letter-spacing: -.03em; }
+.counts span { font-size: 12px; font-weight: 600; color: var(--page-muted); text-transform: uppercase; letter-spacing: .06em; }
+.toggles { display: flex; gap: 8px; }
+.tbtn { font: inherit; font-size: 13px; font-weight: 600; color: var(--page-ink); background: var(--page-card); border: 1px solid var(--page-hair); border-radius: 999px; padding: 8px 14px; cursor: pointer; }
+
+h2 { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--page-muted); margin-bottom: 20px; }
+
+.principles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 72px; }
+.pr { background: var(--page-card); border: 1px solid var(--page-hair); border-radius: 12px; padding: 18px; }
+.pr b { display: block; font-size: 15px; font-weight: 800; margin-bottom: 6px; }
+.pr p { font-size: 13px; line-height: 1.55; color: var(--page-muted); }
+
+.phones { display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; margin-bottom: 88px; }
+.phone-col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.phone-cap { font-size: 13px; color: var(--page-muted); font-weight: 500; }
+.phone { width: 368px; height: 780px; border-radius: 44px; padding: 10px; background: #0E0E10; box-shadow: 0 0 0 1px #2a2a2e, 0 30px 60px -20px rgba(0,0,0,.35); }
+.screen { position: relative; width: 100%; height: 100%; border-radius: 34px; overflow: hidden; }
+.screen.wp-light { background: #E7E4DE; } .screen.wp-dark { background: #0F1012; }
+.screen svg.topo { position: absolute; inset: 0; width: 100%; height: 100%; }
+.status { position: relative; display: flex; justify-content: space-between; padding: 14px 24px 0; font-size: 13px; font-weight: 600; }
+.wp-light .status, .wp-light .clock { color: #242428; } .wp-dark .status, .wp-dark .clock { color: #F2F2F4; }
+.clock { position: relative; padding: 22px 24px 6px; }
+.clock b { display: block; font-size: 52px; font-weight: 500; letter-spacing: -.03em; line-height: 1; }
+.clock span { font-size: 14px; font-weight: 500; opacity: .8; }
+.home { position: relative; display: grid; grid-template-columns: repeat(4, 84px); grid-auto-rows: 96px; justify-content: center; margin-top: 8px; }
+.cell { display: flex; align-items: center; justify-content: center; }
+.app { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px; font-weight: 500; }
+.wp-light .app { color: #242428; } .wp-dark .app { color: #E8E8EC; }
+.app i { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; }
+.dock { position: absolute; left: 0; right: 0; bottom: 18px; display: grid; grid-template-columns: repeat(4, 84px); justify-content: center; }
+.dock .cell { height: 72px; }
+.gesture { position: absolute; bottom: 7px; left: 50%; transform: translateX(-50%); width: 108px; height: 4px; border-radius: 4px; }
+.wp-light .gesture { background: rgba(0,0,0,.45); } .wp-dark .gesture { background: rgba(255,255,255,.55); }
+
+.matrix { border-top: 1px solid var(--page-hair); padding: 36px 0 44px; }
+.matrix-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 18px; }
+.matrix-head b { font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
+.matrix-head span { font-size: 13px; color: var(--page-muted); }
+.states { display: flex; gap: 20px; flex-wrap: wrap; }
+.state { display: flex; flex-direction: column; gap: 10px; }
+.state-title { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--page-muted); }
+.stage { border-radius: 14px; padding: 8px; display: inline-flex; background: #E7E4DE; }
+.dark-stage .stage { background: #0F1012; }
+.state-note { font-size: 12px; line-height: 1.5; color: var(--page-muted); max-width: 336px; }
+
+.flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0; margin-bottom: 72px; background: var(--page-card); border: 1px solid var(--page-hair); border-radius: 12px; overflow: hidden; }
+.flow div { padding: 18px; border-right: 1px solid var(--page-hair); }
+.flow div:last-child { border-right: 0; }
+.flow em { font-style: normal; font-size: 12px; font-weight: 800; color: var(--accent); }
+.flow b { display: block; font-size: 15px; font-weight: 800; margin: 4px 0 6px; }
+.flow p { font-size: 13px; line-height: 1.5; color: var(--page-muted); }
+
+.cut { width: 100%; border-collapse: collapse; font-size: 14px; background: var(--page-card); border: 1px solid var(--page-hair); border-radius: 12px; overflow: hidden; margin-bottom: 56px; }
+.cut th, .cut td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--page-hair); vertical-align: top; }
+.cut th { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--page-muted); }
+.cut tr:last-child td { border-bottom: 0; }
+.cut td:first-child { font-weight: 700; white-space: nowrap; }
+.tag { font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 5px; }
+.tag.keep { background: rgba(22,136,74,.12); color: #16884A; }
+.tag.fold { background: rgba(252,82,0,.12); color: #CC3D00; }
+.tag.drop { background: rgba(109,109,120,.14); color: var(--page-muted); }
+.table-scroll { overflow-x: auto; }
+footer { font-size: 12px; color: var(--page-muted); line-height: 1.6; }
+
+/* widget primitives */
+.w { position: relative; overflow: hidden; flex: none; background: var(--surface); color: var(--text); border-radius: 22px; box-shadow: var(--shadow); font-family: Figtree, system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.w svg { display: block; }
+.lbl { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.val { font-weight: 800; letter-spacing: -.02em; line-height: 1; }
+.unit { font-weight: 600; color: var(--muted); letter-spacing: 0; }
+.row { display: flex; align-items: center; }
+.col { display: flex; flex-direction: column; }
+.grow { flex: 1; min-width: 0; }
+.ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rec-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--rec); box-shadow: 0 0 0 3px rgba(229,50,45,.18); flex: none; }
+.gps { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); flex: none; }
+.rbtn { border-radius: 50%; display: grid; place-items: center; flex: none; }
+.pill { display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 999px; font-size: 13px; font-weight: 700; flex: none; }
+.p-accent { background: var(--accent); color: #fff; }
+.p-soft { background: var(--s2); color: var(--text); }
+.p-tint { background: var(--accent-area); color: var(--accent-text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <div class="eyebrow">StravaFit · Home-screen widget</div>
+      <h1>One widget.<br>Do it without opening the app.</h1>
+      <p class="lede">A widget is a remote control, not a second copy of the app. It covers the three moments when opening the app is friction: <b>before</b> a run, <b>during</b> a run, and <b>right after</b> a run. Its layout follows that state. Everything else stays in the app.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:18px">
+      <div class="counts">
+        <div><b>1</b><span>Widget</span></div>
+        <div><b>3</b><span>Sizes</span></div>
+        <div><b>3</b><span>States</span></div>
+      </div>
+      <div class="toggles">
+        <button class="tbtn" id="wTheme" type="button">Widgets: light</button>
+        <button class="tbtn" id="pTheme" type="button">Page: auto</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="flow">
+    <div><em>Before</em><b>Ready</b><p>A dry-coach line from your real data: your usual slot, weather, daylight, the gap to your goal. It suggests one run, and one tap starts it after a 3-second countdown you can cancel. The app stays closed.</p></div>
+    <div><em>During</em><b>Recording</b><p>Time, distance and pace. Pause, resume, lap and finish right from the home screen. Finish needs a second tap within 3 s.</p></div>
+    <div><em>After</em><b>Done</b><p>The run is already saved with an automatic title. One tap shares the route sticker. The widget goes back to Ready after 6 hours or when you tap ✕.</p></div>
+  </div>
+
+  <h2>On a home screen</h2>
+  <div class="phones">
+    <div class="phone-col">
+      <div class="phone"><div class="screen wp-light" id="phoneLight"></div></div>
+      <div class="phone-cap">Light · 4×2, Ready, before a morning run</div>
+    </div>
+    <div class="phone-col">
+      <div class="phone"><div class="screen wp-dark" id="phoneDark"></div></div>
+      <div class="phone-cap">Dark · 4×1, Recording, 25 min in</div>
+    </div>
+  </div>
+
+  <h2>Every size × every state</h2>
+  <div id="matrix"></div>
+
+  <h2>What we cut, and why</h2>
+  <div class="table-scroll">
+  <table class="cut">
+    <thead><tr><th>Earlier idea</th><th>Now</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Quick start</td><td><span class="tag keep">Kept</span> → Ready state</td><td>It is an action. It now starts the run itself instead of opening the app.</td></tr>
+      <tr><td>Live recording</td><td><span class="tag keep">Kept</span> → Recording state</td><td>Pause, lap and finish are the moments when unlocking and opening the app hurts most.</td></tr>
+      <tr><td>Last activity</td><td><span class="tag fold">Folded</span> → Done state</td><td>A route on display does nothing. Sharing the route sticker right after a run is the action people take.</td></tr>
+      <tr><td>This week / goal</td><td><span class="tag fold">One line</span> in Ready</td><td>Only useful as context before you start ("6.6 km to goal"). A full chart belongs in the app.</td></tr>
+      <tr><td>Streak</td><td><span class="tag drop">Dropped</span></td><td>Just a number to look at, with nothing to do. It stays in the app and in notifications.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>Principles</h2>
+  <div class="principles">
+    <div class="pr"><b>Every pixel earns a tap</b><p>A number is shown only if it helps the next action: GPS before a start, pace during the run, the result before sharing.</p></div>
+    <div class="pr"><b>Hard to trigger by accident</b><p>Start has a 3-second countdown you can cancel. Finish needs a second tap. Discarding a run happens only inside the app.</p></div>
+    <div class="pr"><b>Real data only</b><p>No sample numbers, not even in the picker preview. When GPS has no fix, the widget says so plainly.</p></div>
+    <div class="pr"><b>Private by default</b><p>The Done route goes through the share renderer, so privacy zones and hidden start or end are applied before anything is drawn.</p></div>
+  </div>
+
+  <footer>
+    Mockup, not app screenshots. Tokens come from <code>core/designsystem/theme/Color.kt</code>. The route and Done stats come from the real OSM track <code>testdata/e2e-routes/pune-loop-7k</code> (7.89 km, 38:51, 159 m). The Recording numbers are that replay at 25:02. Drawn on an 84×96 px launcher cell with 8 px insets. Spec: <code>docs/08-blueprint/widgets-spec.md</code>.
+  </footer>
+</div>
+
+<script>
+const CW = 84, CH = 96, INSET = 8;
+const dim = (c, r) => ({ w: c * CW - INSET * 2, h: r * CH - INSET * 2 });
+
+/* Original icons, 24 grid */
+const ico = (body, size = 20, fill = false) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${fill ? 'currentColor' : 'none'}" stroke="${fill ? 'none' : 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+const I = {
+  run: '<circle cx="14.5" cy="4.5" r="2" fill="currentColor" stroke="none"/><path d="M12.6 8.6 10.6 14l3.4 2.6-1.1 4.6M10.6 14l-3.6 1.4-2 4M12.6 8.6l-4 .6-2 2.6M12.6 8.6l3 3.4h3.6"/>',
+  ride: '<circle cx="5.5" cy="16.5" r="3.5"/><circle cx="18.5" cy="16.5" r="3.5"/><path d="M5.5 16.5h7l3-7H9l-3.5 7M15.5 9.5l3 7M9 9.5l3.5 7M7.8 7.5h2.6M15.5 9.5l-.8-3h2"/>',
+  walk: '<circle cx="13" cy="4.5" r="2" fill="currentColor" stroke="none"/><path d="M12.2 8.6 10.8 14.6 9 20.6M10.8 14.6l3 2.6.8 3.4M12.2 8.6 9 12M12.2 8.6l3.4 2.6"/>',
+  pause: '<rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/>',
+  stop: '<rect x="6" y="6" width="12" height="12" rx="2"/>',
+  play: '<path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/>',
+  lap: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+  share: '<path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/>',
+  check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+};
+const mark = (size, stroke = '#fff') => `<svg width="${size}" height="${size}" viewBox="22 24 66 62" aria-hidden="true"><path d="M35,73 C38,60 50,66 55,56 S62,40 74,36" fill="none" stroke="${stroke}" stroke-width="8" stroke-linecap="round"/><circle cx="35" cy="73" r="6.5" fill="#FC5200" stroke="${stroke}" stroke-width="4"/><circle cx="74" cy="36" r="7.5" fill="${stroke}"/></svg>`;
+
+/* Real route: testdata/e2e-routes/pune-loop-7k.gpx projected to 0..100 */
+const ROUTE = "M22.9 92.0 L26.2 91.8 L28.2 90.3 L28.0 86.9 L27.7 83.4 L27.5 80.1 L27.2 76.9 L27.0 73.8 L26.8 70.9 L27.8 69.1 L30.6 68.8 L33.5 68.5 L36.6 68.0 L39.9 67.5 L43.6 66.9 L47.5 66.3 L51.6 66.0 L54.3 63.4 L56.5 60.0 L58.6 57.0 L61.0 54.7 L60.9 51.9 L60.3 49.4 L59.9 47.3 L59.4 45.3 L59.0 43.2 L58.5 40.9 L57.9 38.2 L57.1 34.9 L56.3 31.0 L55.3 26.6 L53.3 23.5 L50.6 24.2 L46.5 26.8 L42.6 28.6 L40.1 30.1 L37.2 30.8 L35.0 31.1 L33.4 31.4 L32.2 31.7 L31.0 31.7 L29.5 31.9 L27.4 32.6 L24.6 33.7 L20.7 33.6 L16.4 31.5 L18.7 32.9 L24.3 33.7 L29.6 31.9 L34.5 31.2 L38.8 30.4 L41.9 29.6 L43.0 28.4 L44.2 27.9 L44.8 27.7 L45.1 27.5 L45.7 27.2 L46.9 26.5 L49.0 25.4 L52.0 23.3 L56.6 22.1 L61.5 20.4 L61.2 14.0 L62.0 8.0 L68.1 8.4 L71.9 10.0 L75.1 9.3 L77.5 8.9 L78.6 9.5 L78.7 9.5 L78.4 9.4 L78.1 9.3 L78.4 9.4 L79.1 10.5 L80.4 12.4 L83.3 14.8 L82.0 18.5 L84.4 17.8 L80.8 12.4 L76.3 9.0 L70.8 9.9 L67.3 8.4 L64.1 8.2 L62.7 8.1 L62.7 8.1 L63.6 8.2 L64.8 8.3 L65.6 8.4 L65.2 8.4 L63.2 8.1 L61.3 10.1 L61.2 15.8 L59.9 21.6 L53.0 23.6 L56.1 30.1 L57.7 37.4 L59.0 43.3 L59.9 47.4 L60.3 49.4 L60.4 49.6 L60.1 48.4 L59.7 46.4 L59.3 44.6 L59.1 43.7 L59.2 44.5 L59.9 47.3 L61.0 52.3 L57.8 58.0 L53.2 65.1 L59.5 69.9 L68.0 70.7 L71.8 74.0 L72.1 79.5 L72.6 82.1 L73.2 82.3 L73.1 81.0 L72.9 78.5 L72.7 75.6 L72.6 73.4 L72.5 72.8 L72.6 74.4 L72.9 78.6 L73.3 85.2 L77.0 90.2 L84.3 89.9 L74.8 90.1 L73.2 82.5 L71.9 76.6 L71.7 72.2 L71.6 70.6 L71.7 71.4 L71.8 74.1 L72.0 77.7 L72.1 81.2 L72.2 83.3 L72.2 83.2 L72.1 80.4 L71.8 74.7 L67.8 70.7 L58.2 69.1 L48.3 66.3 L38.3 67.7 L29.8 68.9 L26.9 72.0 L27.1 75.0 L27.1 75.0 L26.9 72.5 L26.6 68.4 L26.3 63.9 L26.0 60.3 L25.9 58.7 L25.9 59.9 L26.3 64.3 L26.8 71.8 L27.6 81.7 L27.0 91.7 L23.2 92.0";
+const route = (w, h) => `<svg width="${w}" height="${h}" viewBox="4 4 92 92" aria-label="Route">
+  <path d="${ROUTE}" fill="none" stroke="var(--route-case)" stroke-width="5.2" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="${ROUTE}" fill="none" stroke="var(--accent)" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="22.9" cy="92" r="3.2" fill="var(--route-start)" stroke="var(--route-case)" stroke-width="1.4"/></svg>`;
+
+const box = (c, r, inner) => { const { w, h } = dim(c, r); return `<div class="w" style="width:${w}px;height:${h}px">${inner}</div>`; };
+const sportBtn = (name, icon, primary) => `<div class="col" style="align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--text2)">
+  <div class="rbtn" style="width:40px;height:40px;${primary ? 'background:var(--accent);color:#fff' : 'background:var(--accent-area);color:var(--accent)'}">${ico(icon, 20)}</div>${name}</div>`;
+const stat = (v, u, size) => `<span class="val" style="font-size:${size}px">${v}${u ? `<span class="unit" style="font-size:11px"> ${u}</span>` : ''}</span>`;
+const gpsLine = (txt = 'GPS locked') => `<span class="row" style="gap:6px;font-size:11px;font-weight:700;color:var(--text2)"><span class="gps"></span>${txt}</span>`;
+
+const W = {
+  /* ---------- 1×1 ---------- */
+  ready11: () => box(1, 1, `<div class="col" style="height:100%;align-items:center;justify-content:center;gap:6px">
+      <div class="rbtn" style="width:44px;height:44px;background:var(--accent);color:#fff">${ico(I.run, 22)}</div>
+      <span style="font-size:10px;font-weight:700;color:var(--text2)">Run</span></div>`),
+  rec11: () => box(1, 1, `<div class="col" style="height:100%;align-items:center;justify-content:center;gap:7px">
+      <div class="rbtn" style="width:40px;height:40px;background:var(--s2);color:var(--text)">${ico(I.pause, 16, true)}</div>
+      <span class="row" style="gap:5px"><span class="rec-dot" style="width:6px;height:6px"></span><span class="val" style="font-size:13px">25:02</span></span></div>`),
+  done11: () => box(1, 1, `<div class="col" style="height:100%;align-items:center;justify-content:center;gap:6px">
+      <div class="rbtn" style="width:44px;height:44px;background:var(--accent-area);color:var(--accent)">${ico(I.share, 20)}</div>
+      <span class="val" style="font-size:12px">7.89 km</span></div>`),
+
+  /* ---------- 4×1 ---------- */
+  ready41: () => box(4, 1, `<div class="row" style="height:100%;padding:0 12px 0 16px;gap:12px">
+      <div class="col grow" style="gap:6px">
+        <span style="font-size:14px;font-weight:800;letter-spacing:-.01em" class="ellipsis">Your slot. 24°, dry.</span>
+        <span style="font-size:12px;font-weight:600;color:var(--muted)" class="ellipsis">6.6 km to your weekly goal</span></div>
+      <div class="row" style="gap:12px">${sportBtn('Run', I.run, true)}${sportBtn('Ride', I.ride)}${sportBtn('Walk', I.walk)}</div></div>`),
+  rec41: () => box(4, 1, `<div class="row" style="height:100%;padding:0 12px 0 16px;gap:10px">
+      <div class="col grow" style="gap:8px">
+        <span class="row" style="gap:7px"><span class="rec-dot"></span><span class="lbl" style="color:var(--text2)">Run</span></span>
+        <div class="row" style="gap:14px;align-items:baseline">${stat('25:02', '', 22)}${stat('5.08', 'km', 22)}${stat('5:12', '/km', 22)}</div></div>
+      <div class="rbtn" style="width:40px;height:40px;background:var(--s2);color:var(--text)">${ico(I.pause, 16, true)}</div>
+      <div class="rbtn" style="width:40px;height:40px;background:var(--accent);color:#fff">${ico(I.stop, 14, true)}</div></div>`),
+  done41: () => box(4, 1, `<div class="row" style="height:100%;padding:0 12px 0 16px;gap:12px">
+      <div class="col grow" style="gap:6px">
+        <span class="row" style="gap:5px;font-size:11px;font-weight:700;color:var(--ok)">${ico(I.check, 13)}Saved · Morning Run</span>
+        <div class="row" style="gap:12px;align-items:baseline">${stat('7.89', 'km', 20)}${stat('38:51', '', 20)}</div></div>
+      <div class="pill p-accent" style="height:40px;padding:0 16px">${ico(I.share, 16)}Share</div>
+      <div class="rbtn" style="width:28px;height:28px;color:var(--muted)">${ico(I.x, 16)}</div></div>`),
+
+  /* ---------- 4×2 ---------- */
+  ready42: () => box(4, 2, `<div class="col" style="height:100%;padding:14px 16px 12px">
+      <div class="row" style="justify-content:space-between"><span class="row" style="gap:5px">${mark(14, 'var(--text)')}<span style="font-size:11px;font-weight:800">StravaFit</span></span>
+        <span class="lbl">Sun 06:12</span></div>
+      <div style="margin-top:12px;font-size:19px;font-weight:800;letter-spacing:-.02em;line-height:1.2">6.6 km short.<br>The river loop fits.</div>
+      <div style="margin-top:6px;font-size:12px;font-weight:600;color:var(--muted)">7.0 km loop from home · 24°, dry · sunset 18:04</div>
+      <div class="row" style="margin-top:auto;gap:8px">
+        <div class="pill p-accent" style="flex:1;height:48px;font-size:15px">${ico(I.run, 20)}Start loop</div>
+        <div class="rbtn" style="width:48px;height:48px;background:var(--accent-area);color:var(--accent)">${ico(I.ride, 22)}</div>
+        <div class="rbtn" style="width:48px;height:48px;background:var(--accent-area);color:var(--accent)">${ico(I.walk, 22)}</div></div></div>`),
+  rec42: (paused = false) => box(4, 2, `
+      <div class="row" style="height:34px;padding:0 16px;gap:8px;${paused ? 'background:var(--paused);color:#fff' : 'border-bottom:1px solid var(--hair)'}">
+        ${paused ? `<span style="width:8px;height:8px;border-radius:50%;background:var(--paused-dot)"></span><span style="font-size:12px;font-weight:800;letter-spacing:.06em">PAUSED</span>`
+                 : `<span class="rec-dot"></span><span class="lbl" style="color:var(--text2)">Recording · Run</span>`}
+        <span class="grow"></span><span style="font-size:11px;font-weight:700;${paused ? 'opacity:.85' : 'color:var(--muted)'}">Avg 4:55 · Lap 6 2:11</span></div>
+      <div class="row" style="padding:12px 16px 0;justify-content:space-between;align-items:flex-end">
+        <div class="col" style="gap:5px"><span class="lbl">Time</span>${stat('25:02', '', 34)}</div>
+        <div class="col" style="gap:5px"><span class="lbl">Distance</span>${stat('5.08', 'km', 22)}</div>
+        <div class="col" style="gap:5px"><span class="lbl">Pace</span>${stat('5:12', '/km', 22)}</div></div>
+      <div class="row" style="position:absolute;left:12px;right:12px;bottom:12px;gap:8px">
+        <div class="pill p-soft" style="flex:1;height:44px">${paused ? ico(I.play, 15, true) + 'Resume' : ico(I.pause, 15, true) + 'Pause'}</div>
+        <div class="pill p-soft" style="width:84px;height:44px">${ico(I.lap, 15)}Lap</div>
+        <div class="pill p-accent" style="flex:1;height:44px">${ico(I.stop, 13, true)}Finish</div></div>`),
+  confirm42: () => box(4, 2, `
+      <div class="row" style="height:34px;padding:0 16px;gap:8px;border-bottom:1px solid var(--hair)"><span class="rec-dot"></span><span class="lbl" style="color:var(--text2)">Recording · Run</span></div>
+      <div class="row" style="padding:12px 16px 0;justify-content:space-between;align-items:flex-end">
+        <div class="col" style="gap:5px"><span class="lbl">Time</span>${stat('38:51', '', 34)}</div>
+        <div class="col" style="gap:5px"><span class="lbl">Distance</span>${stat('7.89', 'km', 22)}</div>
+        <div class="col" style="gap:5px"><span class="lbl">Avg pace</span>${stat('4:55', '/km', 22)}</div></div>
+      <div class="row" style="position:absolute;left:12px;right:12px;bottom:12px;gap:8px">
+        <div class="pill p-soft" style="width:110px;height:44px">Keep going</div>
+        <div class="pill p-accent" style="flex:1;height:44px;box-shadow:0 0 0 3px var(--accent-area)">${ico(I.check, 16)}Tap again to save · 3</div></div>`),
+  countdown42: () => box(4, 2, `<div class="col" style="height:100%;padding:14px 16px 12px">
+      <div class="row" style="justify-content:space-between">${gpsLine('GPS locked · ±4 m')}<span class="lbl">Run</span></div>
+      <div class="row" style="flex:1;justify-content:center;gap:14px;align-items:center">
+        <span class="val" style="font-size:64px;color:var(--accent)">3</span>
+        <span style="font-size:14px;font-weight:700;color:var(--text2);line-height:1.3">Starting<br>your run</span></div>
+      <div class="pill p-soft" style="height:44px">${ico(I.x, 15)}Cancel</div></div>`),
+  done42: () => box(4, 2, `<div class="row" style="height:100%;padding:8px;gap:14px;align-items:stretch">
+      <div style="width:144px;border-radius:15px;background:var(--s2);display:grid;place-items:center;flex:none">${route(132, 132)}</div>
+      <div class="col grow" style="padding:6px 4px 4px 0">
+        <div class="row" style="justify-content:space-between"><span class="row" style="gap:5px;font-size:11px;font-weight:700;color:var(--ok)">${ico(I.check, 13)}Saved</span>
+          <span style="color:var(--muted)">${ico(I.x, 15)}</span></div>
+        <span style="font-size:15px;font-weight:800;margin-top:4px;line-height:1.2">Second fastest on this loop.</span>
+        <div class="row" style="gap:12px;margin-top:8px;align-items:baseline">${stat('7.89', 'km', 17)}${stat('4:55', '/km', 17)}</div>
+        <div class="pill p-accent" style="height:40px;margin-top:auto">${ico(I.share, 15)}Share sticker</div></div></div>`),
+  nogps42: () => box(4, 2, `<div class="col" style="height:100%;padding:14px 16px 12px">
+      <span class="row" style="gap:6px;font-size:11px;font-weight:700;color:var(--text2)"><span class="gps" style="background:var(--paused-dot)"></span>Finding GPS · ±38 m</span>
+      <span style="font-size:13px;font-weight:600;color:var(--muted);margin-top:14px;line-height:1.45">Starting now works, but the first few hundred metres may be rough. Step outside for a better lock.</span>
+      <div class="row" style="margin-top:auto;gap:8px">
+        <div class="pill p-tint" style="flex:1;height:48px;font-size:15px">${ico(I.run, 20)}Start anyway</div>
+        <div class="rbtn" style="width:48px;height:48px;background:var(--accent-area);color:var(--accent)">${ico(I.ride, 22)}</div>
+        <div class="rbtn" style="width:48px;height:48px;background:var(--accent-area);color:var(--accent)">${ico(I.walk, 22)}</div></div></div>`),
+};
+
+const MATRIX = [
+  { size: '1×1', c: 1, r: 1, note: 'One button. The sport is picked when you add the widget.', states: [
+      ['Ready', 'ready11', 'Tap starts a run after a 3-second countdown.'],
+      ['Recording', 'rec11', 'Tap pauses or resumes. The time keeps ticking.'],
+      ['Done', 'done11', 'Tap shares the route sticker.']] },
+  { size: '4×1', c: 4, r: 1, note: 'The everyday size. Fits one row above your apps.', states: [
+      ['Ready', 'ready41', 'A coach line, one line of goal context, and three sports. Your last-used sport is orange. No GPS status: GPS is off until you start.'],
+      ['Recording', 'rec41', 'Time, distance, live pace. Pause and Finish. Finish turns into "Tap again" for 3 s.'],
+      ['Done', 'done41', 'Saved with an automatic title. Share, or ✕ to go back to Ready.']] },
+  { size: '4×2', c: 4, r: 2, note: 'Full remote control: big targets you can hit while moving.', states: [
+      ['Ready', 'ready42', 'Big start button. The weekly goal is context, not a chart.'],
+      ['Recording', 'rec42', 'Pace is live and follows your last few seconds, so it shows when you slow down. The average is in the header. 44 dp buttons.'],
+      ['Done', 'done42', 'Route with privacy zones applied. Share sticker opens the system share sheet.']] },
+];
+const EXTRA = [
+  ['Countdown', 'countdown42', 'After tapping Start. Cancel stops it before anything is recorded.'],
+  ['Weak GPS', 'nogps42', 'Shown during the countdown, once GPS is on. Honest about accuracy; Start anyway stays possible.'],
+  ['Paused', () => W.rec42(true), 'Uses the app\'s paused token. Pause becomes Resume.'],
+  ['Finish confirm', 'confirm42', 'Second tap within 3 s saves. Otherwise it goes back to Recording.'],
+];
+const render = key => (typeof key === 'function' ? key() : W[key]());
+function drawMatrix() {
+  const theme = wTheme;
+  const st = ([t, key, note]) => `<div class="state"><span class="state-title">${t}</span><div class="stage"><div class="t-${theme}">${render(key)}</div></div><span class="state-note">${note}</span></div>`;
+  document.getElementById('matrix').innerHTML =
+    MATRIX.map(m => { const d = dim(m.c, m.r); return `<section class="matrix ${theme === 'dark' ? 'dark-stage' : ''}">
+      <div class="matrix-head"><b>${m.size}</b><span>${d.w} × ${d.h} px · ${m.note}</span></div>
+      <div class="states">${m.states.map(st).join('')}</div></section>`; }).join('') +
+    `<section class="matrix ${theme === 'dark' ? 'dark-stage' : ''}"><div class="matrix-head"><b>Transitions</b><span>4×2 shown. The same states exist at every size.</span></div>
+      <div class="states">${EXTRA.map(st).join('')}</div></section>`;
+}
+
+/* phones */
+function topo(dark) {
+  const rings = [];
+  for (const [cx, cy, n] of [[90, 260, 11], [300, 560, 9], [260, 120, 6]]) for (let k = 1; k <= n; k++) {
+    const r = k * 26; let d = '';
+    for (let a = 0; a <= 64; a++) {
+      const t = a / 64 * Math.PI * 2;
+      const rr = r * (1 + .10 * Math.sin(3 * t + k * .5 + cx) + .06 * Math.cos(5 * t - k * .3));
+      d += (a ? 'L' : 'M') + (cx + rr * Math.cos(t)).toFixed(1) + ' ' + (cy + rr * Math.sin(t) * .85).toFixed(1);
+    }
+    rings.push(`<path d="${d}Z"/>`);
+  }
+  return `<svg class="topo" viewBox="0 0 348 760" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g fill="none" stroke="${dark ? 'rgba(255,255,255,.06)' : 'rgba(60,50,30,.09)'}" stroke-width="1">${rings.join('')}</g></svg>`;
+}
+const appIcon = (name, bg, inner = '') => `<div class="app"><i style="background:${bg}">${inner}</i>${name}</div>`;
+const place = (c, r, html, col, row) => `<div class="cell" style="grid-column:${col} / span ${c};grid-row:${row} / span ${r}">${html}</div>`;
+function phone(id, dark, items, time) {
+  const n = dark ? '#2A2A2F' : '#FFFFFF';
+  document.getElementById(id).innerHTML = `${topo(dark)}
+    <div class="status"><span>${time}</span><span>5G ▲ 82%</span></div>
+    <div class="clock"><b>${time}</b><span>Sunday, 1 November</span></div>
+    <div class="home t-${dark ? 'dark' : 'light'}">${items.join('')}</div>
+    <div class="dock">${[n, n, n, n].map(b => `<div class="cell"><div class="app"><i style="background:${b}"></i></div></div>`).join('')}</div>
+    <div class="gesture"></div>`;
+}
+phone('phoneLight', false, [
+  place(4, 2, W.ready42(), 1, 1),
+  place(1, 1, appIcon('StravaFit', '#FC5200', mark(30)), 1, 3),
+  place(1, 1, appIcon('Music', '#FFFFFF'), 2, 3),
+  place(1, 1, appIcon('Maps', '#FFFFFF'), 3, 3),
+  place(1, 1, appIcon('Photos', '#FFFFFF'), 4, 3),
+], '06:12');
+phone('phoneDark', true, [
+  place(4, 1, W.rec41(), 1, 1),
+  place(1, 1, appIcon('StravaFit', '#FC5200', mark(30)), 1, 2),
+  place(1, 1, appIcon('Music', '#2A2A2F'), 2, 2),
+  place(1, 1, appIcon('Maps', '#2A2A2F'), 3, 2),
+  place(1, 1, appIcon('Photos', '#2A2A2F'), 4, 2),
+], '06:37');
+
+/* toggles */
+let wTheme = 'light', pMode = 'auto';
+try { wTheme = localStorage.getItem('sf-w-theme') || 'light'; pMode = localStorage.getItem('sf-p-theme') || 'auto'; } catch (e) {}
+const wBtn = document.getElementById('wTheme'), pBtn = document.getElementById('pTheme');
+function apply() {
+  if (pMode === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', pMode);
+  wBtn.textContent = 'Widgets: ' + wTheme; pBtn.textContent = 'Page: ' + pMode;
+  drawMatrix();
+}
+wBtn.onclick = () => { wTheme = wTheme === 'light' ? 'dark' : 'light'; try { localStorage.setItem('sf-w-theme', wTheme); } catch (e) {} apply(); };
+pBtn.onclick = () => { const m = ['auto', 'light', 'dark']; pMode = m[(m.indexOf(pMode) + 1) % 3]; try { localStorage.setItem('sf-p-theme', pMode); } catch (e) {} apply(); };
+apply();
+</script>
+</body>
+</html>

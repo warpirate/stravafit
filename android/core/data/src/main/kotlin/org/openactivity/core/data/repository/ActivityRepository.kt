@@ -2,6 +2,7 @@
 package org.openactivity.core.data.repository
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import org.openactivity.core.data.mapper.EffortKind
 import org.openactivity.core.data.model.ActivityDetail
 import org.openactivity.core.data.model.ActivityMetadataUpdate
@@ -21,6 +22,9 @@ import java.time.DayOfWeek
 interface ActivityRepository {
     /** All activities, newest first. Emits an empty list when there are none. */
     fun observeActivities(): Flow<List<SavedActivity>>
+
+    /** The newest activity, or null when there are none. Override with a cheaper query where possible. */
+    fun observeLatestActivity(): Flow<SavedActivity?> = observeActivities().map { it.firstOrNull() }
 
     /** One activity without streams, or null once it is deleted. */
     fun observeActivity(id: Long): Flow<SavedActivity?>

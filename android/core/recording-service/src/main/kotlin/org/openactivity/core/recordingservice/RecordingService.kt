@@ -13,13 +13,16 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.openactivity.core.data.repository.ActivityRepository
 import org.openactivity.core.recordingservice.audio.CueSpeaker
 import org.openactivity.core.recordingservice.notification.RecordingNotifications
+import org.openactivity.model.SportType
 import org.openactivity.recording.RecordingStatus
 import javax.inject.Inject
 
@@ -43,12 +46,15 @@ class RecordingService : Service() {
 
     @Inject lateinit var activities: ActivityRepository
 
+    @Inject lateinit var countdown: StartCountdown
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var wakeLock: WakeLockHolder
     private var inForeground = false
     private var handledStart = false
     private var busy = 0 // recovery or finish in progress: do not stop while the state is briefly idle
     private var lastNotification: NotificationKey? = null
+    private var countdownJob: Job? = null
 
     private data class NotificationKey(val status: RecordingStatus, val seconds: Long, val tensOfMeters: Long)
 
@@ -63,7 +69,7 @@ class RecordingService : Service() {
         handledStart = true
         // Anything but a fresh start from the app (a sticky restart, or a notification action reaching a
         // process that died) is about a recording that may only live in the journal now.
-        val needsRecovery = intent?.action != ACTION_START
+        val needsRecovery = intent?.action !in FRESH_ACTIONS
         if (!enterForeground()) {
             // Tell the athlete instead of failing silently; the app offers recovery when opened.
             if (needsRecovery && !controller.state.value.isActive) notifications.showInterrupted()
@@ -76,6 +82,8 @@ class RecordingService : Service() {
             ACTION_LAP -> command { controller.lap() }
             ACTION_FINISH -> finishFromNotification()
             ACTION_START -> Unit
+            ACTION_WIDGET_START -> startAfterCountdown(intent)
+            ACTION_CANCEL_START -> countdownJob?.cancel()
             else -> recover()
         }
         render(controller.state.value)
@@ -92,12 +100,42 @@ class RecordingService : Service() {
     override fun onDestroy() {
         handledStart = false // cancelled work must not render (and stop) a destroyed service
         scope.cancel()
+        countdown.set(null)
         if (::wakeLock.isInitialized) wakeLock.release()
         speaker.shutdown()
         super.onDestroy()
     }
 
     private fun recover() = whileBusy { controller.recoverInterrupted() }
+
+    /**
+     * Start from the widget: count down (cancellable with [ACTION_CANCEL_START]), then record. The service is
+     * already in the foreground, so GPS can warm up and the countdown survives the launcher going away.
+     * A second tap while counting down, or a tap while already recording, does nothing.
+     */
+    private fun startAfterCountdown(intent: Intent) {
+        if (controller.state.value.isActive || countdownJob?.isActive == true) return
+        val sport = intent.getStringExtra(EXTRA_SPORT)?.let { name -> SportType.entries.firstOrNull { it.name == name } } ?: return
+        val routeId = intent.getLongExtra(EXTRA_ROUTE_ID, -1L).takeIf { it >= 0 }
+        val seconds = intent.getIntExtra(EXTRA_COUNTDOWN_SECONDS, RecordingIntents.DEFAULT_COUNTDOWN_SECONDS).coerceIn(0, MAX_COUNTDOWN_SECONDS)
+        busy++
+        countdown.set(PendingStart(sport, routeId, SystemClock.elapsedRealtime() + seconds * 1000L))
+        countdownJob = scope.launch {
+            try {
+                delay(seconds * 1000L)
+                countdown.set(null)
+                controller.start(sport, routeId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Already recording (a race with the app) or the journal failed: nothing was started.
+            } finally {
+                countdown.set(null)
+                busy--
+                render(controller.state.value)
+            }
+        }
+    }
 
     /**
      * Applies a notification action. The action can arrive after the process died without a sticky
@@ -191,5 +229,20 @@ class RecordingService : Service() {
         const val ACTION_RESUME: String = "org.openactivity.recording.RESUME"
         const val ACTION_LAP: String = "org.openactivity.recording.LAP"
         const val ACTION_FINISH: String = "org.openactivity.recording.FINISH"
+
+        /** From the widget: count down, then start recording [EXTRA_SPORT] (see [RecordingIntents.start]). */
+        const val ACTION_WIDGET_START: String = "org.openactivity.recording.WIDGET_START"
+
+        /** Cancels a widget countdown before anything is recorded. */
+        const val ACTION_CANCEL_START: String = "org.openactivity.recording.CANCEL_START"
+
+        const val EXTRA_SPORT: String = "org.openactivity.recording.extra.SPORT"
+        const val EXTRA_ROUTE_ID: String = "org.openactivity.recording.extra.ROUTE_ID"
+        const val EXTRA_COUNTDOWN_SECONDS: String = "org.openactivity.recording.extra.COUNTDOWN_SECONDS"
+
+        private const val MAX_COUNTDOWN_SECONDS = 10
+
+        /** Actions that begin something new rather than being about a recording that may need recovery. */
+        private val FRESH_ACTIONS = setOf(ACTION_START, ACTION_WIDGET_START, ACTION_CANCEL_START)
     }
 }

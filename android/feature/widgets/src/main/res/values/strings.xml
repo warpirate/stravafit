@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<resources>
+    <string name="widget_label">StravaFit</string>
+    <string name="widget_description">Start, pause and finish a run without opening the app</string>
+
+    <string name="widget_sport_run">Run</string>
+    <string name="widget_sport_ride">Ride</string>
+    <string name="widget_sport_walk">Walk</string>
+    <string name="widget_start_sport">Start %1$s</string>
+    <string name="widget_ready_hint">Tap a sport to start</string>
+
+    <string name="widget_starting">Starting your %1$s</string>
+    <string name="widget_cancel">Cancel</string>
+
+    <string name="widget_recording">Recording</string>
+    <string name="widget_paused">Paused</string>
+    <string name="widget_time">Time</string>
+    <string name="widget_distance">Distance</string>
+    <string name="widget_pace">Pace</string>
+    <string name="widget_speed">Speed</string>
+    <string name="widget_avg">Avg %1$s</string>
+    <string name="widget_lap">Lap %1$d</string>
+    <string name="widget_pause">Pause</string>
+    <string name="widget_resume">Resume</string>
+    <string name="widget_lap_action">Lap</string>
+    <string name="widget_finish">Finish</string>
+    <string name="widget_finish_confirm">Tap again to save</string>
+    <string name="widget_pause_run">Pause recording</string>
+    <string name="widget_resume_run">Resume recording</string>
+    <string name="widget_finish_run">Finish recording</string>
+    <string name="widget_finish_run_confirm">Finish recording. Tap again to save</string>
+
+    <string name="widget_saved">Saved</string>
+    <string name="widget_open">Open</string>
+    <string name="widget_dismiss">Back to start</string>
+
+    <string name="widget_interrupted">Recording stopped</string>
+    <string name="widget_interrupted_action">Tap to recover</string>
+
+    <string name="widget_unit_km">km</string>
+    <string name="widget_unit_mi">mi</string>
+    <string name="widget_unit_per_km">/km</string>
+    <string name="widget_unit_per_mi">/mi</string>
+    <string name="widget_unit_kmh">km/h</string>
+    <string name="widget_unit_mph">mph</string>
+</resources>

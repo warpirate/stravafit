@@ -51,6 +51,9 @@ class LocalActivityRepository @Inject constructor(
     override fun observeActivities(): Flow<List<SavedActivity>> =
         dao.observeAll().map { rows -> rows.map { it.toDomain() } }
 
+    override fun observeLatestActivity(): Flow<SavedActivity?> =
+        dao.observeLatest().map { it?.toDomain() }.distinctUntilChanged()
+
     override fun observeActivity(id: Long): Flow<SavedActivity?> =
         dao.observeById(id).map { it?.toDomain() }.distinctUntilChanged()
 
