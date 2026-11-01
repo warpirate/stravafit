@@ -42,10 +42,12 @@ class FakeCurrentLocation(var result: CurrentLocationResult = CurrentLocationRes
 class FakeRouteSuggestions(var routes: (SuggestionRequest, Double) -> List<RouteSuggestion> = { r, d -> listOf(testSuggestion("${r.sport}-$d", r.sport, d)) }) : RouteSuggestions {
     var failed = false
     val requests = mutableListOf<Pair<SuggestionRequest, Int>>()
+    val bypassed = mutableListOf<Boolean>()
     var cleared = false
 
-    override fun suggest(request: SuggestionRequest, refresh: Int): Flow<SuggestionProgress> = flow {
+    override fun suggest(request: SuggestionRequest, refresh: Int, bypassCache: Boolean): Flow<SuggestionProgress> = flow {
         requests += request to refresh
+        bypassed += bypassCache
         val all = mutableListOf<RouteSuggestion>()
         for (d in request.distancesMeters) {
             if (!failed) all += routes(request, d)

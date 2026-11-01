@@ -97,7 +97,9 @@ fun RefreshButton(state: SuggestionsUiState, onRefresh: () -> Unit) {
         Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = RidgelineTheme.colors.accent)
         }
-    } else if (state.status != SuggestionsStatus.Disabled && state.status !is SuggestionsStatus.NoLocation) {
+    } else if (state.status != SuggestionsStatus.Disabled && state.status != SuggestionsStatus.AwaitingConsent &&
+        state.status !is SuggestionsStatus.NoLocation
+    ) {
         IconButton(onClick = onRefresh) { Icon(Icons.Rounded.Refresh, contentDescription = "New suggestions", tint = RidgelineTheme.colors.textSecondary) }
     }
 }
@@ -111,6 +113,8 @@ fun SuggestionsBody(state: SuggestionsUiState, actions: SuggestionActions) {
             "Online route suggestions are off.",
             "Turn on",
         ) { actions.onSetEnabled(true) }
+        // The intro card above asks first; nothing to show until it is accepted.
+        SuggestionsStatus.AwaitingConsent -> Unit
         is SuggestionsStatus.NoLocation -> when (status.reason) {
             LocationAvailability.NO_PERMISSION -> Notice(Icons.Rounded.LocationOff, "Allow location to see loops that start where you are.", "Allow", actions.onAllowLocation)
             LocationAvailability.DISABLED -> Notice(Icons.Rounded.LocationOff, "Turn on location to see loops that start where you are.", "Settings", actions.onLocationSettings)
@@ -217,7 +221,7 @@ fun IntroCard(actions: SuggestionActions, modifier: Modifier = Modifier) {
             }
             Row(Modifier.align(Alignment.End)) {
                 TextButton(onClick = { actions.onSetEnabled(false) }) { Text("Turn off", color = RidgelineTheme.colors.textSecondary) }
-                TextButton(onClick = actions.onDismissIntro) { Text("Got it", color = RidgelineTheme.colors.accentText) }
+                TextButton(onClick = actions.onDismissIntro) { Text("Show loops", color = RidgelineTheme.colors.accentText) }
             }
         }
     }

@@ -37,7 +37,7 @@ class RouteSuggestionsViewModelTest {
 
     private val suggestions = FakeRouteSuggestions()
     private val location = FakeCurrentLocation()
-    private val settings = FakeSuggestionSettings()
+    private val settings = FakeSuggestionSettings(SuggestionSettingsState(introSeen = true))
     private val preferences = FakePreferencesRepository()
 
     private fun viewModel() = RouteSuggestionsViewModel(suggestions, location, settings, preferences)
@@ -137,6 +137,7 @@ class RouteSuggestionsViewModelTest {
 
     @Test
     fun `disabled sends nothing and turning off from the intro disables`() = runTest(main.dispatcher) {
+        settings.value.value = SuggestionSettingsState(introSeen = false)
         val vm = viewModel()
         collect(vm)
         assertTrue(vm.uiState.value.showIntro)
@@ -161,6 +162,7 @@ class RouteSuggestionsViewModelTest {
 
     @Test
     fun `the intro goes once dismissed`() = runTest(main.dispatcher) {
+        settings.value.value = SuggestionSettingsState(introSeen = false)
         val vm = viewModel()
         collect(vm)
         vm.dismissIntro()
@@ -184,5 +186,31 @@ class RouteSuggestionsViewModelTest {
         vm.refresh()
         advanceUntilIdle()
         assertEquals(1, suggestions.requests.last().second)
+    }
+
+    @Test
+    fun `nothing is requested before the intro is accepted`() = runTest(main.dispatcher) {
+        settings.value.value = SuggestionSettingsState(introSeen = false)
+        val vm = viewModel()
+        collect(vm)
+        assertEquals(SuggestionsStatus.AwaitingConsent, vm.uiState.value.status)
+        assertTrue(vm.uiState.value.showIntro)
+        assertTrue(suggestions.requests.isEmpty())
+        vm.dismissIntro()
+        advanceUntilIdle()
+        assertEquals(1, suggestions.requests.size)
+    }
+
+    @Test
+    fun `only the load a refresh starts bypasses the cache`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        collect(vm)
+        vm.refresh()
+        advanceUntilIdle()
+        vm.selectDistance(4_000.0)
+        advanceUntilIdle()
+        vm.retry()
+        advanceUntilIdle()
+        assertEquals(listOf(false, true, false, false), suggestions.bypassed)
     }
 }

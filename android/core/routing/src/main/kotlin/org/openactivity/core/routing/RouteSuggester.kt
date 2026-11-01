@@ -5,6 +5,8 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.openactivity.geo.Spherical
 import org.openactivity.model.LatLng
 import org.openactivity.polyline.DouglasPeucker
@@ -17,12 +19,13 @@ import kotlin.math.abs
 interface RouteSuggestions {
     /**
      * Loops for [request], emitted as each target distance completes (cached distances come first and
-     * instantly). [refresh] > 0 skips the fresh cache and routes with other start bearings.
+     * instantly). [refresh] picks other start bearings; [bypassCache] routes anew even when the cache is
+     * fresh (only for the load a refresh tap starts, so later loads reuse what it found).
      *
      * Never emits made-up routes: when the services cannot be reached, the result holds what the cache
      * had (possibly nothing) and [SuggestionProgress.failed] is true.
      */
-    fun suggest(request: SuggestionRequest, refresh: Int = 0): Flow<SuggestionProgress>
+    fun suggest(request: SuggestionRequest, refresh: Int = 0, bypassCache: Boolean = false): Flow<SuggestionProgress>
 
     /** A suggestion shown earlier, by id, or null when it is no longer known. */
     suspend fun find(id: String): RouteSuggestion?
@@ -68,21 +71,33 @@ class RouteSuggester(
     private val routeFactors = ConcurrentHashMap<SuggestionSport, Double>()
     private val recent = ConcurrentHashMap<String, RouteSuggestion>()
 
-    override fun suggest(request: SuggestionRequest, refresh: Int): Flow<SuggestionProgress> = flow {
+    /** One generation per cache key at a time: Home and Maps asking together route once, not twice. */
+    private val inFlight = ConcurrentHashMap<String, Mutex>()
+
+    override fun suggest(request: SuggestionRequest, refresh: Int, bypassCache: Boolean): Flow<SuggestionProgress> = flow {
         val routes = mutableListOf<RouteSuggestion>()
         var failed = false
+        val start = request.start
         for (distance in request.distancesMeters) {
-            val key = cache.key(request.start, request.sport, distance)
-            val fresh = if (refresh == 0) cache.get(key) else null
+            val key = cache.key(start, request.sport, distance)
+            val fresh = if (bypassCache) null else cache.get(key, near = start)
             val found = when {
                 fresh != null -> fresh
                 // After one failure, don't wait for more timeouts: show what the cache has.
-                failed -> cache.get(key, allowExpired = true).orEmpty()
+                failed -> cache.get(key, allowExpired = true, near = start).orEmpty()
                 else -> try {
-                    generate(request.start, request.sport, distance, refresh, key).also { cache.put(key, it) }
+                    inFlight.getOrPut(key) { Mutex() }.withLock {
+                        // Another screen may have routed this key while we waited.
+                        (if (bypassCache) null else cache.get(key, near = start))
+                            ?: generate(start, request.sport, distance, refresh, key).let { made ->
+                                // An empty result is not worth keeping, nor worth replacing good loops with.
+                                if (made.isNotEmpty()) cache.put(key, made)
+                                made.ifEmpty { cache.get(key, allowExpired = true, near = start).orEmpty() }
+                            }
+                    }
                 } catch (e: IOException) {
                     failed = true
-                    cache.get(key, allowExpired = true).orEmpty()
+                    cache.get(key, allowExpired = true, near = start).orEmpty()
                 }
             }
             found.forEach { recent[it.id] = it }

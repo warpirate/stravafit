@@ -41,6 +41,28 @@ class SuggestionCacheTest {
     }
 
     @Test
+    fun `loops starting more than 100 m away count as a miss`() = runTest {
+        val cache = cache()
+        val routes = listOf(suggestion("a"))
+        cache.put("k", routes)
+        assertEquals(routes, cache.get("k", near = LatLng(18.5318, 73.8449))) // ~55 m
+        assertNull(cache.get("k", near = LatLng(18.5340, 73.8446))) // ~290 m, same cell
+        assertNull(cache.get("k", allowExpired = true, near = LatLng(18.5340, 73.8446)))
+    }
+
+    @Test
+    fun `routes missing their elevation stay fresh for an hour only`() = runTest {
+        val cache = cache()
+        val routes = listOf(suggestion("a").copy(elevationGainMeters = null, elevationLossMeters = null))
+        cache.put("k", routes)
+        now += SuggestionCache.PARTIAL_TTL_MILLIS - 1
+        assertEquals(routes, cache.get("k"))
+        now += 2
+        assertNull(cache.get("k"))
+        assertEquals(routes, cache.get("k", allowExpired = true))
+    }
+
+    @Test
     fun `a corrupt or missing file reads as absent`() = runTest {
         val cache = cache()
         assertNull(cache.get("missing", allowExpired = true))

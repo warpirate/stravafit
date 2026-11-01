@@ -45,6 +45,9 @@ sealed interface SuggestionsStatus {
     /** The athlete turned online route suggestions off. */
     data object Disabled : SuggestionsStatus
 
+    /** On, but the intro saying the position is sent has not been accepted yet: nothing is requested. */
+    data object AwaitingConsent : SuggestionsStatus
+
     /** Location is not allowed, switched off, or no fix came ([reason] is null then). */
     data class NoLocation(val reason: LocationAvailability?) : SuggestionsStatus
 
@@ -112,6 +115,7 @@ class RouteSuggestionsViewModel @Inject constructor(
 
     private sealed interface Load {
         data object Disabled : Load
+        data object AwaitingConsent : Load
         data object Locating : Load
         data class NoLocation(val reason: LocationAvailability?) : Load
         data class Progress(val progress: SuggestionProgress) : Load
@@ -124,11 +128,17 @@ class RouteSuggestionsViewModel @Inject constructor(
         .map { SuggestionSport.from(it.lastSport.toSportType()) }
         .distinctUntilChanged()
 
-    private val enabled = settings.state.map { it.enabled }.distinctUntilChanged()
-
-    private val load: Flow<Load> = combine(enabled, defaultSport, selection) { on, sport, sel -> Triple(on, sel.sport ?: sport, sel) }
+    /** Off, on but waiting for the intro to be accepted, or on. */
+    private val access = settings.state
+        .map { if (!it.enabled) Load.Disabled else if (!it.introSeen) Load.AwaitingConsent else null }
         .distinctUntilChanged()
-        .flatMapLatest { (on, sport, sel) -> if (!on) flowOf(Load.Disabled) else load(sport, sel) }
+
+    /** The [Selection.refresh] count whose load already bypassed the cache. */
+    private var consumedRefresh = 0
+
+    private val load: Flow<Load> = combine(access, defaultSport, selection) { blocked, sport, sel -> Triple(blocked, sel.sport ?: sport, sel) }
+        .distinctUntilChanged()
+        .flatMapLatest { (blocked, sport, sel) -> if (blocked != null) flowOf(blocked) else load(sport, sel) }
 
     val uiState: StateFlow<SuggestionsUiState> = combine(
         load,
@@ -173,7 +183,11 @@ class RouteSuggestionsViewModel @Inject constructor(
             CurrentLocationResult.NoFix -> emit(Load.NoLocation(null))
             is CurrentLocationResult.Found -> {
                 val distances = sel.distance?.let(::listOf) ?: sport.defaultDistancesMeters
-                suggestions.suggest(SuggestionRequest(here.position, sport, distances), sel.refresh).collect { emit(Load.Progress(it)) }
+                // Only the load a refresh tap starts routes anew; later loads (chips, retry, resume) use the cache.
+                val bypassCache = sel.refresh != consumedRefresh
+                consumedRefresh = sel.refresh
+                suggestions.suggest(SuggestionRequest(here.position, sport, distances), sel.refresh, bypassCache)
+                    .collect { emit(Load.Progress(it)) }
             }
         }
     }.catch { e -> if (e is RuntimeException) emit(Load.Failed) else throw e }
@@ -185,6 +199,7 @@ class RouteSuggestionsViewModel @Inject constructor(
             val base = SuggestionsUiState(sport = sport, distanceFilter = distance, showIntro = settings.enabled && !settings.introSeen)
             return when (load) {
                 Load.Disabled -> base.copy(status = SuggestionsStatus.Disabled, showIntro = false)
+                Load.AwaitingConsent -> base.copy(status = SuggestionsStatus.AwaitingConsent, showIntro = true)
                 Load.Locating -> base.copy(status = SuggestionsStatus.Loading)
                 is Load.NoLocation -> base.copy(status = SuggestionsStatus.NoLocation(load.reason))
                 Load.Failed -> base.copy(status = SuggestionsStatus.Offline)

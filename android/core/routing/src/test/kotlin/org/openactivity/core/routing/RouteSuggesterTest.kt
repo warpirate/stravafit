@@ -3,6 +3,7 @@ package org.openactivity.core.routing
 
 import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -110,9 +111,49 @@ class RouteSuggesterTest {
         val again = suggester.suggest(request).last()
         assertEquals(calls, osrmCalls)
         assertEquals(first.routes, again.routes)
-        val refreshed = suggester.suggest(request, refresh = 1).last()
+        val refreshed = suggester.suggest(request, refresh = 1, bypassCache = true).last()
         assertTrue(osrmCalls > calls)
         assertTrue(refreshed.routes.map { it.id }.none { it in first.routes.map { r -> r.id } })
+        // What the refresh found is cached: the next plain load routes nothing.
+        val afterRefresh = osrmCalls
+        assertEquals(refreshed.routes, suggester.suggest(request, refresh = 1).last().routes)
+        assertEquals(afterRefresh, osrmCalls)
+    }
+
+    @Test
+    fun `no loops found is not cached and does not replace good loops`() = runTest {
+        val suggester = suggester()
+        val good = suggester.suggest(request).last().routes
+        assertTrue(good.isNotEmpty())
+        backtrack = true // every route now runs out and back: nothing passes
+        val refreshed = suggester.suggest(request, refresh = 1, bypassCache = true).last()
+        assertEquals(good, refreshed.routes)
+        backtrack = false
+        val empty = RouteSuggester(OsrmClient(transport, RateLimiter(0)), ElevationClient(transport, RateLimiter(0)), SuggestionCache(folder.newFolder()))
+        backtrack = true
+        assertTrue(empty.suggest(request).last().routes.isEmpty())
+        val calls = osrmCalls
+        empty.suggest(request).last()
+        assertTrue("an empty result must not be served from the cache", osrmCalls > calls)
+    }
+
+    @Test
+    fun `two screens asking at once route each distance once`() = runTest {
+        val suggester = suggester()
+        val a = async { suggester.suggest(request).last() }
+        val b = async { suggester.suggest(request).last() }
+        val first = a.await()
+        val second = b.await()
+        assertEquals(first.routes, second.routes)
+        val calls = osrmCalls
+        suggester().suggest(request, refresh = 0).last()
+        assertEquals(calls, osrmCalls)
+        val single = osrmCalls
+        // One run of the same request on an empty cache costs exactly what the two concurrent ones did.
+        osrmCalls = 0
+        RouteSuggester(OsrmClient(transport, RateLimiter(0)), ElevationClient(transport, RateLimiter(0)), SuggestionCache(folder.newFolder()))
+            .suggest(request).last()
+        assertEquals(single, osrmCalls)
     }
 
     @Test
@@ -127,7 +168,7 @@ class RouteSuggesterTest {
         val suggester = suggester()
         val online = suggester.suggest(request).last()
         offline = true
-        val cachedOnly = suggester.suggest(request, refresh = 1).last()
+        val cachedOnly = suggester.suggest(request, refresh = 1, bypassCache = true).last()
         assertTrue(cachedOnly.failed)
         assertEquals(online.routes, cachedOnly.routes)
         val nothing = RouteSuggester(OsrmClient(transport, RateLimiter(0)), ElevationClient(transport, RateLimiter(0)), SuggestionCache(folder.newFolder()))
