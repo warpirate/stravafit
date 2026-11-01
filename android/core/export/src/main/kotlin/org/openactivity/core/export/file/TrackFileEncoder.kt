@@ -212,7 +212,7 @@ public class TrackFileEncoder @Inject constructor() {
     }
 
     private companion object {
-        const val CREATOR = "OpenActivity"
+        const val CREATOR = "StravaFit"
 
         /** Splits samples into runs of consecutive positioned samples (runs of one point are dropped). */
         fun positionedRuns(points: List<ExportPoint>): List<List<ExportPoint>> {

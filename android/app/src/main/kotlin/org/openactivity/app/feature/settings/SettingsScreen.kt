@@ -82,6 +82,7 @@ fun SettingsScreen(
             onUnits = viewModel::setUnits,
             onTheme = viewModel::setTheme,
             onReduceMotion = viewModel::setReduceMotion,
+            onRouteSuggestions = viewModel::setRouteSuggestions,
             onDefaultSport = viewModel::setDefaultSport,
             onAutoPause = viewModel::setAutoPause,
             onAudioCues = viewModel::setAudioCuesEnabled,
@@ -113,6 +114,7 @@ data class SettingsActions(
     val onUnits: (UnitSystem) -> Unit = {},
     val onTheme: (ThemeMode) -> Unit = {},
     val onReduceMotion: (Boolean) -> Unit = {},
+    val onRouteSuggestions: (Boolean) -> Unit = {},
     val onDefaultSport: (SportType) -> Unit = {},
     val onAutoPause: (SportType, Boolean) -> Unit = { _, _ -> },
     val onAudioCues: (Boolean) -> Unit = {},
@@ -181,6 +183,17 @@ fun SettingsContent(state: SettingsUiState, actions: SettingsActions, modifier: 
 
                 RecordingSettings(state, actions)
                 PrivacySettingsSection(state, actions, formatter)
+
+                OverlineHeader("Routes")
+                SettingsGroup {
+                    SwitchRow(
+                        "Online route suggestions",
+                        "Suggests loops near you on Home and Maps. Your current position is sent to the OpenStreetMap " +
+                            "routing service (routing.openstreetmap.de) and to Open-Meteo for elevation.",
+                        state.routeSuggestions,
+                        actions.onRouteSuggestions,
+                    )
+                }
 
                 OverlineHeader("Your data")
                 SettingsGroup {

@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.openactivity.app.BuildConfig
 import org.openactivity.app.data.PreferencesRepository
+import org.openactivity.app.data.SuggestionSettings
 import org.openactivity.app.data.export.ActivityArchiveExporter
 import org.openactivity.app.data.export.ArchiveSummary
 import org.openactivity.app.distribution.Distribution
@@ -44,6 +45,8 @@ import javax.inject.Inject
 data class SettingsUiState(
     val settings: AppSettings = AppSettings(),
     val reduceMotion: Boolean = false,
+    /** Online route suggestions on Home and Maps. */
+    val routeSuggestions: Boolean = true,
     val distribution: Distribution,
     val versionName: String,
     val isExporting: Boolean = false,
@@ -80,6 +83,7 @@ class SettingsViewModel @Inject constructor(
     private val preferencesRepository: PreferencesRepository,
     private val archiveExporter: ActivityArchiveExporter,
     distribution: Distribution,
+    private val suggestionSettings: SuggestionSettings,
 ) : ViewModel() {
 
     private val local = MutableStateFlow(Local())
@@ -89,10 +93,12 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.settings,
         preferencesRepository.preferences,
         local,
-    ) { settings, preferences, local ->
+        suggestionSettings.state,
+    ) { settings, preferences, local, suggestions ->
         initial.copy(
             settings = settings,
             reduceMotion = preferences.reduceMotion,
+            routeSuggestions = suggestions.enabled,
             isExporting = local.exporting,
             message = local.message,
         )
@@ -103,6 +109,9 @@ class SettingsViewModel @Inject constructor(
     fun setTheme(mode: ThemeMode) = launch { settingsRepository.setTheme(mode.toPreference()) }
 
     fun setReduceMotion(enabled: Boolean) = launch { preferencesRepository.setReduceMotion(enabled) }
+
+    /** Turning suggestions off also deletes the cached ones. */
+    fun setRouteSuggestions(enabled: Boolean) = launch { suggestionSettings.setEnabled(enabled) }
 
     fun setDefaultSport(sport: SportType) = launch { settingsRepository.setDefaultSport(sport) }
 

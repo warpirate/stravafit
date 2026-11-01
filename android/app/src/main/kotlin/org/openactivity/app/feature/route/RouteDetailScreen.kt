@@ -22,6 +22,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.rounded.BookmarkBorder
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.FiberManualRecord
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.SearchOff
@@ -101,6 +103,8 @@ data class RouteDetailActions(
     val onRecord: () -> Unit = {},
     val onExportGpx: () -> Unit = {},
     val onDelete: () -> Unit = {},
+    /** Saves a suggested loop into Your routes. */
+    val onSave: () -> Unit = {},
 )
 
 /** Stateless route detail: map, stats, elevation profile and the route actions. */
@@ -114,7 +118,7 @@ fun RouteDetailContent(state: RouteDetailUiState, actions: RouteDetailActions, m
         contentWindowInsets = WindowInsets(0),
         topBar = {
             RidgelineTopAppBar(title = state.name.ifEmpty { "Route" }, onNavigateUp = actions.onNavigateUp) {
-                if (!state.isLoading && !state.notFound) {
+                if (!state.isLoading && !state.notFound && !state.isSuggestion) {
                     TopBarAction(Icons.Outlined.Delete, "Delete route", { confirmDelete = true })
                 }
             }
@@ -125,8 +129,8 @@ fun RouteDetailContent(state: RouteDetailUiState, actions: RouteDetailActions, m
                 state.isLoading -> ActivityCardSkeleton(Modifier.padding(Spacing.gutter))
                 state.notFound -> EmptyState(
                     icon = Icons.Rounded.SearchOff,
-                    title = "Route not found",
-                    body = "It may have been deleted.",
+                    title = if (state.isSuggestion) "Suggestion not available" else "Route not found",
+                    body = if (state.isSuggestion) "Suggestions are kept for a few days. Pull to refresh on Home for new ones." else "It may have been deleted.",
                     primaryActionLabel = "Back",
                     onPrimaryAction = actions.onNavigateUp,
                 )
@@ -177,12 +181,21 @@ private fun RouteBody(state: RouteDetailUiState, actions: RouteDetailActions) {
             }
         }
         Text(
-            "Estimated moving time assumes an easy steady effort and adds time for climbing.",
+            state.note,
             style = MaterialTheme.typography.bodySmall,
             color = RidgelineTheme.colors.textMuted,
         )
         PrimaryButton("Record this route", onClick = actions.onRecord, leadingIcon = Icons.Rounded.FiberManualRecord, modifier = Modifier.fillMaxWidth())
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            if (state.isSuggestion) {
+                SecondaryButton(
+                    if (state.isSaved) "Saved" else "Save route",
+                    onClick = actions.onSave,
+                    enabled = !state.isSaved && !state.isSaving,
+                    leadingIcon = if (state.isSaved) Icons.Rounded.Check else Icons.Rounded.BookmarkBorder,
+                    modifier = Modifier.weight(1f),
+                )
+            }
             SecondaryButton(
                 "Export GPX",
                 onClick = actions.onExportGpx,

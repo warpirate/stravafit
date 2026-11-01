@@ -20,6 +20,7 @@ import org.openactivity.app.distribution.Distribution
 import org.openactivity.app.model.ThemeMode
 import org.openactivity.app.testing.FakePreferencesRepository
 import org.openactivity.app.testing.FakeSettingsRepository
+import org.openactivity.app.testing.FakeSuggestionSettings
 import org.openactivity.app.testing.MainDispatcherRule
 import org.openactivity.core.datastore.ThemePreference
 import org.openactivity.model.SportType
@@ -48,7 +49,7 @@ class SettingsViewModelTest {
     }
 
     private fun TestScope.viewModel(): SettingsViewModel {
-        val vm = SettingsViewModel(settings, preferences, exporter, distribution)
+        val vm = SettingsViewModel(settings, preferences, exporter, distribution, FakeSuggestionSettings())
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} }
         advanceUntilIdle()
         return vm
