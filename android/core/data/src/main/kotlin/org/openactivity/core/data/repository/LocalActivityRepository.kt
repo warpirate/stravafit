@@ -15,8 +15,10 @@ import org.openactivity.core.data.mapper.sportOf
 import org.openactivity.core.data.mapper.toDistanceEffort
 import org.openactivity.core.data.mapper.toDomain
 import org.openactivity.core.data.mapper.toDurationEffort
+import org.openactivity.core.data.mapper.zoneOf
 import org.openactivity.core.data.model.ActivityDetail
 import org.openactivity.core.data.model.ActivityMetadataUpdate
+import org.openactivity.core.data.model.EffortRecord
 import org.openactivity.core.data.model.NewActivity
 import org.openactivity.core.data.model.PersonalBest
 import org.openactivity.core.data.model.SavedActivity
@@ -127,6 +129,21 @@ class LocalActivityRepository @Inject constructor(
                     activityTitle = row.title,
                     sport = sportOf(row.sport) ?: SportType.OTHER,
                     achievedAt = Instant.ofEpochMilli(row.startEpochMillis),
+                )
+            }
+        }
+
+    override fun observeEffortRecords(sports: Set<SportType>, kind: EffortKind): Flow<List<EffortRecord>> =
+        dao.observeBestEfforts(kind.name, sports.map { it.name }).map { rows ->
+            rows.map { row ->
+                EffortRecord(
+                    activityId = row.activityId,
+                    target = row.target,
+                    value = row.value,
+                    startEpochMillis = row.startEpochMillis,
+                    year = Instant.ofEpochMilli(row.startEpochMillis).atZone(zoneOf(row.timeZoneId)).year,
+                    sport = sportOf(row.sport) ?: SportType.OTHER,
+                    activityTitle = row.title,
                 )
             }
         }

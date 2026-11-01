@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.feature.me
 
+import org.openactivity.app.feature.goals.GoalItemUi
+import org.openactivity.app.feature.goals.StreakUi
 import org.openactivity.core.designsystem.component.Stat
 import org.openactivity.model.LatLng
 import org.openactivity.model.SportType
@@ -80,6 +82,11 @@ data class MeUiState(
     val allTime: List<Stat> = emptyList(),
     val bestEffortsTitle: String? = null,
     val bestEfforts: List<BestEffortUi> = emptyList(),
+    /** Up to [MeViewModel.GOALS_SHOWN] goals with their progress, in the goals screen's order. */
+    val goals: List<GoalItemUi> = emptyList(),
+    /** Every goal, including those not in [goals]. */
+    val goalCount: Int = 0,
+    val streak: StreakUi? = null,
     val query: String = "",
     val activitySport: SportType? = null,
     val activities: List<ActivityRowUi> = emptyList(),

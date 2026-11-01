@@ -138,6 +138,10 @@ class FakeSettingsRepository(initial: AppSettings = AppSettings()) : SettingsRep
     override suspend fun setDefaultVisibility(visibility: Visibility) = state.update { it.copy(defaultVisibility = visibility) }
 
     override suspend fun setPrivacy(privacy: PrivacySettings) = state.update { it.copy(privacy = privacy) }
+
+    override suspend fun setFirstDayOfWeek(day: java.time.DayOfWeek) = state.update { it.copy(firstDayOfWeek = day) }
+
+    override suspend fun setNotifications(notifications: org.openactivity.core.datastore.NotificationSettings) = state.update { it.copy(notifications = notifications) }
 }
 
 /** In-memory [RecordPreferencesRepository]. */

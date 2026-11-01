@@ -18,6 +18,7 @@ import org.openactivity.model.SportType
 import org.openactivity.model.UnitSystem
 import org.openactivity.model.Visibility
 import java.io.IOException
+import java.time.DayOfWeek
 import java.util.Locale
 
 /**
@@ -65,6 +66,14 @@ class SettingsDataSource(
         it[Keys.HIDE_END] = privacy.hideEndMeters
     }
 
+    suspend fun setFirstDayOfWeek(day: DayOfWeek) = edit { it[Keys.FIRST_DAY_OF_WEEK] = day.name }
+
+    suspend fun setNotifications(notifications: NotificationSettings) = edit {
+        it[Keys.NOTIFY_ACHIEVEMENTS] = notifications.achievements
+        it[Keys.NOTIFY_GOALS] = notifications.goals
+        it[Keys.NOTIFY_WEEKLY] = notifications.weeklySummary
+    }
+
     private suspend fun edit(block: (MutablePreferences) -> Unit) {
         dataStore.edit(block)
     }
@@ -73,6 +82,7 @@ class SettingsDataSource(
         val defaults = AppSettings()
         val audioDefaults = AudioCueSettings()
         val privacyDefaults = PrivacySettings()
+        val notifyDefaults = NotificationSettings()
         val overrides = buildMap {
             prefs[Keys.AUTO_PAUSE_OFF].orEmpty().mapNotNull(::sportOrNull).forEach { put(it, false) }
             prefs[Keys.AUTO_PAUSE_ON].orEmpty().mapNotNull(::sportOrNull).forEach { put(it, true) }
@@ -93,6 +103,12 @@ class SettingsDataSource(
                 hideStartMeters = prefs[Keys.HIDE_START]?.takeIf { it >= 0.0 } ?: privacyDefaults.hideStartMeters,
                 hideEndMeters = prefs[Keys.HIDE_END]?.takeIf { it >= 0.0 } ?: privacyDefaults.hideEndMeters,
             ),
+            firstDayOfWeek = prefs[Keys.FIRST_DAY_OF_WEEK].toEnum<DayOfWeek>() ?: defaults.firstDayOfWeek,
+            notifications = NotificationSettings(
+                achievements = prefs[Keys.NOTIFY_ACHIEVEMENTS] ?: notifyDefaults.achievements,
+                goals = prefs[Keys.NOTIFY_GOALS] ?: notifyDefaults.goals,
+                weeklySummary = prefs[Keys.NOTIFY_WEEKLY] ?: notifyDefaults.weeklySummary,
+            ),
         )
     }
 
@@ -110,6 +126,10 @@ class SettingsDataSource(
         val DEFAULT_VISIBILITY = stringPreferencesKey("default_visibility")
         val HIDE_START = doublePreferencesKey("privacy_hide_start_m")
         val HIDE_END = doublePreferencesKey("privacy_hide_end_m")
+        val FIRST_DAY_OF_WEEK = stringPreferencesKey("first_day_of_week")
+        val NOTIFY_ACHIEVEMENTS = booleanPreferencesKey("notify_achievements")
+        val NOTIFY_GOALS = booleanPreferencesKey("notify_goals")
+        val NOTIFY_WEEKLY = booleanPreferencesKey("notify_weekly_summary")
     }
 }
 

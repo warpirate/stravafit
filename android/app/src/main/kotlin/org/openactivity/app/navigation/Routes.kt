@@ -28,3 +28,11 @@ typealias RecordRoute = org.openactivity.feature.record.navigation.RecordDestina
 
 /** Open-source licences and map attribution. */
 @Serializable data object LicensesRoute
+
+/** The notifications inbox, from the bell on Home (notifications-search section 2). */
+@Serializable data object NotificationsRoute
+
+/**
+ * Goals: the list with progress, plus the editor. [newGoal] opens the editor for a new goal straight away.
+ */
+@Serializable data class GoalsRoute(val newGoal: Boolean = false)

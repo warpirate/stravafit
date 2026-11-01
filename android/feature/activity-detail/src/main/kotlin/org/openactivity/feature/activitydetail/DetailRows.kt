@@ -4,8 +4,9 @@ package org.openactivity.feature.activitydetail
 import androidx.compose.runtime.Immutable
 import org.openactivity.core.data.model.ActivityDetail
 import org.openactivity.core.data.model.ActivityPoint
-import org.openactivity.core.data.model.PersonalBest
+import org.openactivity.core.data.model.EffortMedal
 import org.openactivity.core.data.model.SavedActivity
+import org.openactivity.core.data.repository.EffortRanking
 import org.openactivity.core.designsystem.component.Stat
 import org.openactivity.feature.activitydetail.format.DetailFormat
 import org.openactivity.feature.activitydetail.format.Measure
@@ -13,7 +14,6 @@ import org.openactivity.model.SportType
 import org.openactivity.model.Split
 import org.openactivity.model.UnitSystem
 import org.openactivity.recording.AltitudeSource
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -50,10 +50,36 @@ data class LapRow(
 /**
  * A best effort achieved in this activity.
  *
- * @property isPersonalBest true when no other activity of the sport has beaten it.
+ * @property rank its medal: place 1 to 3 among your efforts as of this activity, or null without one.
+ * @property yearly true when the place is within [year] only (the all-time podium was out of reach).
  */
 @Immutable
-data class EffortRow(val name: String, val result: String, val isPersonalBest: Boolean)
+data class EffortRow(
+    val name: String,
+    val result: String,
+    val rank: Int? = null,
+    val yearly: Boolean = false,
+    val year: Int = 0,
+) {
+    /** An all-time first place. */
+    val isPersonalBest: Boolean get() = rank == 1 && !yearly
+
+    /** "PR", "2nd best", "Best of 2026"..., or null without a medal. */
+    val medalLabel: String?
+        get() = when {
+            rank == null -> null
+            !yearly -> if (rank == 1) "PR" else "${ordinal(rank)} best"
+            rank == 1 -> "Best of $year"
+            else -> "${ordinal(rank)} of $year"
+        }
+
+    private fun ordinal(n: Int): String = when (n) {
+        1 -> "1st"
+        2 -> "2nd"
+        3 -> "3rd"
+        else -> "${n}th"
+    }
+}
 
 /** Builds the detail screen's display rows from stored data. Pure, so it is unit-tested directly. */
 object DetailRows {
@@ -149,20 +175,24 @@ object DetailRows {
         }
     }
 
-    /** Best efforts of this activity, flagged when they are the athlete's all-time best for the sport. */
-    fun efforts(detail: ActivityDetail, bests: List<PersonalBest>, units: UnitSystem): List<EffortRow> {
-        val id = detail.activity.id
+    /**
+     * Best efforts of this activity with the medals they earned when it was recorded: places 1 to 3
+     * all-time, else within that year ([medals], from `EffortRanking.medalsOf`).
+     */
+    fun efforts(detail: ActivityDetail, medals: List<EffortMedal>, units: UnitSystem): List<EffortRow> {
         val distance = detail.bestEfforts.map { e ->
-            val pb = bests.firstOrNull { abs(it.target - e.targetMeters) < 0.5 }
+            val medal = medals.firstOrNull { EffortRanking.sameTarget(it.target, e.targetMeters) }
             EffortRow(
                 name = DetailFormat.effortName(e.targetMeters),
                 result = DetailFormat.clock(e.elapsedSeconds),
-                isPersonalBest = pb != null && (pb.activityId == id || e.elapsedSeconds <= pb.value),
+                rank = medal?.rank,
+                yearly = medal?.isYearly == true,
+                year = medal?.year ?: 0,
             )
         }
         val duration = detail.durationEfforts.map { e ->
             val d = DetailFormat.distance(e.distanceMeters, units)
-            EffortRow("Best ${DetailFormat.effortDuration(e.durationSeconds)}", "${d.value} ${d.unit}", isPersonalBest = false)
+            EffortRow("Best ${DetailFormat.effortDuration(e.durationSeconds)}", "${d.value} ${d.unit}")
         }
         return distance + duration
     }

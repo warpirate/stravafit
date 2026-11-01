@@ -91,6 +91,10 @@ class FakeSettingsRepository(initial: AppSettings = AppSettings()) : SettingsRep
     override suspend fun setDefaultSport(sport: SportType) = Unit
     override suspend fun setDefaultVisibility(visibility: Visibility) { state.value = state.value.copy(defaultVisibility = visibility) }
     override suspend fun setPrivacy(privacy: PrivacySettings) { state.value = state.value.copy(privacy = privacy) }
+
+    override suspend fun setFirstDayOfWeek(day: java.time.DayOfWeek) { state.value = state.value.copy(firstDayOfWeek = day) }
+
+    override suspend fun setNotifications(notifications: org.openactivity.core.datastore.NotificationSettings) { state.value = state.value.copy(notifications = notifications) }
 }
 
 /** In-memory extras without photo files. */

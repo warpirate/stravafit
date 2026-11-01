@@ -13,6 +13,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import org.openactivity.app.feature.explore.ExploreScreen
 import org.openactivity.app.feature.feed.FeedScreen
+import org.openactivity.app.feature.goals.GoalsScreen
+import org.openactivity.app.feature.notifications.InboxDestination
+import org.openactivity.app.feature.notifications.NotificationsScreen
 import org.openactivity.app.feature.groups.GroupsScreen
 import org.openactivity.app.feature.me.MeScreen
 import org.openactivity.app.feature.profile.EditProfileScreen
@@ -40,7 +43,7 @@ import org.openactivity.feature.shareexport.shareExportScreen
 /**
  * The app navigation graph. Every destination is registered exactly once: the four tabs (feed,
  * explore, groups, me), record, settings, save/edit, activity detail, share & export, route detail,
- * file import, edit profile and licences. First-run onboarding is shown by `MainActivity` before
+ * file import, edit profile, licences, the notifications inbox and goals. First-run onboarding is shown by `MainActivity` before
  * this graph exists.
  */
 @Composable
@@ -60,6 +63,7 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
                 onRecord = { navController.openRecorder() },
                 onOpenActivity = openActivity,
                 onShareActivity = { id -> navController.navigateToShareExport(id.toString()) },
+                onOpenNotifications = dropUnlessResumed { navController.navigate(NotificationsRoute) { launchSingleTop = true } },
             )
         }
         composable<ExploreRoute> {
@@ -74,7 +78,17 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
                 onEditProfile = { navController.navigate(EditProfileRoute) { launchSingleTop = true } },
                 onOpenActivity = openActivity,
                 onRecord = { navController.openRecorder() },
+                onOpenGoals = { newGoal -> navController.navigate(GoalsRoute(newGoal)) { launchSingleTop = true } },
             )
+        }
+        composable<NotificationsRoute> {
+            NotificationsScreen(
+                onNavigateUp = dropUnlessResumed { navController.popBackStack() },
+                onOpen = { destination -> navController.openInboxDestination(destination) },
+            )
+        }
+        composable<GoalsRoute> {
+            GoalsScreen(onNavigateUp = dropUnlessResumed { navController.popBackStack() })
         }
         recordScreen(
             onClose = { navController.popBackStack() },
@@ -137,6 +151,15 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
             },
         )
         shareExportScreen(provider = exportProvider, onClose = { navController.popBackStack() })
+    }
+}
+
+/** Opens where an inbox entry leads: the activity, the goals, or the You tab for progress and activities. */
+fun NavHostController.openInboxDestination(destination: InboxDestination) {
+    when (destination) {
+        is InboxDestination.Activity -> navigateToActivityDetail(destination.id)
+        InboxDestination.Goals -> navigate(GoalsRoute()) { launchSingleTop = true }
+        InboxDestination.Progress, InboxDestination.Activities -> switchTab(MeRoute)
     }
 }
 

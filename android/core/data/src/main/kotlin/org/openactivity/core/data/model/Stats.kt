@@ -41,6 +41,8 @@ data class YearTotals(val year: Int, val totals: StatTotals, val bySport: Map<Sp
  * The best result for one target across all activities.
  *
  * For distance efforts [value] is seconds (lower is better); for duration efforts it is metres.
+ *
+ * @property rank 1 for the record itself, 2 and 3 for the runners-up (see `EffortRanking.podium`).
  */
 data class PersonalBest(
     val target: Double,
@@ -49,4 +51,5 @@ data class PersonalBest(
     val activityTitle: String,
     val sport: SportType,
     val achievedAt: Instant,
+    val rank: Int = 1,
 )

@@ -53,11 +53,17 @@ import org.openactivity.app.model.UserProfile
 import org.openactivity.app.navigation.AppBottomBar
 import org.openactivity.app.navigation.TopLevelDestination
 import org.openactivity.app.testing.FakeActivityRepository
+import org.openactivity.app.testing.FakeNotificationRepository
 import org.openactivity.app.testing.FakePreferencesRepository
 import org.openactivity.app.testing.FakeProfileRepository
 import org.openactivity.app.testing.FakeRouteRepository
 import org.openactivity.app.testing.TEST_CLOCK
+import org.openactivity.app.testing.FakeGoalRepository
 import org.openactivity.app.testing.routeDetail
+import org.openactivity.core.data.model.Goal
+import org.openactivity.core.data.model.GoalMetric
+import org.openactivity.core.data.model.GoalPeriod
+import org.openactivity.core.data.model.WeeklyStreak
 import org.openactivity.app.testing.savedActivity
 import org.openactivity.app.testing.testTimeFormatter
 import org.openactivity.core.data.model.PersonalBest
@@ -185,6 +191,19 @@ private fun sampleActivities(): FakeActivityRepository {
     return repo
 }
 
+private fun sampleGoals(): FakeGoalRepository {
+    val repo = FakeGoalRepository(
+        listOf(
+            Goal(id = 1, sport = SportType.RUN, period = GoalPeriod.WEEK, metric = GoalMetric.DISTANCE, target = 30_000.0),
+            Goal(id = 2, sport = null, period = GoalPeriod.WEEK, metric = GoalMetric.COUNT, target = 4.0),
+        ),
+    )
+    repo.current.value = mapOf(1L to 24_100.0, 2L to 2.0)
+    repo.elapsed = 0.6
+    repo.streak.value = WeeklyStreak(6, activeThisWeek = true)
+    return repo
+}
+
 @Composable
 private fun Tab(selected: TopLevelDestination, content: @Composable () -> Unit) {
     Scaffold(
@@ -198,7 +217,7 @@ private fun Tab(selected: TopLevelDestination, content: @Composable () -> Unit) 
 
 @Composable
 private fun Feed() {
-    val vm = remember { FeedViewModel(sampleActivities(), profile, FakePreferencesRepository(), testTimeFormatter()) }
+    val vm = remember { FeedViewModel(sampleActivities(), profile, FakePreferencesRepository(), testTimeFormatter(), FakeNotificationRepository()) }
     val state by vm.uiState.collectAsState()
     FeedContent(state, FeedActions())
 }
@@ -207,7 +226,8 @@ private fun Feed() {
 private fun Me(tab: MeTab, empty: Boolean = false) {
     val vm = remember(tab) {
         val repo = if (empty) FakeActivityRepository() else sampleActivities()
-        MeViewModel(repo, profile, FakePreferencesRepository(), testTimeFormatter(), TEST_CLOCK).also { it.selectTab(tab) }
+        MeViewModel(repo, profile, FakePreferencesRepository(), testTimeFormatter(), TEST_CLOCK, if (empty) FakeGoalRepository() else sampleGoals())
+            .also { it.selectTab(tab) }
     }
     val state by vm.uiState.collectAsState()
     MeContent(state, MeActions())

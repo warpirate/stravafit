@@ -30,7 +30,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.openactivity.app.navigation.ActiveRecordingBar
 import org.openactivity.app.navigation.AppBottomBar
+import org.openactivity.app.feature.notifications.InboxLink
+import org.openactivity.app.feature.notifications.InboxLinkViewModel
 import org.openactivity.app.navigation.AppNavHost
+import org.openactivity.app.navigation.NotificationsRoute
+import org.openactivity.app.navigation.openInboxDestination
 import org.openactivity.app.navigation.TopLevelDestination
 import org.openactivity.feature.activitydetail.navigateToActivityDetail
 import org.openactivity.feature.record.navigation.navigateToRecord
@@ -58,12 +62,18 @@ fun OpenActivityApp(
             }
         }
     }
-    // The recording notifications ask for the recorder or for the activity just saved.
+    // The recording notifications ask for the recorder or for the activity just saved; inbox notifications
+    // (records, goals, the weekly summary) for their entry's destination.
+    val inboxLinks: InboxLinkViewModel = hiltViewModel()
     LaunchedEffect(launchRequest) {
         when (launchRequest) {
             null -> return@LaunchedEffect
             LaunchRequest.OpenRecorder -> navController.navigateToRecord()
             is LaunchRequest.OpenActivity -> navController.navigateToActivityDetail(launchRequest.id)
+            is LaunchRequest.OpenInboxEntry -> when (val link = inboxLinks.open(launchRequest.id)) {
+                InboxLink.Inbox -> navController.navigate(NotificationsRoute) { launchSingleTop = true }
+                is InboxLink.To -> navController.openInboxDestination(link.destination)
+            }
         }
         onLaunchRequestHandled()
     }

@@ -28,8 +28,10 @@ import org.openactivity.core.activityextras.ActivityExtras
 import org.openactivity.core.activityextras.ActivityExtrasRepository
 import org.openactivity.core.data.model.ActivityDetail
 import org.openactivity.core.data.model.DefaultTitles
-import org.openactivity.core.data.model.PersonalBest
+import org.openactivity.core.data.mapper.EffortKind
+import org.openactivity.core.data.model.EffortMedal
 import org.openactivity.core.data.repository.ActivityRepository
+import org.openactivity.core.data.repository.EffortRanking
 import org.openactivity.core.data.repository.SettingsRepository
 import org.openactivity.core.export.file.ExportFormat
 import org.openactivity.core.export.file.ExportedFile
@@ -44,7 +46,7 @@ import java.time.LocalDate
 import javax.inject.Inject
 
 /**
- * Loads one activity with its streams, extras and personal bests and turns it into [DetailContent].
+ * Loads one activity with its streams, extras and best-effort medals and turns it into [DetailContent].
  * The heavy parts (chart samples, rows) are computed off the main thread whenever the activity, the
  * unit setting or the extras change.
  */
@@ -91,12 +93,15 @@ class ActivityDetailViewModel internal constructor(
 
     private val content: Flow<DetailContent?> = activities.observeActivityDetail(activityId).flatMapLatest { detail ->
         if (detail == null) return@flatMapLatest flowOf(null)
-        val bests = activities.observePersonalBests(setOf(detail.activity.sport))
+        // Medals as of this activity, against the same pool of sports as You, Best efforts.
+        val medals = activities.observeEffortRecords(EffortRanking.poolOf(detail.activity.sport))
+            .map { EffortRanking.medalsOf(it, EffortKind.DISTANCE, activityId) }
+            .distinctUntilChanged()
         combine(
             settings.settings.map { it.units }.distinctUntilChanged(),
             extras.observe(activityId),
-            bests,
-        ) { units, ex, pbs -> buildContent(detail, units, ex, pbs, LocalDate.now(clock)) }
+            medals,
+        ) { units, ex, earned -> buildContent(detail, units, ex, earned, LocalDate.now(clock)) }
     }.flowOn(Dispatchers.Default)
 
     /** Current screen state. */
@@ -206,7 +211,7 @@ class ActivityDetailViewModel internal constructor(
             detail: ActivityDetail,
             units: UnitSystem,
             extras: ActivityExtras,
-            bests: List<PersonalBest>,
+            medals: List<EffortMedal>,
             today: LocalDate,
         ): DetailContent {
             val a = detail.activity
@@ -238,7 +243,7 @@ class ActivityDetailViewModel internal constructor(
                 splits = DetailRows.splits(detail, units),
                 splitUnit = if (units == UnitSystem.METRIC) "Km" else "Mi",
                 laps = DetailRows.laps(detail, units),
-                efforts = DetailRows.efforts(detail, bests, units),
+                efforts = DetailRows.efforts(detail, medals, units),
                 showEfforts = DetailRows.hasEfforts(a.sport),
                 notes = notes,
                 averageSpeedMps = a.averageSpeedMps.takeIf { it > 0.0 },

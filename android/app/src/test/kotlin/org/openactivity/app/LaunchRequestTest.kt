@@ -7,6 +7,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.openactivity.app.notifications.AndroidSystemNotifier
 import org.openactivity.core.recordingservice.notification.RecordingNotifications
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -49,5 +50,15 @@ class LaunchRequestTest {
     fun `invalid activity id is ignored`() {
         val intent = Intent().putExtra(RecordingNotifications.EXTRA_ACTIVITY_ID, 0L)
         assertNull(LaunchRequest.consume(intent))
+    }
+
+    @Test
+    fun `inbox notification opens its entry once, not from recents`() {
+        val intent = Intent().putExtra(AndroidSystemNotifier.EXTRA_INBOX_ID, 7L)
+        assertEquals(LaunchRequest.OpenInboxEntry(7L), LaunchRequest.consume(intent))
+        assertNull(LaunchRequest.consume(intent))
+        val replay = Intent().putExtra(AndroidSystemNotifier.EXTRA_INBOX_ID, 7L).addFlags(Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY)
+        assertNull(LaunchRequest.consume(replay))
+        assertFalse(replay.hasExtra(AndroidSystemNotifier.EXTRA_INBOX_ID))
     }
 }

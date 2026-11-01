@@ -19,6 +19,7 @@ import org.openactivity.model.SportType
 import org.openactivity.model.UnitSystem
 import org.openactivity.model.Visibility
 import java.io.File
+import java.time.DayOfWeek
 import java.util.Locale
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -43,6 +44,8 @@ class SettingsDataSourceTest {
         assertEquals(200.0, settings.privacy.hideEndMeters, 0.0)
         assertTrue(settings.audioCues.enabled)
         assertEquals(1.0, settings.audioCues.distanceInterval, 0.0)
+        assertEquals(DayOfWeek.MONDAY, settings.firstDayOfWeek)
+        assertEquals(NotificationSettings(achievements = true, goals = true, weeklySummary = true), settings.notifications)
     }
 
     @Test
@@ -64,6 +67,8 @@ class SettingsDataSourceTest {
         source.setDefaultSport(SportType.HIKE)
         source.setDefaultVisibility(Visibility.ONLY_ME)
         source.setPrivacy(PrivacySettings(hideStartMeters = 400.0, hideEndMeters = 0.0))
+        source.setFirstDayOfWeek(DayOfWeek.SUNDAY)
+        source.setNotifications(NotificationSettings(achievements = false, goals = true, weeklySummary = false))
 
         val s = source.settings.first()
         assertEquals(UnitSystem.METRIC, s.units)
@@ -75,6 +80,8 @@ class SettingsDataSourceTest {
         assertEquals(SportType.HIKE, s.defaultSport)
         assertEquals(Visibility.ONLY_ME, s.defaultVisibility)
         assertEquals(PrivacySettings(400.0, 0.0), s.privacy)
+        assertEquals(DayOfWeek.SUNDAY, s.firstDayOfWeek)
+        assertEquals(NotificationSettings(achievements = false, goals = true, weeklySummary = false), s.notifications)
     }
 
     @Test

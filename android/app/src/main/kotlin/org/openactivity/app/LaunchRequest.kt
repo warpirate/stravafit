@@ -2,12 +2,14 @@
 package org.openactivity.app
 
 import android.content.Intent
+import org.openactivity.app.notifications.AndroidSystemNotifier
 import org.openactivity.core.recordingservice.notification.RecordingNotifications
 
 /**
  * Where a launch intent asks the app to go, beyond its normal start destination. The recording
  * notifications set these extras: the ongoing and interrupted ones open the recorder, the
- * "Activity saved" one opens the saved activity.
+ * "Activity saved" one opens the saved activity. Inbox notifications (records, goals, the weekly
+ * summary) open their inbox entry's destination.
  */
 sealed interface LaunchRequest {
     /** Open the full-screen recorder. */
@@ -15,6 +17,9 @@ sealed interface LaunchRequest {
 
     /** Open saved activity [id]. */
     data class OpenActivity(val id: Long) : LaunchRequest
+
+    /** Open where inbox entry [id] leads, marking it read. */
+    data class OpenInboxEntry(val id: Long) : LaunchRequest
 
     companion object {
         /**
@@ -28,7 +33,13 @@ sealed interface LaunchRequest {
             if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) {
                 intent.removeExtra(RecordingNotifications.EXTRA_OPEN_RECORDING)
                 intent.removeExtra(RecordingNotifications.EXTRA_ACTIVITY_ID)
+                intent.removeExtra(AndroidSystemNotifier.EXTRA_INBOX_ID)
                 return null
+            }
+            if (intent.hasExtra(AndroidSystemNotifier.EXTRA_INBOX_ID)) {
+                val id = intent.getLongExtra(AndroidSystemNotifier.EXTRA_INBOX_ID, NO_ID)
+                intent.removeExtra(AndroidSystemNotifier.EXTRA_INBOX_ID)
+                return if (id > 0) OpenInboxEntry(id) else null
             }
             if (intent.getBooleanExtra(RecordingNotifications.EXTRA_OPEN_RECORDING, false)) {
                 intent.removeExtra(RecordingNotifications.EXTRA_OPEN_RECORDING)

@@ -56,7 +56,7 @@ data class FeedUiState(
     val message: String? = null,
     /** A recording is in progress: the empty state points to it rather than to a new one. */
     val recordingInProgress: Boolean = false,
-    /** The bell shows an unread dot until it has been opened once. */
+    /** The inbox has unread entries: the bell shows its dot. */
     val hasUnreadNotifications: Boolean = true,
 ) {
     /** True once loaded with nothing to show in the selected scope. */

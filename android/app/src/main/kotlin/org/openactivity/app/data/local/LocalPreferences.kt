@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -42,6 +43,16 @@ class LocalPreferences @Inject constructor(private val dataStore: DataStore<Pref
         )
     }.distinctUntilChanged()
 
+    /**
+     * Id of the newest activity the inbox has looked at for new best efforts, goals and recovered
+     * recordings; null before the inbox ran for the first time.
+     */
+    val inboxWatermark: Flow<Long?> = data.map { it[Keys.INBOX_WATERMARK] }.distinctUntilChanged()
+
+    suspend fun setInboxWatermark(activityId: Long) {
+        dataStore.edit { it[Keys.INBOX_WATERMARK] = activityId }
+    }
+
     suspend fun setReduceMotion(enabled: Boolean) {
         dataStore.edit { it[Keys.REDUCE_MOTION] = enabled }
     }
@@ -69,5 +80,6 @@ class LocalPreferences @Inject constructor(private val dataStore: DataStore<Pref
         val NAME = stringPreferencesKey("profile_name")
         val LOCATION = stringPreferencesKey("profile_location")
         val PHOTO = stringPreferencesKey("profile_photo_path")
+        val INBOX_WATERMARK = longPreferencesKey("inbox_watermark_activity_id")
     }
 }

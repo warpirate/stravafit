@@ -16,6 +16,11 @@ import org.junit.Test
 import org.openactivity.app.format.UnitFormatter
 import org.openactivity.app.model.UserProfile
 import org.openactivity.app.testing.FakeActivityRepository
+import org.openactivity.app.testing.FakeGoalRepository
+import org.openactivity.core.data.model.Goal
+import org.openactivity.core.data.model.GoalMetric
+import org.openactivity.core.data.model.GoalPeriod
+import org.openactivity.core.data.model.WeeklyStreak
 import org.openactivity.app.testing.FakePreferencesRepository
 import org.openactivity.app.testing.FakeProfileRepository
 import org.openactivity.app.testing.MainDispatcherRule
@@ -39,7 +44,9 @@ class MeViewModelTest {
     private val activities = FakeActivityRepository()
     private val profile = FakeProfileRepository(UserProfile(name = "Asha Rao", location = "Pune"))
 
-    private fun viewModel() = MeViewModel(activities, profile, FakePreferencesRepository(), testTimeFormatter(), TEST_CLOCK)
+    private val goals = FakeGoalRepository()
+
+    private fun viewModel() = MeViewModel(activities, profile, FakePreferencesRepository(), testTimeFormatter(), TEST_CLOCK, goals)
 
     private fun TestScope.collect(vm: MeViewModel) {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} }
@@ -144,5 +151,25 @@ class MeViewModelTest {
         assertEquals("7.50 km", ProgressFormat.effortLabel(7_500.0, f))
         assertEquals("3:05", ProgressFormat.effortTime(185.4))
         assertEquals("2:00:01", ProgressFormat.effortTime(7_201.0))
+    }
+
+    @Test
+    fun `goals section shows up to three goals and the streak`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        collect(vm)
+        assertTrue(vm.uiState.value.goals.isEmpty())
+        assertEquals(0, vm.uiState.value.goalCount)
+
+        goals.goals.value = (1L..4L).map { Goal(id = it, sport = SportType.RUN, period = GoalPeriod.WEEK, metric = GoalMetric.DISTANCE, target = it * 10_000.0) }
+        goals.current.value = mapOf(1L to 12_000.0)
+        goals.streak.value = WeeklyStreak(5, activeThisWeek = false)
+        advanceUntilIdle()
+        val state = vm.uiState.value
+        assertEquals(listOf(1L, 2L, 3L), state.goals.map { it.id })
+        assertEquals(4, state.goalCount)
+        assertTrue(state.goals.first().reached)
+        assertEquals("Weekly run goal", state.goals.first().title)
+        assertEquals("5 week streak", state.streak?.title)
+        assertFalse(state.streak!!.activeThisWeek)
     }
 }

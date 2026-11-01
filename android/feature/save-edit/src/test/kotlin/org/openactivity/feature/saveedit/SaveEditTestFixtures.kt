@@ -54,6 +54,10 @@ class FakeSettings(initial: AppSettings = AppSettings(units = UnitSystem.METRIC)
     override suspend fun setDefaultSport(sport: SportType) = Unit
     override suspend fun setDefaultVisibility(visibility: Visibility) = Unit
     override suspend fun setPrivacy(privacy: PrivacySettings) = Unit
+
+    override suspend fun setFirstDayOfWeek(day: java.time.DayOfWeek) = Unit
+
+    override suspend fun setNotifications(notifications: org.openactivity.core.datastore.NotificationSettings) = Unit
 }
 
 /** In-memory extras; added photos point at placeholder files. */

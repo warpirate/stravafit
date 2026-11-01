@@ -14,12 +14,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +29,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.openactivity.core.designsystem.component.MISSING_VALUE
+import org.openactivity.core.designsystem.component.RankMedal
 import org.openactivity.core.designsystem.theme.RidgelineTheme
 import org.openactivity.core.designsystem.theme.Spacing
 import org.openactivity.feature.activitydetail.EffortRow
@@ -119,7 +116,10 @@ internal fun LapsTable(rows: List<LapRow>, speedHeader: String, modifier: Modifi
     }
 }
 
-/** Best efforts achieved in this activity; personal bests carry a trophy. */
+/**
+ * Best efforts achieved in this activity. Medalled ones carry a gold, silver or bronze medal (solid for an
+ * all-time place, outlined for a place within the year) and the place in words.
+ */
 @Composable
 internal fun EffortsList(rows: List<EffortRow>, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
@@ -129,29 +129,30 @@ internal fun EffortsList(rows: List<EffortRow>, modifier: Modifier = Modifier) {
                     .fillMaxWidth()
                     .heightIn(min = 44.dp)
                     .clearAndSetSemantics {
-                        contentDescription = "${row.name}, ${row.result}" + if (row.isPersonalBest) ", personal best" else ""
+                        contentDescription = listOfNotNull(row.name, row.result, row.medalLabel?.let(::spokenMedal)).joinToString(", ")
                     },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
-                    if (row.isPersonalBest) {
-                        Box(
-                            Modifier.size(28.dp).clip(CircleShape).background(RidgelineTheme.colors.medalGold),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(Icons.Rounded.EmojiEvents, null, tint = RidgelineTheme.colors.onSignal, modifier = Modifier.size(16.dp))
-                        }
-                    }
+                    row.rank?.let { RankMedal(it, yearly = row.yearly) }
                 }
                 Text(row.name, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(start = Spacing.m).weight(1f))
-                if (row.isPersonalBest) {
-                    Text("PB", style = MaterialTheme.typography.labelMedium, color = RidgelineTheme.colors.signalText, modifier = Modifier.padding(end = Spacing.s))
+                row.medalLabel?.let { label ->
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (row.isPersonalBest) RidgelineTheme.colors.signalText else RidgelineTheme.colors.textSecondary,
+                        modifier = Modifier.padding(end = Spacing.s),
+                    )
                 }
                 Text(row.result, style = RidgelineTheme.text.statS, color = MaterialTheme.colorScheme.onSurface)
             }
         }
     }
 }
+
+/** "PR" read out in full. */
+internal fun spokenMedal(label: String): String = if (label == "PR") "personal record" else label
 
 @Composable
 private fun TableHeader(unit: String, speed: String, elev: String?, hr: String?) {

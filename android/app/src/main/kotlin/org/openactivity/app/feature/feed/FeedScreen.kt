@@ -73,6 +73,7 @@ fun FeedScreen(
     onRecord: () -> Unit,
     onOpenActivity: (Long) -> Unit,
     onShareActivity: (Long) -> Unit = {},
+    onOpenNotifications: () -> Unit = {},
     viewModel: FeedViewModel = hiltViewModel(),
 ) {
     val feed by viewModel.uiState.collectAsStateWithLifecycle()
@@ -96,10 +97,7 @@ fun FeedScreen(
             onRecord = onRecord,
             onShareActivity = onShareActivity,
             onNotAvailable = messenger::show,
-            onOpenNotifications = {
-                viewModel.notificationsOpened()
-                messenger.show(SERVER_NEEDED)
-            },
+            onOpenNotifications = onOpenNotifications,
         ),
     )
 }
@@ -262,7 +260,7 @@ private fun FeedEmpty(state: FeedUiState, actions: FeedActions) {
     }
 }
 
-/** The bell with the accent unread dot of the mockup until it has been opened. */
+/** The bell, with the accent dot while the inbox has unread entries. */
 @Composable
 private fun NotificationsAction(unread: Boolean, onClick: () -> Unit) {
     Box {

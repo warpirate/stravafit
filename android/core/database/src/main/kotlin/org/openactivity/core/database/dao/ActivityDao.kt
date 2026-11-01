@@ -110,10 +110,10 @@ abstract class ActivityDao {
      */
     @Query(
         "SELECT be.activity_id, be.kind, be.target, be.value, be.start_seconds, a.sport, a.title, " +
-            "a.start_epoch_millis FROM best_efforts be JOIN activities a ON a.id = be.activity_id " +
+            "a.start_epoch_millis, a.time_zone_id FROM best_efforts be JOIN activities a ON a.id = be.activity_id " +
             "WHERE be.kind = :kind AND a.sport IN (:sports) " +
             "ORDER BY be.target, CASE WHEN be.kind = 'DISTANCE' THEN be.value ELSE -be.value END, " +
-            "a.start_epoch_millis",
+            "a.start_epoch_millis, a.id",
     )
     abstract fun observeBestEfforts(kind: String, sports: List<String>): Flow<List<BestEffortWithActivity>>
 }

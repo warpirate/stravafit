@@ -8,6 +8,10 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import org.openactivity.core.data.repository.ActivityRepository
 import org.openactivity.core.data.repository.DataStoreSettingsRepository
+import org.openactivity.core.data.repository.GoalRepository
+import org.openactivity.core.data.repository.LocalGoalRepository
+import org.openactivity.core.data.repository.LocalNotificationRepository
+import org.openactivity.core.data.repository.NotificationRepository
 import org.openactivity.core.data.repository.LocalActivityRepository
 import org.openactivity.core.data.repository.LocalRouteRepository
 import org.openactivity.core.data.repository.RouteRepository
@@ -32,6 +36,12 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun settingsRepository(impl: DataStoreSettingsRepository): SettingsRepository
+
+    @Binds
+    abstract fun goalRepository(impl: LocalGoalRepository): GoalRepository
+
+    @Binds
+    abstract fun notificationRepository(impl: LocalNotificationRepository): NotificationRepository
 
     companion object {
         @Provides
