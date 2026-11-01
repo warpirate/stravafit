@@ -91,6 +91,10 @@ class FakeSettingsRepository(initial: AppSettings = AppSettings()) : SettingsRep
     override suspend fun setDefaultSport(sport: SportType) = Unit
     override suspend fun setDefaultVisibility(visibility: Visibility) { state.value = state.value.copy(defaultVisibility = visibility) }
     override suspend fun setPrivacy(privacy: PrivacySettings) { state.value = state.value.copy(privacy = privacy) }
+
+    override suspend fun setAutoLap(meters: Double) { state.value = state.value.copy(autoLapMeters = meters) }
+
+    override suspend fun setOffRouteAlerts(enabled: Boolean) { state.value = state.value.copy(offRouteAlerts = enabled) }
 }
 
 /** In-memory extras without photo files. */

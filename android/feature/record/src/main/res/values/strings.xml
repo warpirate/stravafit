@@ -75,6 +75,11 @@
     <string name="record_auto_paused_banner">Auto-paused. Recording resumes when you move.</string>
     <string name="record_gps_lost_banner">GPS signal lost. Time is still recording.</string>
     <string name="record_banner_close">Close</string>
+    <string name="record_off_route_banner">Off route. The route is %1$s away.</string>
+    <string name="record_route_completed_banner">Route completed</string>
+    <string name="record_route_remaining">%1$s to go</string>
+    <string name="record_route_remaining_time">%1$s to go · about %2$s</string>
+    <string name="record_route_join">Head to the route to start following it</string>
     <string name="record_recovered_banner">Recovered after the app was closed. The gap adds no distance.</string>
 
     <!-- Finish -->

@@ -113,6 +113,11 @@ public class RouteFollower(
     public var state: RouteFollowerState = initial
         private set
 
+    /** Drops a running off-route timer (after replaying fixes taken on another clock); an active alert stays. */
+    public fun resetOffRouteTimer() {
+        state = state.copy(farSinceNanos = null)
+    }
+
     /** Progress as of the last fix. */
     public val progress: RouteProgress get() = progressOf(state)
 

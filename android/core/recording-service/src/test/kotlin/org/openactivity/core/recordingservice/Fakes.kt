@@ -116,4 +116,8 @@ internal class InMemorySettingsRepository(initial: AppSettings = AppSettings()) 
         settings.update { it.copy(defaultVisibility = visibility) }
 
     override suspend fun setPrivacy(privacy: PrivacySettings) = settings.update { it.copy(privacy = privacy) }
+
+    override suspend fun setAutoLap(meters: Double) = settings.update { it.copy(autoLapMeters = meters) }
+
+    override suspend fun setOffRouteAlerts(enabled: Boolean) = settings.update { it.copy(offRouteAlerts = enabled) }
 }

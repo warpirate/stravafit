@@ -47,7 +47,10 @@ import org.openactivity.core.designsystem.theme.Spacing
 import org.openactivity.model.SportType
 import org.openactivity.model.UnitSystem
 import org.openactivity.model.Visibility
+import org.openactivity.core.datastore.AutoLapChoice
 import java.text.NumberFormat
+import kotlin.math.abs
+import kotlin.math.roundToLong
 import java.util.Locale
 
 /** Settings screen, connected to [SettingsViewModel]. */
@@ -84,6 +87,14 @@ fun SettingsScreen(
             onAudioCues = viewModel::setAudioCuesEnabled,
             onCueInterval = viewModel::setCueInterval,
             onAnnounceAutoPause = viewModel::setAnnounceAutoPause,
+            onAnnounceStatus = viewModel::setAnnounceStatus,
+            onAnnounceSplits = viewModel::setAnnounceSplits,
+            onAnnounceLaps = viewModel::setAnnounceLaps,
+            onAnnounceRoute = viewModel::setAnnounceRoute,
+            onDistanceCues = viewModel::setDistanceCues,
+            onCueTimeInterval = viewModel::setCueTimeInterval,
+            onAutoLap = viewModel::setAutoLap,
+            onOffRouteAlerts = viewModel::setOffRouteAlerts,
             onVisibility = viewModel::setDefaultVisibility,
             onHideStart = viewModel::setHideStart,
             onHideEnd = viewModel::setHideEnd,
@@ -107,6 +118,14 @@ data class SettingsActions(
     val onAudioCues: (Boolean) -> Unit = {},
     val onCueInterval: (Double) -> Unit = {},
     val onAnnounceAutoPause: (Boolean) -> Unit = {},
+    val onAnnounceStatus: (Boolean) -> Unit = {},
+    val onAnnounceSplits: (Boolean) -> Unit = {},
+    val onAnnounceLaps: (Boolean) -> Unit = {},
+    val onAnnounceRoute: (Boolean) -> Unit = {},
+    val onDistanceCues: (Boolean) -> Unit = {},
+    val onCueTimeInterval: (Int) -> Unit = {},
+    val onAutoLap: (Double) -> Unit = {},
+    val onOffRouteAlerts: (Boolean) -> Unit = {},
     val onVisibility: (Visibility) -> Unit = {},
     val onHideStart: (Double) -> Unit = {},
     val onHideEnd: (Double) -> Unit = {},
@@ -227,25 +246,76 @@ private fun RecordingSettings(state: SettingsUiState, actions: SettingsActions) 
         SettingsUiState.AUTO_PAUSE_SPORTS.forEach { sport ->
             SwitchRow(sport.label, null, settings.autoPauseEnabled(sport), { actions.onAutoPause(sport, it) })
         }
+        RowDivider()
+        ChipChoiceRow(
+            title = "Auto-lap",
+            subtitle = "Close a lap every set distance",
+            // A distance stored by an older choice stays selectable rather than silently showing Off.
+            options = (SettingsUiState.AUTO_LAP_METERS + settings.autoLapMeters).distinct(),
+            selected = settings.autoLapMeters,
+            label = { autoLapLabel(it, settings.units) },
+            onSelect = actions.onAutoLap,
+        )
+        RowDivider()
+        SwitchRow(
+            "Off-route alerts",
+            "Vibrate and say when you leave a route you are following",
+            settings.offRouteAlerts,
+            actions.onOffRouteAlerts,
+        )
     }
 
     OverlineHeader("Audio cues")
     SettingsGroup {
         val cues = settings.audioCues
-        SwitchRow("Spoken updates", "Distance, time and pace read out while recording", cues.enabled, actions.onAudioCues)
+        val on = cues.enabled
+        SwitchRow("Spoken updates", "Read out progress while recording", on, actions.onAudioCues)
+        RowDivider()
+        SwitchRow("Splits", "Each $unit with your split pace", cues.announceSplits, actions.onAnnounceSplits, enabled = on)
+        SwitchRow("Laps", "Each lap with its time and pace", cues.announceLaps, actions.onAnnounceLaps, enabled = on)
+        SwitchRow("Start, pause and finish", "Say when the activity starts, pauses, resumes and saves", cues.announceStatus, actions.onAnnounceStatus, enabled = on)
+        SwitchRow("Announce auto-pause", "Say when the timer stops and restarts", cues.announceAutoPause, actions.onAnnounceAutoPause, enabled = on)
+        SwitchRow("Route", "Off route, back on route and route finished", cues.announceRoute, actions.onAnnounceRoute, enabled = on)
+        RowDivider()
+        SwitchRow("Custom distance", "Distance, time and pace at your own interval", cues.distanceCues, actions.onDistanceCues, enabled = on)
+        if (cues.distanceCues) {
+            ChipChoiceRow(
+                title = "Announce every",
+                subtitle = null,
+                options = SettingsUiState.CUE_INTERVALS,
+                selected = cues.distanceInterval,
+                label = { "${NumberFormat.getNumberInstance().format(it)} $unit" },
+                onSelect = actions.onCueInterval,
+            )
+        }
         RowDivider()
         ChipChoiceRow(
-            title = "Announce every",
-            subtitle = null,
-            options = SettingsUiState.CUE_INTERVALS,
-            selected = cues.distanceInterval,
-            label = { "${NumberFormat.getNumberInstance().format(it)} $unit" },
-            onSelect = actions.onCueInterval,
+            title = "Time readout",
+            subtitle = "Time, distance and average pace every few minutes",
+            options = SettingsUiState.CUE_TIME_INTERVALS,
+            selected = cues.timeIntervalMinutes,
+            label = { if (it == 0) "Off" else "$it min" },
+            onSelect = actions.onCueTimeInterval,
         )
-        RowDivider()
-        SwitchRow("Announce auto-pause", "Say when the timer stops and restarts", cues.announceAutoPause, actions.onAnnounceAutoPause, enabled = cues.enabled)
     }
 }
+
+/** "Off", "400 m", "1 km", "1 mi": whole miles or kilometres by name, other distances in metres or miles. */
+internal fun autoLapLabel(meters: Double, units: UnitSystem): String {
+    if (meters <= 0.0) return "Off"
+    val format = NumberFormat.getNumberInstance().apply { maximumFractionDigits = 2 }
+    val km = meters / AutoLapChoice.KILOMETER_METERS
+    val mi = meters / AutoLapChoice.MILE_METERS
+    fun whole(x: Double) = abs(x - x.roundToLong()) < WHOLE_TOLERANCE
+    return when {
+        whole(km) -> "${format.format(km.roundToLong())} km"
+        whole(mi) -> "${format.format(mi.roundToLong())} mi"
+        units == UnitSystem.IMPERIAL -> "${format.format(mi)} mi"
+        else -> "${format.format(meters)} m"
+    }
+}
+
+private const val WHOLE_TOLERANCE = 1e-3
 
 @Composable
 private fun PrivacySettingsSection(state: SettingsUiState, actions: SettingsActions, formatter: UnitFormatter) {

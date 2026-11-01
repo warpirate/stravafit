@@ -54,6 +54,10 @@ class FakeSettings(initial: AppSettings = AppSettings(units = UnitSystem.METRIC)
     override suspend fun setDefaultSport(sport: SportType) = Unit
     override suspend fun setDefaultVisibility(visibility: Visibility) = Unit
     override suspend fun setPrivacy(privacy: PrivacySettings) = Unit
+
+    override suspend fun setAutoLap(meters: Double) = Unit
+
+    override suspend fun setOffRouteAlerts(enabled: Boolean) = Unit
 }
 
 /** In-memory extras; added photos point at placeholder files. */

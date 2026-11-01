@@ -12,11 +12,14 @@ import org.openactivity.core.location.GpsState
 import org.openactivity.core.location.GpsStatus
 import org.openactivity.core.map.MapLocation
 import org.openactivity.core.recordingservice.RecordingUiSnapshot
+import org.openactivity.core.recordingservice.RouteSnapshot
+import org.openactivity.feature.record.format.RecordFormat
 import org.openactivity.feature.record.data.PaceMode
 import org.openactivity.feature.record.format.LiveMetrics
 import org.openactivity.feature.record.location.PreStartFix
 import org.openactivity.model.LatLng
 import org.openactivity.model.SportType
+import org.openactivity.model.UnitSystem
 
 /** A pre-start fix plus whether the slow-fix hint is due. */
 internal data class GpsReading(val fix: PreStartFix, val slowFixHint: Boolean) {
@@ -100,6 +103,19 @@ internal object RecordingMapping {
             gpsLost = sport.usesGps && snapshot.track.isNotEmpty() && !snapshot.gpsStatus.hasFix,
             recovered = snapshot.recoveredAfterInterruption,
             mockLocation = snapshot.isMockLocation,
+            route = snapshot.route?.let { route(it, snapshot.units) },
+        )
+    }
+
+    private fun route(route: RouteSnapshot, units: UnitSystem): RouteFollowUi {
+        val p = route.progress
+        return RouteFollowUi(
+            remaining = "${RecordFormat.distance(p.remainingMeters, units)} ${RecordFormat.distanceUnit(units)}",
+            remainingTime = route.remainingTime?.let(RecordFormat::duration),
+            offRouteBy = if (p.offRoute) RecordFormat.shortDistance(p.distanceToRouteMeters ?: 0.0, units) else null,
+            fraction = p.fraction.toFloat(),
+            joined = p.joined,
+            completed = p.completed,
         )
     }
 }

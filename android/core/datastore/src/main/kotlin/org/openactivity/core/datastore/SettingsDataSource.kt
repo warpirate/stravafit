@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import kotlinx.coroutines.flow.Flow
@@ -54,7 +55,18 @@ class SettingsDataSource(
         it[Keys.AUDIO_ENABLED] = cues.enabled
         it[Keys.AUDIO_INTERVAL] = cues.distanceInterval
         it[Keys.AUDIO_AUTO_PAUSE] = cues.announceAutoPause
+        it[Keys.AUDIO_STATUS] = cues.announceStatus
+        it[Keys.AUDIO_SPLITS] = cues.announceSplits
+        it[Keys.AUDIO_LAPS] = cues.announceLaps
+        it[Keys.AUDIO_ROUTE] = cues.announceRoute
+        it[Keys.AUDIO_DISTANCE] = cues.distanceCues
+        it[Keys.AUDIO_TIME_MINUTES] = cues.timeIntervalMinutes
     }
+
+    /** Distance auto-lap every [meters]; 0 turns it off. */
+    suspend fun setAutoLap(meters: Double) = edit { it[Keys.AUTO_LAP_METERS] = meters.coerceAtLeast(0.0) }
+
+    suspend fun setOffRouteAlerts(enabled: Boolean) = edit { it[Keys.OFF_ROUTE_ALERTS] = enabled }
 
     suspend fun setDefaultSport(sport: SportType) = edit { it[Keys.DEFAULT_SPORT] = sport.name }
 
@@ -86,6 +98,15 @@ class SettingsDataSource(
                 distanceInterval = prefs[Keys.AUDIO_INTERVAL]?.takeIf { it > 0.0 && it.isFinite() }
                     ?: audioDefaults.distanceInterval,
                 announceAutoPause = prefs[Keys.AUDIO_AUTO_PAUSE] ?: audioDefaults.announceAutoPause,
+                announceStatus = prefs[Keys.AUDIO_STATUS] ?: audioDefaults.announceStatus,
+                announceSplits = prefs[Keys.AUDIO_SPLITS] ?: audioDefaults.announceSplits,
+                announceLaps = prefs[Keys.AUDIO_LAPS] ?: audioDefaults.announceLaps,
+                announceRoute = prefs[Keys.AUDIO_ROUTE] ?: audioDefaults.announceRoute,
+                // Before per-cue toggles, a custom interval was the only cue; keep it on for those who set one.
+                distanceCues = prefs[Keys.AUDIO_DISTANCE]
+                    ?: prefs[Keys.AUDIO_INTERVAL]?.let { it != audioDefaults.distanceInterval }
+                    ?: audioDefaults.distanceCues,
+                timeIntervalMinutes = prefs[Keys.AUDIO_TIME_MINUTES]?.takeIf { it >= 0 } ?: audioDefaults.timeIntervalMinutes,
             ),
             defaultSport = prefs[Keys.DEFAULT_SPORT].toEnum<SportType>() ?: defaults.defaultSport,
             defaultVisibility = prefs[Keys.DEFAULT_VISIBILITY].toEnum<Visibility>() ?: defaults.defaultVisibility,
@@ -93,6 +114,8 @@ class SettingsDataSource(
                 hideStartMeters = prefs[Keys.HIDE_START]?.takeIf { it >= 0.0 } ?: privacyDefaults.hideStartMeters,
                 hideEndMeters = prefs[Keys.HIDE_END]?.takeIf { it >= 0.0 } ?: privacyDefaults.hideEndMeters,
             ),
+            autoLapMeters = prefs[Keys.AUTO_LAP_METERS]?.takeIf { it >= 0.0 && it.isFinite() } ?: defaults.autoLapMeters,
+            offRouteAlerts = prefs[Keys.OFF_ROUTE_ALERTS] ?: defaults.offRouteAlerts,
         )
     }
 
@@ -106,6 +129,14 @@ class SettingsDataSource(
         val AUDIO_ENABLED = booleanPreferencesKey("audio_cues_enabled")
         val AUDIO_INTERVAL = doublePreferencesKey("audio_cues_interval")
         val AUDIO_AUTO_PAUSE = booleanPreferencesKey("audio_cues_auto_pause")
+        val AUDIO_STATUS = booleanPreferencesKey("audio_cues_status")
+        val AUDIO_SPLITS = booleanPreferencesKey("audio_cues_splits")
+        val AUDIO_LAPS = booleanPreferencesKey("audio_cues_laps")
+        val AUDIO_ROUTE = booleanPreferencesKey("audio_cues_route")
+        val AUDIO_DISTANCE = booleanPreferencesKey("audio_cues_distance")
+        val AUDIO_TIME_MINUTES = intPreferencesKey("audio_cues_time_minutes")
+        val AUTO_LAP_METERS = doublePreferencesKey("auto_lap_m")
+        val OFF_ROUTE_ALERTS = booleanPreferencesKey("off_route_alerts")
         val DEFAULT_SPORT = stringPreferencesKey("default_sport")
         val DEFAULT_VISIBILITY = stringPreferencesKey("default_visibility")
         val HIDE_START = doublePreferencesKey("privacy_hide_start_m")

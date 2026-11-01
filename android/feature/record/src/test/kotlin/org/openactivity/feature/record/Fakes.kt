@@ -138,6 +138,10 @@ class FakeSettingsRepository(initial: AppSettings = AppSettings()) : SettingsRep
     override suspend fun setDefaultVisibility(visibility: Visibility) = state.update { it.copy(defaultVisibility = visibility) }
 
     override suspend fun setPrivacy(privacy: PrivacySettings) = state.update { it.copy(privacy = privacy) }
+
+    override suspend fun setAutoLap(meters: Double) = state.update { it.copy(autoLapMeters = meters) }
+
+    override suspend fun setOffRouteAlerts(enabled: Boolean) = state.update { it.copy(offRouteAlerts = enabled) }
 }
 
 /** In-memory [RecordPreferencesRepository]. */

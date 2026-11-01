@@ -32,6 +32,12 @@ interface SettingsRepository {
     suspend fun setDefaultVisibility(visibility: Visibility)
 
     suspend fun setPrivacy(privacy: PrivacySettings)
+
+    /** Distance auto-lap every [meters]; 0 turns it off. */
+    suspend fun setAutoLap(meters: Double)
+
+    /** Banner, buzz and spoken alert when leaving a followed route. */
+    suspend fun setOffRouteAlerts(enabled: Boolean)
 }
 
 /** [SettingsRepository] over DataStore. */
@@ -54,4 +60,8 @@ class DataStoreSettingsRepository @Inject constructor(
     override suspend fun setDefaultVisibility(visibility: Visibility) = source.setDefaultVisibility(visibility)
 
     override suspend fun setPrivacy(privacy: PrivacySettings) = source.setPrivacy(privacy)
+
+    override suspend fun setAutoLap(meters: Double) = source.setAutoLap(meters)
+
+    override suspend fun setOffRouteAlerts(enabled: Boolean) = source.setOffRouteAlerts(enabled)
 }
