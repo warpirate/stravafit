@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <!-- One widget, resizable 1x1 to 4x2; Glance picks the layout for the size (SizeMode.Responsive).
+     updatePeriodMillis: a 30 min system refresh (the minimum) so Done expires even when the app is not running.
      No configure activity yet: the settings screen comes in v0.4 (widgets-spec.md, Customization). -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/widget_description"
@@ -14,5 +15,5 @@
     android:targetCellWidth="4"
     android:targetCellHeight="1"
     android:resizeMode="horizontal|vertical"
-    android:updatePeriodMillis="0"
+    android:updatePeriodMillis="1800000"
     android:widgetCategory="home_screen" />
