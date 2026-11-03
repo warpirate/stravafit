@@ -69,7 +69,8 @@ jobs:
 
       - name: Lint database schema
         if: steps.project.outputs.present == 'true'
-        run: supabase --workdir "$SUPABASE_WORKDIR" db lint --level warning --fail-on error
+        # Only our schemas: PostGIS's own functions in `extensions` fail plpgsql_check.
+        run: supabase --workdir "$SUPABASE_WORKDIR" db lint --schema public,private --level warning --fail-on error
 
       - name: Stop local Supabase stack
         if: always() && steps.project.outputs.present == 'true'

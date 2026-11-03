@@ -32,7 +32,8 @@ select results_eq(
   $$values (400, false, 'followers'::public.activity_visibility)$$,
   'minors cannot weaken their privacy defaults');
 select throws_ok(
-  $$update public.profile_settings set birthday = date '1990-01-01'$$,
+  $$update public.profile_settings set birthday = date '1990-01-01'
+     where user_id = (select id from ids where k = 'teen')$$,
   '23514', null, 'users cannot rewrite a birthday once set');
 
 insert into public.activities (owner_id, client_uuid, name, sport_type, start_time, elapsed_s,
@@ -49,10 +50,12 @@ select tests.authenticate_as((select id from ids where k = 'later'));
 select is((select default_hide_start_m from public.profile_settings), 400,
   'no birthday yet: minor defaults apply');
 select throws_ok(
-  $$update public.profile_settings set birthday = (current_date - interval '10 years')::date$$,
+  $$update public.profile_settings set birthday = (current_date - interval '10 years')::date
+     where user_id = (select id from ids where k = 'later')$$,
   '23514', null, 'setting an under-age birthday later is rejected');
 select lives_ok(
-  $$update public.profile_settings set birthday = date '1995-05-05', default_hide_start_m = 200$$,
+  $$update public.profile_settings set birthday = date '1995-05-05', default_hide_start_m = 200
+     where user_id = (select id from ids where k = 'later')$$,
   'an adult birthday can be set once');
 select is((select default_hide_start_m from public.profile_settings), 200,
   'adults may lower their trimming');
@@ -65,7 +68,8 @@ values ((select id from ids where k = 'adult'), gen_random_uuid(), 'No consent',
 select results_eq($$select avg_hr, max_hr from public.activities$$,
   $$values (null::real, null::smallint)$$, 'heart rate is dropped without health-data consent');
 
-update public.profile_settings set health_data_consent = true;
+update public.profile_settings set health_data_consent = true
+ where user_id = (select id from ids where k = 'adult');
 select is((select count(*)::int from public.consent_records where kind = 'health_data' and granted), 1,
   'granting consent is recorded');
 select is((select count(*)::int from public.consent_records), 3,

@@ -39,6 +39,15 @@ backend/
 | `…1100_social_rpcs` | `follow_user`, `unfollow_user`, `respond_follow_request`, `remove_follower`, `mark_notifications_read` |
 | `…1200_storage` | buckets and object policies |
 | `…1300_realtime_and_guards` | realtime publication, and a check that fails the migration if any table lacks RLS |
+| `20261103…0100`, `…0110` | open follows by default (private profile = requests), sign-up hardening, `is_handle_available` |
+| `…0200`–`…0220` | device sync: `upsert_activity_from_device`, streams registration and fail-closed invalidation, `activity_photos`, hidden places by client id |
+| `…0300` | groups: invite tokens, roles, weekly leaderboard, challenges |
+| `…0400` | live location sessions (Beacon) |
+| `…0500` | people search, follower lists, follow requests, notifications inbox |
+
+The client contract (calls, payloads, storage paths, errors, limits) is in [`API.md`](API.md). Edge
+Functions live in `supabase/functions/` (`live`, `join`); their web pages are mirrored in `web/` for GitHub
+Pages because the hosted supabase.co domain does not serve HTML.
 
 ## Privacy model
 
@@ -102,7 +111,7 @@ Queues use **pgmq** when the extension is installed (Supabase has it). Otherwise
 ## Not in v0
 
 These are deferred, and no table or column pretends otherwise:
-- segments, leaderboards, routes, clubs, challenges and messaging;
+- segments, segment leaderboards, routes and messaging (groups with weekly leaderboards and challenges exist since 20261103…0300);
 - the moderation case/strike model beyond `reports`;
 - push fan-out (Edge Function or worker) and the worker itself;
 - account export and deletion jobs;
