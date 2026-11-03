@@ -17,11 +17,13 @@ data class MapOverlays(
     val liveTrack: List<LatLng> = emptyList(),
     val plannedRoute: List<LatLng> = emptyList(),
     val activityRoute: ActivityRouteOverlay? = null,
+    /** Other routes to choose from, drawn muted under everything else (suggested loops beside the selected one). */
+    val alternateRoutes: List<List<LatLng>> = emptyList(),
     /** Mark the start of [liveTrack] with the green start marker. */
     val showLiveStart: Boolean = true,
 ) {
     /** Every point on the map, for fitting the camera to all overlays at once. */
-    val allPoints: List<LatLng> get() = plannedRoute + (activityRoute?.points ?: emptyList()) + liveTrack
+    val allPoints: List<LatLng> get() = plannedRoute + (activityRoute?.points ?: emptyList()) + liveTrack + alternateRoutes.flatten()
 
     companion object {
         /** Nothing drawn. */
@@ -76,6 +78,8 @@ data class MapPalette(
     @ColorInt val finish: Int = 0xFF242428.toInt(),
     /** Ring around the markers (white on any base map). */
     @ColorInt val markerRing: Int = 0xFFFFFFFF.toInt(),
+    /** Routes not selected yet (strava: grey-blue under the orange one). */
+    @ColorInt val alternateRoute: Int = 0xFF5A6B85.toInt(),
 ) {
     init {
         require(paceRamp.size >= 2) { "pace ramp needs at least two colours" }

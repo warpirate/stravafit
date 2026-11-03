@@ -51,6 +51,7 @@ data class ProfileSample(val distanceMeters: Double, val elevationMeters: Double
  * @property elevationGainMeters null when the elevation service could not be reached.
  * @property profile elevation samples along the route; empty without elevation.
  * @property bearingDegrees direction from the start towards the middle of the loop.
+ * @property surface paved and unpaved share from OpenStreetMap; null until looked up or when it could not be.
  */
 @Serializable
 data class RouteSuggestion(
@@ -66,6 +67,7 @@ data class RouteSuggestion(
     val startLatitude: Double,
     val startLongitude: Double,
     val bearingDegrees: Double,
+    val surface: SurfaceMix? = null,
 ) {
     /** The decoded geometry. */
     val points: List<LatLng> by lazy { PolylineCodec.decode(polyline, POLYLINE_PRECISION) }

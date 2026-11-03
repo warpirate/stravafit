@@ -25,9 +25,9 @@ class OverlayPlannerTest {
     @Test
     fun emptyOverlaysStillDeclareEverySourceAndLayer() {
         val plan = OverlayPlanner.plan(MapOverlays.Empty, palette)
-        assertEquals(5, plan.sources.size)
+        assertEquals(6, plan.sources.size)
         assertTrue(plan.sources.all { it.geoJson == GeoJson.EMPTY })
-        assertEquals(10, plan.layers.size)
+        assertEquals(12, plan.layers.size)
         assertEquals("layer ids are unique", plan.layers.size, plan.layers.map { it.id }.toSet().size)
         val sourceIds = plan.sources.map { it.id }.toSet()
         assertTrue("every layer has a source", plan.layers.all { it.sourceId in sourceIds })
@@ -37,6 +37,7 @@ class OverlayPlannerTest {
     fun drawOrderIsPlannedThenActivityThenLiveThenMarkers() {
         val ids = OverlayPlanner.plan(MapOverlays.Empty, palette).layers.map { it.id }
         fun at(id: String) = ids.indexOf(id)
+        assertTrue("alternates sit under everything", at(OverlayIds.ALTERNATE_LINE) < at(OverlayIds.PLANNED_CASING))
         assertTrue(at(OverlayIds.PLANNED_LINE) < at(OverlayIds.ACTIVITY_CASING))
         assertTrue(at(OverlayIds.ACTIVITY_GRADIENT_LINE) < at(OverlayIds.LIVE_CASING))
         assertTrue(at(OverlayIds.LIVE_LINE) < at(OverlayIds.START_MARKER))
@@ -125,6 +126,16 @@ class OverlayPlannerTest {
     @Test(expected = IllegalArgumentException::class)
     fun speedsMustMatchPoints() {
         ActivityRouteOverlay(track, speedsMetersPerSecond = listOf(1.0))
+    }
+
+    @Test
+    fun alternateRoutesBecomeOneFeatureEachInTheirOwnSource() {
+        val other = listOf(LatLng(18.53, 73.82), LatLng(18.54, 73.83))
+        val plan = OverlayPlanner.plan(MapOverlays(alternateRoutes = listOf(track, other, listOf(track.first()))), palette)
+        val json = plan.source(OverlayIds.ALTERNATE_SOURCE).geoJson
+        assertEquals("the one-point line is left out", 2, Regex("LineString").findAll(json).count())
+        assertEquals(palette.alternateRoute, plan.line(OverlayIds.ALTERNATE_LINE).color)
+        assertEquals(GeoJson.EMPTY, plan.source(OverlayIds.ACTIVITY_SOURCE).geoJson)
     }
 
     private fun OverlayPlan.source(id: String) = sources.single { it.id == id }

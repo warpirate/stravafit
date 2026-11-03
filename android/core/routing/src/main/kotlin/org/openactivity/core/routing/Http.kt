@@ -13,9 +13,12 @@ import java.net.URL
 /** An HTTP response: status [code] and the body as text (also for error statuses). */
 data class HttpResponse(val code: Int, val body: String)
 
-/** Plain GET requests. Network failures throw [IOException]; any status is returned. */
+/** Plain GET requests (and form POSTs). Network failures throw [IOException]; any status is returned. */
 fun interface HttpTransport {
     suspend fun get(url: String): HttpResponse
+
+    /** POSTs [form] (already URL-encoded) to [url]; for requests too long for a URL. */
+    suspend fun postForm(url: String, form: String): HttpResponse = throw IOException("POST is not supported")
 }
 
 /**
@@ -28,14 +31,23 @@ class UrlConnectionTransport(
     private val connectTimeoutMillis: Int = 10_000,
     private val readTimeoutMillis: Int = 20_000,
 ) : HttpTransport {
-    override suspend fun get(url: String): HttpResponse = runInterruptible(Dispatchers.IO) {
+    override suspend fun get(url: String): HttpResponse = request(url, form = null)
+
+    override suspend fun postForm(url: String, form: String): HttpResponse = request(url, form)
+
+    private suspend fun request(url: String, form: String?): HttpResponse = runInterruptible(Dispatchers.IO) {
         val connection = URL(url).openConnection() as HttpURLConnection
         try {
-            connection.requestMethod = "GET"
+            connection.requestMethod = if (form == null) "GET" else "POST"
             connection.connectTimeout = connectTimeoutMillis
             connection.readTimeout = readTimeoutMillis
             connection.setRequestProperty("User-Agent", userAgent)
             connection.setRequestProperty("Accept", "application/json")
+            if (form != null) {
+                connection.doOutput = true
+                connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
+                connection.outputStream.use { it.write(form.toByteArray(Charsets.UTF_8)) }
+            }
             val code = connection.responseCode
             val stream = if (code in 200..299) connection.inputStream else connection.errorStream
             val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()

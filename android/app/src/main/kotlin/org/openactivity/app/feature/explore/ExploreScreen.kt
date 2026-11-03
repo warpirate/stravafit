@@ -38,13 +38,14 @@ import org.openactivity.app.feature.suggest.IntroCard
 import org.openactivity.app.feature.suggest.RefreshButton
 import org.openactivity.app.feature.suggest.RouteSuggestionsViewModel
 import org.openactivity.app.feature.suggest.SuggestionActions
+import org.openactivity.app.feature.suggest.SuggestionCardUi
+import org.openactivity.app.feature.suggest.SuggestionFilterRow
+import org.openactivity.app.feature.suggest.SuggestionPager
 import org.openactivity.app.feature.suggest.SuggestionsBody
 import org.openactivity.app.feature.suggest.SuggestionsStatus
 import org.openactivity.app.feature.suggest.SuggestionsUiState
 import org.openactivity.app.feature.suggest.rememberSuggestionActions
 import org.openactivity.app.feature.suggest.subtitle
-import org.openactivity.core.designsystem.component.RidgelineFilterChip
-import org.openactivity.core.routing.SuggestionSport
 import org.openactivity.core.designsystem.component.StatValue
 import org.openactivity.core.designsystem.theme.Elevation
 import org.openactivity.core.designsystem.theme.PillShape
@@ -59,7 +60,11 @@ import org.openactivity.core.map.compose.rememberMapState
 import org.openactivity.core.map.overlay.ActivityRouteOverlay
 import org.openactivity.core.map.overlay.MapOverlays
 import org.openactivity.core.map.style.MapStyleKind
+import org.openactivity.geo.PlanarGeometry
+import org.openactivity.model.LatLng
 import org.openactivity.model.SportType
+import kotlin.math.cos
+import kotlin.math.pow
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -161,11 +166,29 @@ fun ExploreContent(
     var styleKind by rememberSaveable { mutableStateOf<MapStyleKind?>(null) }
     var tilted by rememberSaveable { mutableStateOf(false) }
     var sportFilter by rememberSaveable { mutableStateOf<SportType?>(null) }
+    // The map shows the suggestions (strava) until a saved route is picked; swiping a card goes back to them.
+    var showSaved by rememberSaveable { mutableStateOf(false) }
+    var suggestionId by rememberSaveable { mutableStateOf<String?>(null) }
     val mapState = rememberMapState()
     val routes = state.routes
         .filter { sportFilter == null || it.sport == sportFilter }
         .filter { query.isBlank() || it.name.contains(query.trim(), ignoreCase = true) }
     val selected = state.selectedRoute?.takeIf { it in routes } ?: routes.firstOrNull()
+    val cards = suggestions.cards
+    val suggestion = cards.firstOrNull { it.id == suggestionId } ?: cards.firstOrNull()
+    val onMap = if (!showSaved && suggestion != null) {
+        OnMap(suggestion.points, "s:${suggestion.id}", cards.filter { it.id != suggestion.id }.map { it.points })
+    } else {
+        OnMap(selected?.points.orEmpty(), selected?.id, emptyList())
+    }
+    val selectSuggestion: (String) -> Unit = { suggestionId = it; showSaved = false }
+    val sheetActions = actions.copy(onShowOnMap = { showSaved = true; actions.onShowOnMap(it) })
+    val carousel: @Composable () -> Unit = {
+        SuggestionPager(cards, suggestion?.id, onSelect = selectSuggestion, onOpen = suggestionActions.onOpen)
+    }
+    val onMapClick: (LatLng) -> Unit = { tap ->
+        nearestCard(cards, tap, mapState.camera?.zoom)?.let(selectSuggestion)
+    }
     val dark = isMapThemeDark()
     // Landscape: the routes sit in a side panel so the map keeps the full height (a bottom sheet hid it).
     BoxWithConstraints(modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
@@ -173,23 +196,46 @@ fun ExploreContent(
         val sheetMax = maxHeight * SHEET_MAX_FRACTION
         if (landscape) {
             Row(Modifier.fillMaxSize()) {
-                ExploreMap(state, routes, selected, actions, mapState, query, { query = it }, styleKind, { styleKind = it }, tilted, { tilted = !tilted }, sportFilter, { sportFilter = it }, dark, Modifier.weight(1f).fillMaxHeight())
-                RoutesSheet(routes, selected, state, actions, suggestions, suggestionActions, Modifier.width(SIDE_PANEL_WIDTH).fillMaxHeight(), side = true)
+                ExploreMap(state, onMap, onMapClick, actions, mapState, query, { query = it }, styleKind, { styleKind = it }, tilted, { tilted = !tilted }, sportFilter, { sportFilter = it }, dark, Modifier.weight(1f).fillMaxHeight())
+                RoutesSheet(routes, selected.takeIf { showSaved }, state, sheetActions, suggestions, suggestionActions, carousel, Modifier.width(SIDE_PANEL_WIDTH).fillMaxHeight(), side = true)
             }
         } else {
             Column(Modifier.fillMaxSize()) {
-                ExploreMap(state, routes, selected, actions, mapState, query, { query = it }, styleKind, { styleKind = it }, tilted, { tilted = !tilted }, sportFilter, { sportFilter = it }, dark, Modifier.weight(1f).fillMaxWidth())
-                RoutesSheet(routes, selected, state, actions, suggestions, suggestionActions, Modifier.heightIn(max = sheetMax))
+                ExploreMap(state, onMap, onMapClick, actions, mapState, query, { query = it }, styleKind, { styleKind = it }, tilted, { tilted = !tilted }, sportFilter, { sportFilter = it }, dark, Modifier.weight(1f).fillMaxWidth())
+                RoutesSheet(routes, selected.takeIf { showSaved }, state, sheetActions, suggestions, suggestionActions, carousel, Modifier.heightIn(max = sheetMax))
             }
         }
     }
 }
 
+/**
+ * What the map draws: the [highlight] route in orange (refitted when [key] changes) over the muted
+ * [alternates] (strava: the other suggestions).
+ */
+private data class OnMap(val highlight: List<LatLng>, val key: Any?, val alternates: List<List<LatLng>>)
+
+/** The suggestion whose line is within a finger's width of [tap] at [zoom], nearest first. */
+private fun nearestCard(cards: List<SuggestionCardUi>, tap: LatLng, zoom: Double?): String? {
+    if (zoom == null) return null
+    // A 512-dp world at zoom 0: metres per dp at this latitude and zoom.
+    val metersPerDp = EARTH_CIRCUMFERENCE_M * cos(Math.toRadians(tap.latitude)) / (TILE_DP * 2.0.pow(zoom))
+    val reach = TAP_REACH_DP * metersPerDp
+    return cards
+        .map { card -> card.id to card.points.zipWithNext().minOfOrNull { (a, b) -> PlanarGeometry.pointToSegmentDistance(tap, a, b) } }
+        .filter { (_, d) -> d != null && d <= reach }
+        .minByOrNull { (_, d) -> d!! }
+        ?.first
+}
+
+private const val EARTH_CIRCUMFERENCE_M = 40_075_016.7
+private const val TILE_DP = 512.0
+private const val TAP_REACH_DP = 24.0
+
 @Composable
 private fun ExploreMap(
     state: ExploreUiState,
-    routes: List<RouteCardUi>,
-    selected: RouteCardUi?,
+    onMap: OnMap,
+    onMapClick: (LatLng) -> Unit,
     actions: ExploreActions,
     mapState: org.openactivity.core.map.compose.MapState,
     query: String,
@@ -204,15 +250,15 @@ private fun ExploreMap(
     modifier: Modifier,
 ) {
         Box(modifier) {
-            val points = selected?.points.orEmpty()
+            val points = onMap.highlight
             // Frame the route clear of the search pill and chips above and the buttons on the right.
             val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
             val fitPadding = MapPadding(FIT_SIDE_DP, statusBar.value + FIT_TOP_DP, FIT_RIGHT_DP, FIT_BOTTOM_DP)
-            LaunchedEffect(selected?.id) { if (points.size >= 2) mapState.fitTo(points, fitPadding) }
+            LaunchedEffect(onMap.key) { if (points.size >= 2) mapState.fitTo(points, fitPadding) }
             // Without a route to show, open on the athlete (once), as Record does.
             val location = state.userLocation
-            LaunchedEffect(location != null, selected == null) {
-                if (location != null && selected == null && mapState.camera?.let { it.zoom < 10.0 } != false) mapState.followUser()
+            LaunchedEffect(location != null, onMap.key == null) {
+                if (location != null && onMap.key == null && mapState.camera?.let { it.zoom < 10.0 } != false) mapState.followUser()
             }
             LaunchedEffect(tilted) {
                 mapState.camera?.let { mapState.moveTo(it.copy(tilt = if (tilted) TILT_3D else 0.0)) }
@@ -221,8 +267,12 @@ private fun ExploreMap(
                 modifier = Modifier.fillMaxSize(),
                 state = mapState,
                 styleKind = styleKind ?: MapStyleKind.default(dark),
-                overlays = MapOverlays(activityRoute = if (points.size >= 2) ActivityRouteOverlay(points, colorByPace = false) else null),
+                overlays = MapOverlays(
+                    activityRoute = if (points.size >= 2) ActivityRouteOverlay(points, colorByPace = false) else null,
+                    alternateRoutes = onMap.alternates,
+                ),
                 location = location,
+                onMapClick = onMapClick.takeIf { onMap.alternates.isNotEmpty() },
             )
             Column(Modifier.fillMaxWidth().statusBarsPadding().padding(top = Spacing.s)) {
                 Row(Modifier.padding(horizontal = Spacing.gutter), verticalAlignment = Alignment.CenterVertically) {
@@ -409,6 +459,7 @@ private fun RoutesSheet(
     actions: ExploreActions,
     suggestions: SuggestionsUiState,
     suggestionActions: SuggestionActions,
+    carousel: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     side: Boolean = false,
 ) {
@@ -440,29 +491,10 @@ private fun RoutesSheet(
                     modifier = Modifier.padding(horizontal = Spacing.gutter),
                 )
                 if (suggestions.showIntro) IntroCard(suggestionActions, Modifier.padding(horizontal = Spacing.gutter, vertical = Spacing.s))
-                SuggestionChips(suggestions, suggestionActions)
+                SuggestionFilterRow(suggestions, suggestionActions)
             }
-            SuggestionsBody(suggestions, suggestionActions)
+            SuggestionsBody(suggestions, suggestionActions, carousel)
             YourRoutes(routes, selected, state, actions, side)
-        }
-    }
-}
-
-/** Sport chips (Run, Ride, Walk, Hike), then the loop lengths for that sport. */
-@Composable
-private fun SuggestionChips(state: SuggestionsUiState, actions: SuggestionActions) {
-    Row(
-        Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.gutter, vertical = Spacing.s),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        SuggestionSport.entries.forEach { sport ->
-            RidgelineFilterChip(sport.label, selected = sport == state.sport, onClick = { actions.onSelectSport(sport) }, leadingIcon = sport.sportType.icon)
-        }
-        Box(Modifier.size(width = 1.dp, height = 24.dp).background(RidgelineTheme.colors.hairline))
-        RidgelineFilterChip("All", selected = state.distanceFilter == null, onClick = { actions.onSelectDistance(null) })
-        state.distanceOptions.forEach { meters ->
-            RidgelineFilterChip("${RouteSuggestionsViewModel.formatKm(meters)} km", selected = state.distanceFilter == meters, onClick = { actions.onSelectDistance(meters) })
         }
     }
 }

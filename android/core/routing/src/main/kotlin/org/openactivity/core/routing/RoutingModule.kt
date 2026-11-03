@@ -17,6 +17,8 @@ import javax.inject.Singleton
 object RoutingModule {
     private const val OSRM_MIN_INTERVAL_MILLIS = 1_000L
     private const val ELEVATION_MIN_INTERVAL_MILLIS = 500L
+    private const val OVERPASS_MIN_INTERVAL_MILLIS = 2_000L
+    private const val OVERPASS_TIMEOUT_MILLIS = 45_000
 
     @Provides
     @Singleton
@@ -31,6 +33,11 @@ object RoutingModule {
             osrm = OsrmClient(transport, RateLimiter(OSRM_MIN_INTERVAL_MILLIS)),
             elevation = ElevationClient(transport, RateLimiter(ELEVATION_MIN_INTERVAL_MILLIS)),
             cache = SuggestionCache(File(context.cacheDir, "route-suggestions")),
+            // Overpass can queue a query for half a minute when busy.
+            surfaces = SurfaceClient(
+                UrlConnectionTransport(UrlConnectionTransport.userAgent(version), readTimeoutMillis = OVERPASS_TIMEOUT_MILLIS),
+                RateLimiter(OVERPASS_MIN_INTERVAL_MILLIS),
+            ),
         )
     }
 }
