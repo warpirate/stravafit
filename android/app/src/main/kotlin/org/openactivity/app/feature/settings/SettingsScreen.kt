@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.Backup
+import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Folder
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.rounded.ShieldMoon
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.MonitorHeart
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.SettingsBackupRestore
 import androidx.compose.material.icons.rounded.UploadFile
@@ -83,6 +85,8 @@ fun SettingsScreen(
     onEditProfile: () -> Unit,
     onOpenLicenses: () -> Unit,
     onImportActivities: () -> Unit = {},
+    onImportFromStrava: () -> Unit = {},
+    onOpenHealthConnect: () -> Unit = {},
     onOpenPrivacy: () -> Unit = {},
     onOpenPrivacyZones: () -> Unit = {},
     onOpenVisibility: () -> Unit = {},
@@ -125,6 +129,7 @@ fun SettingsScreen(
             onReduceMotion = viewModel::setReduceMotion,
             onLaunchTab = viewModel::setLaunchTab,
             onRouteSuggestions = viewModel::setRouteSuggestions,
+            onWeeklyRecap = viewModel::setWeeklyRecap,
             onDefaultSport = viewModel::setDefaultSport,
             onAutoPause = viewModel::setAutoPause,
             onAudioCues = viewModel::setAudioCuesEnabled,
@@ -156,6 +161,8 @@ fun SettingsScreen(
             onOpenVisibility = onOpenVisibility,
             onOpenLicenses = onOpenLicenses,
             onImportActivities = onImportActivities,
+            onImportFromStrava = onImportFromStrava,
+            onOpenHealthConnect = onOpenHealthConnect,
             onOpenUrl = { runCatching { uriHandler.openUri(it) } },
         ),
     )
@@ -196,6 +203,7 @@ data class SettingsActions(
     val onReduceMotion: (Boolean) -> Unit = {},
     val onLaunchTab: (LaunchTab) -> Unit = {},
     val onRouteSuggestions: (Boolean) -> Unit = {},
+    val onWeeklyRecap: (Boolean) -> Unit = {},
     val onDefaultSport: (SportType) -> Unit = {},
     val onAutoPause: (SportType, Boolean) -> Unit = { _, _ -> },
     val onAudioCues: (Boolean) -> Unit = {},
@@ -225,6 +233,8 @@ data class SettingsActions(
     val onOpenVisibility: () -> Unit = {},
     val onOpenLicenses: () -> Unit = {},
     val onImportActivities: () -> Unit = {},
+    val onImportFromStrava: () -> Unit = {},
+    val onOpenHealthConnect: () -> Unit = {},
     val onOpenUrl: (String) -> Unit = {},
 )
 
@@ -295,6 +305,16 @@ fun SettingsContent(state: SettingsUiState, actions: SettingsActions, modifier: 
                     )
                 }
 
+                OverlineHeader("Notifications")
+                SettingsGroup {
+                    SwitchRow(
+                        "Weekly recap",
+                        "On the first morning of each week: last week against the week before, your longest activity and your goals",
+                        settings.notifications.weeklySummary,
+                        actions.onWeeklyRecap,
+                    )
+                }
+
                 OverlineHeader("Your data")
                 SettingsGroup {
                     ActionRow(
@@ -318,6 +338,20 @@ fun SettingsContent(state: SettingsUiState, actions: SettingsActions, modifier: 
                         "GPX, TCX or FIT from a watch, bike computer or another app",
                         actions.onImportActivities,
                         Icons.Rounded.UploadFile,
+                    )
+                    RowDivider()
+                    ActionRow(
+                        "Import from Strava (full export)",
+                        "Your whole Strava archive: every activity with its map, name, description and photos",
+                        actions.onImportFromStrava,
+                        Icons.Rounded.CloudDownload,
+                    )
+                    RowDivider()
+                    ActionRow(
+                        "Health Connect",
+                        "Write your activities to Health Connect and import workouts from Garmin, Samsung Health and others",
+                        actions.onOpenHealthConnect,
+                        Icons.Rounded.MonitorHeart,
                     )
                     RowDivider()
                     ActionRow(

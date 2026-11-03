@@ -81,7 +81,8 @@ select throws_ok(
 select tests.authenticate_as((select id from ids where k = 'mod'));
 select is((select target_owner_id from public.reports), (select id from ids where k = 'owner'),
   'moderators see the report with its target owner');
-update public.reports set status = 'dismissed', resolution_note = 'not spam';
+update public.reports set status = 'dismissed', resolution_note = 'not spam'
+ where reporter_id = (select id from ids where k = 'stranger');
 select isnt((select resolved_at from public.reports), null, 'resolving stamps resolved_at');
 
 select * from finish();

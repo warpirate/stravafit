@@ -3,6 +3,10 @@ package org.openactivity.app.feature.me
 
 import androidx.compose.material.icons.rounded.Timeline
 import org.openactivity.core.designsystem.component.FrostedScaffold
+import org.openactivity.core.designsystem.component.IncludedFreeLabel
+import androidx.compose.material.icons.rounded.IosShare
+import androidx.compose.runtime.remember
+import java.time.YearMonth
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.ColumnScope
@@ -97,6 +101,7 @@ fun MeScreen(
     onRecord: () -> Unit,
     onOpenGoals: (newGoal: Boolean) -> Unit = {},
     onOpenSegments: () -> Unit = {},
+    onShareMonth: (YearMonth) -> Unit = {},
     viewModel: MeViewModel = hiltViewModel(),
 ) {
     val me by viewModel.uiState.collectAsStateWithLifecycle()
@@ -116,6 +121,7 @@ fun MeScreen(
             onRecord = onRecord,
             onOpenGoals = onOpenGoals,
             onOpenSegments = onOpenSegments,
+            onShareMonth = onShareMonth,
         ),
     )
 }
@@ -134,6 +140,8 @@ data class MeActions(
     val onOpenGoals: (newGoal: Boolean) -> Unit = {},
     /** Opens your segments: starred ones and your PRs. */
     val onOpenSegments: () -> Unit = {},
+    /** Opens the shareable card of a month (the current one from the Progress tab). */
+    val onShareMonth: (YearMonth) -> Unit = {},
 )
 
 /**
@@ -293,10 +301,16 @@ private fun Section(modifier: Modifier = Modifier, content: @Composable ColumnSc
     )
 }
 
+/** A section title; [free] adds the "Free" chip of features Strava keeps behind its subscription. */
 @Composable
-private fun SectionTitle(title: String, action: String? = null, onAction: () -> Unit = {}) {
+private fun SectionTitle(title: String, action: String? = null, onAction: () -> Unit = {}, free: Boolean = false) {
     Row(Modifier.fillMaxWidth().padding(start = Spacing.gutter, end = Spacing.xs, top = Spacing.l), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+        Text(title, style = MaterialTheme.typography.titleMedium)
+        if (free) {
+            Spacer(Modifier.width(Spacing.s))
+            IncludedFreeLabel()
+        }
+        Spacer(Modifier.weight(1f))
         if (action != null) TextButton(onClick = onAction) { Text(action, color = RidgelineTheme.colors.accentText) }
     }
 }
@@ -325,10 +339,35 @@ private fun LazyListScope.progressItems(state: MeUiState, actions: MeActions) {
     }
     goalItems(state, actions)
     item(key = "segments") { SegmentsEntry(actions.onOpenSegments) }
+    item(key = "share-month") {
+        Section {
+            val month = remember { YearMonth.now() }
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = Spacing.listRowMin)
+                    .clickable(role = Role.Button) { actions.onShareMonth(month) }
+                    .padding(horizontal = Spacing.gutter, vertical = Spacing.m),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Rounded.IosShare, contentDescription = null, tint = RidgelineTheme.colors.accent)
+                Spacer(Modifier.width(Spacing.l))
+                Column(Modifier.weight(1f)) {
+                    Text("Share this month", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Your month's totals and route shapes on one card",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = RidgelineTheme.colors.textSecondary,
+                    )
+                }
+                Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = RidgelineTheme.colors.textMuted)
+            }
+        }
+    }
     if (state.weekDays.size == DAYS) {
         item(key = "log") {
             Section {
-                SectionTitle("Training log")
+                SectionTitle("Training log", free = true)
                 TrainingLog(state.weekDays, state.todayIndex)
             }
         }
@@ -396,6 +435,7 @@ private fun LazyListScope.goalItems(state: MeUiState, actions: MeActions) {
                 "Goals",
                 action = if (state.goalCount > 0) (if (state.goalCount > state.goals.size) "See all" else "Manage") else null,
                 onAction = { actions.onOpenGoals(false) },
+                free = true,
             )
             if (state.goals.isEmpty()) {
                 Row(

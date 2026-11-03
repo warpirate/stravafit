@@ -49,4 +49,6 @@ includeIfPresent(
     ":android:feature:save-edit", // WP detail
     ":android:feature:activity-detail", // WP detail
     ":android:core:routing", // route suggestions
+    ":android:feature:widgets", // home-screen widget
+    ":android:core:healthconnect", // Health Connect read and write
 )

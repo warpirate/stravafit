@@ -3,6 +3,7 @@ package org.openactivity.feature.activitydetail.fileimport
 
 import org.openactivity.core.fileimport.ImportedActivity
 import org.openactivity.core.fileimport.ImportedPoint
+import org.openactivity.core.fileimport.ManualActivity
 import org.openactivity.geo.Spherical
 import org.openactivity.metrics.ActivitySamples
 import org.openactivity.metrics.BestEfforts
@@ -21,6 +22,7 @@ import org.openactivity.recording.SportProfile
 import org.openactivity.recording.TrackPoint
 import kotlin.math.max
 import kotlin.time.Duration.Companion.nanoseconds
+import kotlin.time.Duration.Companion.seconds
 
 /** Why an imported file cannot become an activity. */
 class UnusableActivityException(message: String) : Exception(message)
@@ -129,6 +131,47 @@ object ImportedActivityConverter {
             gpsGaps = emptyList(),
             flags = emptySet(),
             points = track,
+        )
+    }
+
+    /**
+     * An activity known only by its summary (a manual entry, or a workout without samples): no map,
+     * splits or efforts, just its time, distance, climbing and heart rate.
+     *
+     * @throws UnusableActivityException when it has no duration.
+     */
+    fun manual(manual: ManualActivity): FinishedActivity {
+        if (manual.elapsedSeconds <= 0) throw UnusableActivityException("It has no duration")
+        val elapsed = manual.elapsedSeconds
+        val moving = (manual.movingSeconds ?: elapsed).coerceIn(1, elapsed)
+        val distance = manual.distanceMeters.takeIf { it.isFinite() && it > 0 } ?: 0.0
+        return FinishedActivity(
+            sport = manual.sport,
+            startEpochMillis = manual.startTime.toEpochMilli(),
+            elapsedTime = elapsed.seconds,
+            movingTime = moving.seconds,
+            distanceMeters = distance,
+            elevationGainMeters = manual.elevationGainMeters?.takeIf { it.isFinite() && it > 0 } ?: 0.0,
+            elevationLossMeters = 0.0,
+            altitudeSource = AltitudeSource.NONE,
+            averageSpeedMps = distance / moving,
+            // Without samples there is no fastest stretch; the average is the honest maximum.
+            maxSpeedMps = distance / moving,
+            averageGradeAdjustedSpeedMps = null,
+            averageHeartRate = manual.averageHeartRate?.takeIf { it > 0 },
+            maxHeartRate = manual.maxHeartRate?.takeIf { it > 0 },
+            averagePower = null,
+            maxPower = null,
+            averageCadence = null,
+            splits = emptyList(),
+            laps = emptyList(),
+            bestEfforts = emptyList(),
+            durationEfforts = emptyList(),
+            pauses = emptyList(),
+            autoPauseCount = 0,
+            gpsGaps = emptyList(),
+            flags = emptySet(),
+            points = emptyList(),
         )
     }
 

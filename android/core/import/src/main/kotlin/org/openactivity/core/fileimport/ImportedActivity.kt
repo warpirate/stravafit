@@ -49,6 +49,8 @@ public data class ImportedPoint(
  *   activity (say, the watch's FIT and an exported GPX) share it. Compare with stored activities.
  * @property contentHash SHA-256 of the file's (decompressed) bytes, for byte-identical duplicates.
  * @property truncated true when the file broke off and only the readable part was imported.
+ * @property utcOffsetSeconds UTC offset where the activity was recorded, when the file says (FIT does;
+ *   GPX and TCX times are plain UTC). Null when unknown.
  */
 public data class ImportedActivity(
     val sourceName: String,
@@ -64,10 +66,32 @@ public data class ImportedActivity(
     val dedupeKey: String,
     val contentHash: String,
     val truncated: Boolean = false,
+    val utcOffsetSeconds: Int? = null,
 ) {
     /** True when at least two samples have a position. */
     val hasRoute: Boolean get() = points.count { it.hasPosition } >= 2
 }
+
+/**
+ * An activity known only by its summary, without samples: a manual entry in a Strava export, or a
+ * Health Connect workout without a route. Units are SI.
+ *
+ * @property startTime when it started.
+ * @property elapsedSeconds wall-clock duration.
+ * @property movingSeconds moving time when the source has it; [elapsedSeconds] otherwise.
+ * @property utcOffsetSeconds UTC offset where it took place, when known.
+ */
+public data class ManualActivity(
+    val sport: SportType,
+    val startTime: Instant,
+    val elapsedSeconds: Long,
+    val movingSeconds: Long? = null,
+    val distanceMeters: Double = 0.0,
+    val elevationGainMeters: Double? = null,
+    val averageHeartRate: Double? = null,
+    val maxHeartRate: Int? = null,
+    val utcOffsetSeconds: Int? = null,
+)
 
 /** Why a file could not be imported. */
 public enum class ImportErrorKind {

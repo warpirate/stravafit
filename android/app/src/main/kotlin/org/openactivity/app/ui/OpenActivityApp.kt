@@ -41,11 +41,15 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import org.openactivity.app.feature.notifications.InboxLink
 import org.openactivity.app.feature.notifications.InboxLinkViewModel
+import org.openactivity.app.feature.notifications.InboxDestination
+import org.openactivity.app.navigation.AppLinks
 import org.openactivity.app.navigation.AppNavHost
 import org.openactivity.app.navigation.NotificationsRoute
 import org.openactivity.app.navigation.openInboxDestination
 import org.openactivity.app.navigation.TopLevelDestination
 import org.openactivity.app.navigation.RouteDetailRoute
+import org.openactivity.app.navigation.PrivacyRoute
+import org.openactivity.app.navigation.StravaImportRoute
 import org.openactivity.feature.activitydetail.navigateToActivityDetail
 import org.openactivity.feature.activitydetail.navigateToImportActivities
 import org.openactivity.feature.record.navigation.navigateToRecord
@@ -88,13 +92,17 @@ fun OpenActivityApp(
             is LaunchRequest.OpenActivity -> navController.navigateToActivityDetail(launchRequest.id)
             // Copied into the app first: the sharing app's grant may be gone by the time the user answers.
             is LaunchRequest.ImportFiles -> sharedFilesViewModel.stage(launchRequest.uris)
-            is LaunchRequest.DeepLink -> try {
+            // The You tab's link (the "This week" widget) switches tabs rather than stacking a second You.
+            is LaunchRequest.DeepLink -> if (AppLinks.isYou(launchRequest.uri)) navController.openInboxDestination(InboxDestination.Progress) else try {
                 // A link or shortcut to the screen already on top (Record, say) does not stack a second copy.
                 navController.navigate(launchRequest.uri, navOptions { launchSingleTop = true })
             } catch (e: IllegalArgumentException) {
                 messenger.show("That link does not lead anywhere in the app.")
             }
             LaunchRequest.OpenInbox -> navController.navigate(NotificationsRoute) { launchSingleTop = true }
+            LaunchRequest.OpenStravaImport -> navController.navigate(StravaImportRoute()) { launchSingleTop = true }
+            // The privacy information lives in Settings until it has a screen of its own.
+            LaunchRequest.ShowPrivacy -> navController.navigate(PrivacyRoute) { launchSingleTop = true }
             is LaunchRequest.OpenInboxEntry -> when (val link = inboxLinks.open(launchRequest.id)) {
                 InboxLink.Inbox -> navController.navigate(NotificationsRoute) { launchSingleTop = true }
                 is InboxLink.To -> navController.openInboxDestination(link.destination)
@@ -113,6 +121,12 @@ fun OpenActivityApp(
                 staged.unreadable > 0 -> messenger.show("Couldn't read the shared file. Share it again from the app it is in.")
                 else -> messenger.show("That is not a GPX, TCX or FIT file, so there is nothing to import.")
             }
+        }
+    }
+    LaunchedEffect(sharedFilesViewModel) {
+        // A shared ZIP is a Strava archive (the other activity files are never zipped whole).
+        sharedFilesViewModel.stravaExports.collect { uri ->
+            navController.navigate(StravaImportRoute(uri.toString())) { launchSingleTop = true }
         }
     }
     LaunchedEffect(sharedFilesViewModel) {

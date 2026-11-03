@@ -3,6 +3,8 @@ package org.openactivity.app.notifications
 
 import org.openactivity.app.feature.goals.GoalFormat
 import org.openactivity.app.feature.me.ProgressFormat
+import org.openactivity.app.feature.recap.PeriodCards
+import org.openactivity.app.feature.recap.WeeklyRecap
 import org.openactivity.app.format.UnitFormatter
 import org.openactivity.core.data.model.EffortMedal
 import org.openactivity.core.data.model.GoalProgress
@@ -140,24 +142,43 @@ internal object InboxText {
     }
 
     /**
-     * "Your week: 3 activities" with distance, time and climbing, and the streak when there is one.
-     * Null for a week without activities (nothing to sum up, and no nagging).
+     * The weekly recap: "Your week: 3 activities · 24.2 km", then time and climbing, how it compares with
+     * the week before, the longest activity, each weekly goal's result and the streak. Opens the recap
+     * screen. Null for a week without activities (nothing to sum up, and no nagging).
      */
-    fun weeklySummary(weekStart: LocalDate, totals: StatTotals, streak: WeeklyStreak, formatter: UnitFormatter): NewNotification? {
+    fun weeklyRecap(recap: WeeklyRecap, streak: WeeklyStreak, formatter: UnitFormatter): NewNotification? {
+        val totals = recap.totals
         if (totals.count == 0) return null
+        val noun = if (totals.count == 1) "activity" else "activities"
+        val distance = formatter.distance(totals.distanceMeters).let { "${it.value} ${it.unit}" }
+        val title = buildString {
+            append("Your week: ${formatter.count(totals.count)} $noun")
+            if (totals.distanceMeters > 0) append(" · $distance")
+        }
         val parts = buildList {
-            if (totals.distanceMeters > 0) add(formatter.distance(totals.distanceMeters).let { "${it.value} ${it.unit}" })
             add(UnitFormatter.compactDuration(totals.movingTime.inWholeSeconds))
             if (totals.elevationGainMeters >= 1) add(formatter.elevation(totals.elevationGainMeters).let { "${it.value} ${it.unit} climbed" })
+            PeriodCards.comparison(recap).takeIf { it.isNotEmpty() }?.let(::add)
+            recap.longest?.takeIf { totals.count > 1 }?.let { longest ->
+                val size = if (longest.distanceMeters > 0) {
+                    formatter.distance(longest.distanceMeters).let { "${it.value} ${it.unit}" }
+                } else {
+                    UnitFormatter.compactDuration(longest.movingTime.inWholeSeconds)
+                }
+                add("Longest: ${longest.title}, $size")
+            }
+            recap.goals.forEach { result ->
+                val name = GoalFormat.title(result.goal)
+                add(if (result.reached) "$name reached" else "$name: ${GoalFormat.number(result.goal.metric, result.achieved, formatter)} of ${GoalFormat.amount(result.goal.metric, result.goal.target, formatter)}")
+            }
             if (streak.weeks > 1) add("${streak.weeks}-week streak")
         }
-        val noun = if (totals.count == 1) "activity" else "activities"
         return NewNotification(
             type = NotificationType.WEEKLY_SUMMARY,
-            title = "Your week: ${formatter.count(totals.count)} $noun",
+            title = title,
             body = parts.joinToString(" · "),
-            target = NotificationTarget.PROGRESS,
-            dedupeKey = weeklyKey(weekStart),
+            target = NotificationTarget.RECAP,
+            dedupeKey = weeklyKey(recap.weekStart),
         )
     }
 

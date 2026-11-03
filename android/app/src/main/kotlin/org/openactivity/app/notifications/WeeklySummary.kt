@@ -13,6 +13,7 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
+import org.openactivity.app.feature.recap.RecapMath
 import org.openactivity.app.format.UnitFormatter
 import org.openactivity.core.data.repository.ActivityRepository
 import org.openactivity.core.data.repository.GoalMath
@@ -30,10 +31,12 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 /**
- * Sums up the week that just ended: an inbox entry, plus an Android notification when the weekly-summary
- * switch is on. It runs on the first morning of the week (Monday unless the athlete starts weeks on
- * another day) and once more on the second day if the device was off; the entry's key makes sure each
- * week is summed up only once. A week without activities gets no summary.
+ * The weekly recap of the week that just ended: an inbox entry and an Android notification with last
+ * week's totals against the week before, the longest activity and the weekly goals' results; both open the
+ * recap screen. Off with the "Weekly recap" switch in Settings (on by default). It runs on the first
+ * morning of the week (Monday unless the athlete starts weeks on another day) and once more on the second
+ * day if the device was off; the entry's key makes sure each week is summed up only once. A week without
+ * activities gets no recap.
  */
 class WeeklySummaryPoster @Inject constructor(
     private val activities: ActivityRepository,
@@ -46,16 +49,16 @@ class WeeklySummaryPoster @Inject constructor(
     /** Posts last week's summary if it is due. Returns true when an entry was added. */
     suspend fun run(): Boolean {
         val appSettings = settings.settings.first()
+        if (!appSettings.notifications.weeklySummary) return false
         val today = LocalDate.now(clock)
         val thisWeek = GoalMath.weekStart(today, appSettings.firstDayOfWeek)
         if (ChronoUnit.DAYS.between(thisWeek, today) >= CATCH_UP_DAYS) return false
         val lastWeek = thisWeek.minusWeeks(1)
         if (inbox.contains(InboxText.weeklyKey(lastWeek))) return false
-        val weeks = activities.observeWeeklyTotals(2, null, appSettings.firstDayOfWeek).first()
-        val totals = weeks.firstOrNull { it.weekStart == lastWeek }?.totals ?: return false
+        val recap = RecapMath.recap(activities.observeActivities().first(), goals.observeGoals().first(), lastWeek)
         val streak = goals.observeStreak().first()
         val formatter = UnitFormatter(appSettings.units, Locale.getDefault())
-        val entry = InboxText.weeklySummary(lastWeek, totals, streak, formatter) ?: return false
+        val entry = InboxText.weeklyRecap(recap, streak, formatter) ?: return false
         val id = inbox.add(entry) ?: return false
         notifier.post(id, entry, appSettings.notifications)
         return true

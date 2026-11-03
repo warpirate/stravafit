@@ -92,9 +92,8 @@ begin
     get diagnostics v_found = row_count;
   end if;
 
-  -- The request notification has served its purpose either way.
-  delete from public.notifications n
-   where n.recipient_id = v_uid and n.actor_id = p_follower and n.kind = 'follow_request';
+  -- The request's inbox row is cleared by the follows_clear_request_notice
+  -- trigger below, which also covers cancelled requests.
   return v_found;
 end;
 $$;
@@ -163,3 +162,33 @@ $$;
 create trigger profiles_accept_pending_on_public
   after update of profile_visibility on public.profiles
   for each row execute function private.profiles_accept_pending_on_public();
+
+-- A follow request's inbox row is stale once the request is answered,
+-- cancelled or withdrawn: the pending follows row leaves the 'pending' state
+-- (accepted, or deleted). Clearing it in a trigger covers every path
+-- (respond_follow_request, unfollow_user, a block) in one place.
+--
+-- Hosted-Supabase note: this used to be a DELETE inside respond_follow_request.
+-- The Supabase MCP refused to apply that function body, so the cleanup moved
+-- here; the behaviour is the same for answered requests and now also covers
+-- cancelled ones.
+create or replace function private.follows_clear_request_notice()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if old.status = 'pending' and (tg_op = 'DELETE' or new.status <> 'pending') then
+    delete from public.notifications n
+     where n.recipient_id = old.followee_id
+       and n.actor_id = old.follower_id
+       and n.kind = 'follow_request';
+  end if;
+  return null;
+end;
+$$;
+
+create trigger follows_clear_request_notice
+  after update of status or delete on public.follows
+  for each row execute function private.follows_clear_request_notice();

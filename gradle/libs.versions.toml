@@ -25,7 +25,10 @@ play-services-location = "21.3.0" # WP data-service
 androidx-test-core = "1.6.1" # WP data-service
 maplibre = "11.13.5" # WP maps
 androidsvg = "1.4" # WP export
+glance = "1.1.1" # home-screen widget
 haze = "1.5.4" # last release on Compose 1.7
+# 1.1.0-beta01 is the newest that builds with compileSdk 35 and AGP 8.7 (beta02 and 1.1.0 need compileSdk 36, AGP 8.9.1).
+health-connect = "1.1.0-beta01"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -64,6 +67,8 @@ androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref =
 androidx-room-testing = { module = "androidx.room:room-testing", version.ref = "room" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
+androidx-glance-appwidget = { module = "androidx.glance:glance-appwidget", version.ref = "glance" }
+androidx-glance-appwidget-testing = { module = "androidx.glance:glance-appwidget-testing", version.ref = "glance" }
 
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
 hilt-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hilt" }
@@ -83,6 +88,7 @@ maplibre-android-sdk = { module = "org.maplibre.gl:android-sdk", version.ref = "
 androidsvg = { module = "com.caverock:androidsvg-aar", version.ref = "androidsvg" } # WP export
 androidx-activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "androidx-activity" } # WP export
 haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
+androidx-health-connect-client = { module = "androidx.health.connect:connect-client", version.ref = "health-connect" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
