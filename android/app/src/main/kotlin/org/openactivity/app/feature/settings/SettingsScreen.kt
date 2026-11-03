@@ -6,6 +6,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,12 +20,22 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.Backup
+import androidx.compose.material.icons.rounded.CloudDownload
+import androidx.compose.material.icons.rounded.CloudUpload
+import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.PrivacyTip
+import androidx.compose.material.icons.rounded.ShieldMoon
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.MonitorHeart
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.SettingsBackupRestore
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,11 +43,19 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.openactivity.app.data.backup.AutoBackupFrequency
 import org.openactivity.app.format.UnitFormatter
 import org.openactivity.app.model.ThemeMode
 import org.openactivity.app.model.label
@@ -65,6 +85,11 @@ fun SettingsScreen(
     onEditProfile: () -> Unit,
     onOpenLicenses: () -> Unit,
     onImportActivities: () -> Unit = {},
+    onImportFromStrava: () -> Unit = {},
+    onOpenHealthConnect: () -> Unit = {},
+    onOpenPrivacy: () -> Unit = {},
+    onOpenPrivacyZones: () -> Unit = {},
+    onOpenVisibility: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -78,6 +103,15 @@ fun SettingsScreen(
     }
     val openBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let(viewModel::chooseRestore)
+    }
+    // Picking a folder from the switch turns automatic backups on; from the folder row it only moves them.
+    var enableAfterPick by rememberSaveable { mutableStateOf(false) }
+    val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        uri?.let { viewModel.chooseAutoBackupFolder(it, enableAfterPick) }
+    }
+    val launchFolderPicker: (Boolean) -> Unit = { enable ->
+        enableAfterPick = enable
+        pickFolder.launchOrElse(null) { messenger.show(NO_FILE_PICKER_MESSAGE) }
     }
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -115,8 +149,19 @@ fun SettingsScreen(
             onExportAll = { createZip.launchOrElse(state.exportFileName) { messenger.show(NO_FILE_PICKER_MESSAGE) } },
             onBackUp = { createBackup.launchOrElse(state.backupFileName) { messenger.show(NO_FILE_PICKER_MESSAGE) } },
             onRestore = { openBackup.launchOrElse(BACKUP_MIME_TYPES) { messenger.show(NO_FILE_PICKER_MESSAGE) } },
+            onAutoBackup = { enabled ->
+                if (enabled && !state.autoBackup.hasFolder) launchFolderPicker(true) else viewModel.setAutoBackupEnabled(enabled)
+            },
+            onChooseBackupFolder = { launchFolderPicker(false) },
+            onBackupFrequency = viewModel::setAutoBackupFrequency,
+            onBackUpNow = viewModel::backUpNowToFolder,
+            onOpenPrivacy = onOpenPrivacy,
+            onOpenPrivacyZones = onOpenPrivacyZones,
+            onOpenVisibility = onOpenVisibility,
             onOpenLicenses = onOpenLicenses,
             onImportActivities = onImportActivities,
+            onImportFromStrava = onImportFromStrava,
+            onOpenHealthConnect = onOpenHealthConnect,
             onOpenUrl = { runCatching { uriHandler.openUri(it) } },
         ),
     )
@@ -177,8 +222,17 @@ data class SettingsActions(
     val onExportAll: () -> Unit = {},
     val onBackUp: () -> Unit = {},
     val onRestore: () -> Unit = {},
+    val onAutoBackup: (Boolean) -> Unit = {},
+    val onChooseBackupFolder: () -> Unit = {},
+    val onBackupFrequency: (AutoBackupFrequency) -> Unit = {},
+    val onBackUpNow: () -> Unit = {},
+    val onOpenPrivacy: () -> Unit = {},
+    val onOpenPrivacyZones: () -> Unit = {},
+    val onOpenVisibility: () -> Unit = {},
     val onOpenLicenses: () -> Unit = {},
     val onImportActivities: () -> Unit = {},
+    val onImportFromStrava: () -> Unit = {},
+    val onOpenHealthConnect: () -> Unit = {},
     val onOpenUrl: (String) -> Unit = {},
 )
 
@@ -285,6 +339,20 @@ fun SettingsContent(state: SettingsUiState, actions: SettingsActions, modifier: 
                     )
                     RowDivider()
                     ActionRow(
+                        "Import from Strava (full export)",
+                        "Your whole Strava archive: every activity with its map, name, description and photos",
+                        actions.onImportFromStrava,
+                        Icons.Rounded.CloudDownload,
+                    )
+                    RowDivider()
+                    ActionRow(
+                        "Health Connect",
+                        "Write your activities to Health Connect and import workouts from Garmin, Samsung Health and others",
+                        actions.onOpenHealthConnect,
+                        Icons.Rounded.MonitorHeart,
+                    )
+                    RowDivider()
+                    ActionRow(
                         "Export GPX files",
                         "A ZIP with one GPX file per activity, for other apps. Indoor activities and photos are not included.",
                         actions.onExportAll,
@@ -292,6 +360,8 @@ fun SettingsContent(state: SettingsUiState, actions: SettingsActions, modifier: 
                         busy = state.isExporting,
                     )
                 }
+
+                AutoBackupSection(state.autoBackup, actions)
 
                 OverlineHeader("About")
                 SettingsGroup {
@@ -426,6 +496,30 @@ private fun PrivacySettingsSection(state: SettingsUiState, actions: SettingsActi
             RadioRow(visibilityLabel(visibility), selected = settings.defaultVisibility == visibility) { actions.onVisibility(visibility) }
         }
         RowDivider()
+        ActionRow(
+            "Audience by sport",
+            when (val n = settings.visibilityOverrides.size) {
+                0 -> "Every sport uses the choice above"
+                1 -> "1 sport has its own audience"
+                else -> "$n sports have their own audience"
+            },
+            actions.onOpenVisibility,
+            Icons.Rounded.Tune,
+        )
+        RowDivider()
+        ActionRow(
+            "Privacy zones",
+            when (state.privacyZoneCount) {
+                0 -> "Hide where you start and finish near home or work"
+                1 -> "1 zone hides starts and finishes near it"
+                else -> "${state.privacyZoneCount} zones hide starts and finishes near them"
+            },
+            actions.onOpenPrivacyZones,
+            Icons.Rounded.ShieldMoon,
+        )
+        RowDivider()
+        ActionRow("What is shared, and where", "Where your data lives and who can see it", actions.onOpenPrivacy, Icons.Rounded.PrivacyTip)
+        RowDivider()
         ChipChoiceRow("Hide the start", "Hidden from others on maps of new activities", SettingsUiState.HIDE_RADII, settings.privacy.hideStartMeters, radius, actions.onHideStart)
         RowDivider()
         ChipChoiceRow("Hide the end", null, SettingsUiState.HIDE_RADII, settings.privacy.hideEndMeters, radius, actions.onHideEnd)
@@ -435,6 +529,60 @@ private fun PrivacySettingsSection(state: SettingsUiState, actions: SettingsActi
             color = RidgelineTheme.colors.textMuted,
             modifier = Modifier.padding(start = Spacing.l, end = Spacing.l, bottom = Spacing.m),
         )
+    }
+}
+
+@Composable
+private fun AutoBackupSection(backup: AutoBackupUi, actions: SettingsActions) {
+    OverlineHeader("Automatic backup")
+    SettingsGroup {
+        SwitchRow(
+            "Back up automatically",
+            "A backup file in a folder you choose, such as Google Drive or Nextcloud. The newest 4 are kept.",
+            backup.enabled,
+            actions.onAutoBackup,
+        )
+        RowDivider()
+        ActionRow(
+            if (backup.hasFolder) "Backup folder" else "Choose a folder",
+            backup.folderName ?: "Where the backup files go",
+            actions.onChooseBackupFolder,
+            Icons.Rounded.Folder,
+        )
+        if (backup.enabled) {
+            RowDivider()
+            ChipChoiceRow(
+                title = "How often",
+                subtitle = "Runs when the battery is not low, also after a restart",
+                options = AutoBackupFrequency.entries,
+                selected = backup.frequency,
+                label = { if (it == AutoBackupFrequency.DAILY) "Daily" else "Weekly" },
+                onSelect = actions.onBackupFrequency,
+            )
+        }
+        if (backup.hasFolder) {
+            RowDivider()
+            ActionRow("Back up now", "Writes a new file to the folder", actions.onBackUpNow, Icons.Rounded.CloudUpload, busy = backup.running)
+        }
+        if (backup.enabled || backup.failed || backup.status != SettingsViewModel.NO_AUTO_BACKUP_YET) {
+            Row(
+                Modifier.padding(start = Spacing.l, end = Spacing.l, top = Spacing.s, bottom = Spacing.m),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Icon(
+                    if (backup.failed) Icons.Rounded.ErrorOutline else Icons.Rounded.History,
+                    contentDescription = if (backup.failed) "Error" else null,
+                    tint = if (backup.failed) MaterialTheme.colorScheme.error else RidgelineTheme.colors.textMuted,
+                    modifier = Modifier.size(18.dp),
+                )
+                Text(
+                    backup.status,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (backup.failed) MaterialTheme.colorScheme.error else RidgelineTheme.colors.textSecondary,
+                    modifier = Modifier.padding(start = Spacing.s).semantics { liveRegion = LiveRegionMode.Polite },
+                )
+            }
+        }
     }
 }
 

@@ -18,6 +18,9 @@ import kotlinx.coroutines.launch
 import org.openactivity.app.BuildConfig
 import org.openactivity.app.data.PreferencesRepository
 import org.openactivity.app.data.SuggestionSettings
+import org.openactivity.app.data.backup.AutoBackupFrequency
+import org.openactivity.app.data.backup.AutoBackupSettings
+import org.openactivity.app.data.backup.AutoBackupState
 import org.openactivity.app.data.backup.BackupException
 import org.openactivity.app.data.backup.BackupManifest
 import org.openactivity.app.data.backup.DataBackup
@@ -29,6 +32,7 @@ import org.openactivity.app.model.Sport
 import org.openactivity.app.model.ThemeMode
 import org.openactivity.app.model.toPreference
 import org.openactivity.app.model.toSportType
+import org.openactivity.core.data.repository.PrivacyZoneRepository
 import org.openactivity.core.data.repository.SettingsRepository
 import org.openactivity.core.datastore.AppSettings
 import org.openactivity.core.datastore.AudioCueSettings
@@ -65,6 +69,9 @@ data class SettingsUiState(
     val isBackupBusy: Boolean = false,
     /** A checked backup waiting for the user to confirm the restore. */
     val restorePreview: RestorePreview? = null,
+    val autoBackup: AutoBackupUi = AutoBackupUi(),
+    /** Privacy zones set up, for the Privacy row. */
+    val privacyZoneCount: Int = 0,
     val message: String? = null,
 ) {
     /** Suggested name for the data export archive. */
@@ -95,6 +102,24 @@ data class SettingsUiState(
 }
 
 /**
+ * The automatic backup rows.
+ *
+ * @property folderName the chosen folder, or null before one was picked.
+ * @property status last result in words: when the last backup was made, or what went wrong and what to do.
+ * @property failed the latest run failed; [status] is shown as an error.
+ */
+data class AutoBackupUi(
+    val enabled: Boolean = false,
+    val folderName: String? = null,
+    val frequency: AutoBackupFrequency = AutoBackupFrequency.WEEKLY,
+    val running: Boolean = false,
+    val status: String = SettingsViewModel.NO_AUTO_BACKUP_YET,
+    val failed: Boolean = false,
+) {
+    val hasFolder: Boolean get() = folderName != null
+}
+
+/**
  * What the restore confirmation shows about a chosen backup.
  *
  * @property createdOn local date the backup was made, e.g. "3 Nov 2026".
@@ -111,18 +136,25 @@ class SettingsViewModel @Inject constructor(
     private val suggestionSettings: SuggestionSettings,
     private val backup: DataBackup,
     private val unsavedRecording: UnsavedRecordingCheck,
+    private val autoBackup: AutoBackupSettings,
+    zones: PrivacyZoneRepository,
 ) : ViewModel() {
 
     private val local = MutableStateFlow(Local())
     private val initial = SettingsUiState(distribution = distribution, versionName = BuildConfig.VERSION_NAME)
+
+    private val extras = combine(autoBackup.state, zones.observeZones()) { backup, zoneList -> backup to zoneList.size }
 
     val uiState: StateFlow<SettingsUiState> = combine(
         settingsRepository.settings,
         preferencesRepository.preferences,
         local,
         suggestionSettings.state,
-    ) { settings, preferences, local, suggestions ->
+        extras,
+    ) { settings, preferences, local, suggestions, (backup, zoneCount) ->
         initial.copy(
+            autoBackup = autoBackupUi(backup),
+            privacyZoneCount = zoneCount,
             settings = settings,
             reduceMotion = preferences.reduceMotion,
             routeSuggestions = suggestions.enabled,
@@ -176,6 +208,41 @@ class SettingsViewModel @Inject constructor(
     fun setOffRouteAlerts(enabled: Boolean) = launch { settingsRepository.setOffRouteAlerts(enabled) }
 
     fun setDefaultVisibility(visibility: Visibility) = launch { settingsRepository.setDefaultVisibility(visibility) }
+
+    /** Default audience for new activities of [sport]; null follows [setDefaultVisibility]. */
+    fun setVisibilityOverride(sport: SportType, visibility: Visibility?) =
+        launch { settingsRepository.setVisibilityOverride(sport, visibility) }
+
+    /** Turns automatic backups on or off; on needs a folder (see [chooseAutoBackupFolder]). */
+    fun setAutoBackupEnabled(enabled: Boolean) = launch { autoBackup.setEnabled(enabled) }
+
+    /** Uses the picked folder for automatic backups; [enable] turns them on as well. */
+    fun chooseAutoBackupFolder(tree: Uri, enable: Boolean) = launch {
+        val message = try {
+            autoBackup.chooseFolder(tree, enable)
+            null
+        } catch (e: SecurityException) {
+            // The picker's app did not offer a lasting grant (some cloud apps only lend files).
+            "This folder cannot be kept for automatic backups. Pick a folder on the phone or in another app."
+        }
+        if (message != null) local.update { it.copy(message = message) }
+    }
+
+    fun setAutoBackupFrequency(frequency: AutoBackupFrequency) = launch { autoBackup.setFrequency(frequency) }
+
+    /** Writes an automatic backup into the chosen folder now. */
+    fun backUpNowToFolder() {
+        val current = uiState.value.autoBackup
+        val message = when {
+            !current.hasFolder -> "Choose a folder for automatic backups first"
+            current.running -> ALREADY_RUNNING
+            else -> {
+                autoBackup.backUpNow()
+                "Backing up to ${current.folderName}"
+            }
+        }
+        local.update { it.copy(message = message) }
+    }
 
     fun setHideStart(meters: Double) = updatePrivacy { it.copy(hideStartMeters = meters) }
 
@@ -286,6 +353,41 @@ class SettingsViewModel @Inject constructor(
 
     internal companion object {
         private const val STOP_TIMEOUT_MS = 5_000L
+
+        const val NO_AUTO_BACKUP_YET = "No automatic backup yet"
+        const val ALREADY_RUNNING = "A backup is already running"
+
+        private val STATUS_TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM, HH:mm", Locale.getDefault())
+
+        /** The automatic backup rows for [state], times in [zone]. */
+        fun autoBackupUi(state: AutoBackupState, zone: ZoneId = ZoneId.systemDefault()): AutoBackupUi {
+            val status = state.status
+            val failure = status.lastFailure
+            val text = when {
+                state.running -> "Backing up now…"
+                failure != null -> {
+                    val at = status.lastFailureAt?.let { " on ${STATUS_TIME.format(it.atZone(zone))}" }.orEmpty()
+                    "Last backup failed$at. ${failure.message}"
+                }
+                status.lastSuccessAt != null -> {
+                    val count = when (val n = status.lastActivityCount ?: 0) {
+                        0 -> "settings and profile"
+                        1 -> "1 activity"
+                        else -> "$n activities"
+                    }
+                    "Last backup ${STATUS_TIME.format(status.lastSuccessAt.atZone(zone))} · $count"
+                }
+                else -> NO_AUTO_BACKUP_YET
+            }
+            return AutoBackupUi(
+                enabled = state.config.enabled,
+                folderName = state.config.folderUri?.let { state.config.folderName ?: "Chosen folder" },
+                frequency = state.config.frequency,
+                running = state.running,
+                status = text,
+                failed = failure != null && !state.running,
+            )
+        }
 
         const val RECORDING_BLOCKS_RESTORE = "Finish or discard the current recording before restoring a backup"
 

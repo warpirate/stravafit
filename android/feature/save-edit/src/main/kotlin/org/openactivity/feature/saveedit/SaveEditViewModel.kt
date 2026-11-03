@@ -108,6 +108,7 @@ class SaveEditViewModel internal constructor(
             visibility = a.visibility,
             perceivedExertion = a.perceivedExertion,
             muted = ex.muted,
+            hideStartEnd = a.hidesStartOrEnd,
         )
         stored = form
         _uiState.value = SaveEditUiState.Editing(
@@ -116,8 +117,8 @@ class SaveEditViewModel internal constructor(
             facts = SaveEditFacts(
                 defaultTitle = defaultTitle(a, a.sport),
                 summary = summary(a, units),
-                hideStartMeters = a.hideStartMeters,
-                hideEndMeters = a.hideEndMeters,
+                hideStartMeters = if (a.hidesStartOrEnd) a.hideStartMeters else defaultHide(appSettings.privacy.hideStartMeters),
+                hideEndMeters = if (a.hidesStartOrEnd) a.hideEndMeters else defaultHide(appSettings.privacy.hideEndMeters),
                 hasRoute = a.polyline != null,
             ),
             photos = ex.photos,
@@ -165,6 +166,9 @@ class SaveEditViewModel internal constructor(
     /** Keeps the activity out of feeds, or lets it back in. */
     fun setMuted(muted: Boolean) = updateForm { it.copy(muted = muted) }
 
+    /** Hides the start and end of the route in anything shared, or shows the whole route. */
+    fun setHideStartEnd(hide: Boolean) = updateForm { it.copy(hideStartEnd = hide) }
+
     /** Stores the photos picked at [uris]. */
     fun addPhotos(uris: List<Uri>) {
         if (uris.isEmpty()) return
@@ -203,9 +207,19 @@ class SaveEditViewModel internal constructor(
             val form = state.form
             try {
                 val title = form.title.trim().ifEmpty { defaultTitle(a, form.sport) }
+                // Only a changed switch rewrites the distances, so custom ones from Settings stay as they were.
+                val privacyChanged = form.hideStartEnd != stored?.hideStartEnd
                 val ok = activities.updateMetadata(
                     activityId,
-                    ActivityMetadataUpdate(form.sport, title, form.description.trim(), form.visibility, form.perceivedExertion),
+                    ActivityMetadataUpdate(
+                        form.sport,
+                        title,
+                        form.description.trim(),
+                        form.visibility,
+                        form.perceivedExertion,
+                        hideStartMeters = if (!privacyChanged) null else if (form.hideStartEnd) state.facts.hideStartMeters else 0.0,
+                        hideEndMeters = if (!privacyChanged) null else if (form.hideStartEnd) state.facts.hideEndMeters else 0.0,
+                    ),
                 )
                 if (!ok) {
                     _uiState.value = SaveEditUiState.NotFound
@@ -289,11 +303,19 @@ class SaveEditViewModel internal constructor(
         _uiState.update { if (it is SaveEditUiState.Editing) change(it) else it }
     }
 
+    private val SavedActivity.hidesStartOrEnd: Boolean get() = hideStartMeters > 0.0 || hideEndMeters > 0.0
+
     internal companion object {
         const val ARG_ACTIVITY_ID = "activityId"
         const val ARG_IS_NEW = "isNew"
         const val MAX_TITLE = 100
         const val MAX_DESCRIPTION = 4000
+
+        /** Hidden when "Hide start and end" is switched on and Settings hides nothing: about a city block. */
+        const val DEFAULT_HIDE_METERS = 200.0
+
+        /** The Settings distance, or [DEFAULT_HIDE_METERS] when Settings has hiding off. */
+        fun defaultHide(settingMeters: Double): Double = if (settingMeters > 0.0) settingMeters else DEFAULT_HIDE_METERS
 
         /** "5.02 km · 26:14" in [units]. */
         fun summary(a: SavedActivity, units: UnitSystem): String {

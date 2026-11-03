@@ -100,6 +100,34 @@ class LocalPreferences @Inject constructor(private val dataStore: DataStore<Pref
         dataStore.edit { if (path == null) it.remove(Keys.PHOTO) else it[Keys.PHOTO] = path }
     }
 
+    /** Write finished activities to Health Connect. */
+    val healthWriteEnabled: Flow<Boolean> = data.map { it[Keys.HEALTH_WRITE] ?: false }.distinctUntilChanged()
+
+    /** Import workouts other apps wrote to Health Connect. */
+    val healthReadEnabled: Flow<Boolean> = data.map { it[Keys.HEALTH_READ] ?: false }.distinctUntilChanged()
+
+    /** When Health Connect was last read successfully; null before the first time. */
+    val healthLastSyncMillis: Flow<Long?> = data.map { it[Keys.HEALTH_LAST_SYNC] }.distinctUntilChanged()
+
+    /** Newest activity id already considered for writing to Health Connect; null before writing was on. */
+    val healthWriteWatermark: Flow<Long?> = data.map { it[Keys.HEALTH_WRITE_WATERMARK] }.distinctUntilChanged()
+
+    suspend fun setHealthWriteEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.HEALTH_WRITE] = enabled }
+    }
+
+    suspend fun setHealthReadEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.HEALTH_READ] = enabled }
+    }
+
+    suspend fun setHealthLastSyncMillis(millis: Long) {
+        dataStore.edit { it[Keys.HEALTH_LAST_SYNC] = millis }
+    }
+
+    suspend fun setHealthWriteWatermark(activityId: Long) {
+        dataStore.edit { it[Keys.HEALTH_WRITE_WATERMARK] = activityId }
+    }
+
     private object Keys {
         val REDUCE_MOTION = booleanPreferencesKey("reduce_motion")
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_complete")
@@ -110,5 +138,9 @@ class LocalPreferences @Inject constructor(private val dataStore: DataStore<Pref
         val INBOX_WATERMARK = longPreferencesKey("inbox_watermark_activity_id")
         val SUGGESTIONS_ENABLED = booleanPreferencesKey("route_suggestions_enabled")
         val SUGGESTIONS_INTRO_SEEN = booleanPreferencesKey("route_suggestions_intro_seen")
+        val HEALTH_WRITE = booleanPreferencesKey("health_connect_write")
+        val HEALTH_READ = booleanPreferencesKey("health_connect_read")
+        val HEALTH_LAST_SYNC = longPreferencesKey("health_connect_last_sync_millis")
+        val HEALTH_WRITE_WATERMARK = longPreferencesKey("health_connect_write_watermark")
     }
 }

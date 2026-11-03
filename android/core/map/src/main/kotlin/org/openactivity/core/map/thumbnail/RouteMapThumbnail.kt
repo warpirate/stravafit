@@ -53,6 +53,7 @@ import org.openactivity.model.LatLng
  * @param points the route; nothing but the background is drawn for fewer than two points.
  * @param cacheId what the picture shows (`activity-42`), so each activity keeps its own cached map.
  * @param loader thumbnail loader; defaults to the app-wide Hilt instance.
+ * @param showEndpoints draw start and finish markers; false for outlines that are not routes.
  */
 @Composable
 fun RouteMapThumbnail(
@@ -64,6 +65,7 @@ fun RouteMapThumbnail(
     loader: RouteThumbnailLoader? = rememberRouteThumbnailLoader(),
     shape: Shape = MaterialTheme.shapes.small,
     cacheId: String? = null,
+    showEndpoints: Boolean = true,
 ) {
     val palette = mapPalette()
     val density = LocalDensity.current.density
@@ -79,8 +81,8 @@ fun RouteMapThumbnail(
         val widthPx = constraints.maxWidth
         val heightPx = constraints.maxHeight
         if (widthPx <= 0 || heightPx <= 0 || points.size < 2) return@BoxWithConstraints
-        val request = remember(points, widthPx, heightPx, density, style, palette, cacheId) {
-            ThumbnailRequest(points, widthPx, heightPx, density, style, palette, cacheId)
+        val request = remember(points, widthPx, heightPx, density, style, palette, cacheId, showEndpoints) {
+            ThumbnailRequest(points, widthPx, heightPx, density, style, palette, cacheId, showEndpoints)
         }
         // Lint false positive: the producer does assign `value` (ProduceStateDoesNotAssignValue).
         @SuppressLint("ProduceStateDoesNotAssignValue")

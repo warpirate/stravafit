@@ -81,6 +81,7 @@ class SnapshotThumbnailRenderer(
                 startColor = request.palette.start,
                 finishColor = request.palette.finish,
                 ringColor = request.palette.markerRing,
+                showEndpoints = request.showEndpoints,
             )
             sized
         }

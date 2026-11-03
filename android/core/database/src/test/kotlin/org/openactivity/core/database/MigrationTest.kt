@@ -18,7 +18,7 @@ import java.io.File
 /**
  * Checks the exported schemas against the code: every historic version can be created from its exported
  * JSON, each migration path reaches the current version with the schema Room expects, and data written at
- * version 1 survives (version 2 adds goals and the notifications inbox).
+ * version 1 survives (version 2 adds goals and the notifications inbox, version 3 privacy zones).
  */
 @RunWith(RobolectricTestRunner::class)
 class MigrationTest {
@@ -90,6 +90,36 @@ class MigrationTest {
     }
 
     @Test
+    fun `migration 2 to 3 keeps activities and adds privacy zones`() {
+        helper.createDatabase(dbName, 2).apply {
+            execSQL(
+                "INSERT INTO activities (id, uuid, sport, title, description, visibility, start_epoch_millis, " +
+                    "time_zone_id, elapsed_millis, moving_millis, distance_meters, elevation_gain_meters, " +
+                    "elevation_loss_meters, altitude_source, average_speed_mps, max_speed_mps, auto_pause_count, " +
+                    "privacy_hide_start_meters, privacy_hide_end_meters, flags, created_at_millis, updated_at_millis) " +
+                    "VALUES (3, 'u3', 'RIDE', 'Evening Ride', '', 'FOLLOWERS', 1000, 'UTC', 60000, 60000, 1000.0, 0.0, " +
+                    "0.0, 'GPS', 3.0, 4.0, 0, 0.0, 0.0, '', 1000, 1000)",
+            )
+            close()
+        }
+        val db = helper.runMigrationsAndValidate(dbName, 3, true, DatabaseMigrations.MIGRATION_2_3)
+        db.query("SELECT title FROM activities WHERE id = 3").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("Evening Ride", c.getString(0))
+        }
+        db.execSQL(
+            "INSERT INTO privacy_zones (uuid, label, center_latitude, center_longitude, radius_meters, " +
+                "created_at_millis, updated_at_millis) VALUES ('z1', 'Home', 18.52, 73.85, 400, 1, 1)",
+        )
+        db.query("SELECT label, radius_meters FROM privacy_zones").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("Home", c.getString(0))
+            assertEquals(400, c.getInt(1))
+        }
+        db.close()
+    }
+
+    @Test
     fun `room opens a migrated database`() = runTest {
         helper.createDatabase(dbName, 1).close()
         val room = Room.databaseBuilder(ApplicationProvider.getApplicationContext(), OpenActivityDatabase::class.java, dbName)
@@ -98,6 +128,7 @@ class MigrationTest {
             .build()
         assertEquals(0, room.activityDao().getPoints(1).size)
         assertEquals(0, room.notificationDao().observeUnreadCount().first())
+        assertEquals(0, room.privacyZoneDao().count())
         room.close()
     }
 }

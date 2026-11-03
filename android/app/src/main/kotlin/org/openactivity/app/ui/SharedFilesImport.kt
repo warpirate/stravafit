@@ -51,6 +51,10 @@ class SharedFilesViewModel @Inject constructor(
 ) : ViewModel() {
     private val results = Channel<SharedRouteImportResult>(Channel.BUFFERED)
     private val stagedFiles = Channel<StagedFiles>(Channel.BUFFERED)
+    private val zips = Channel<Uri>(Channel.BUFFERED)
+
+    /** A shared ZIP, taken for a Strava archive; collect once. */
+    val stravaExports: Flow<Uri> = zips.receiveAsFlow()
 
     /** One-shot results; collect once. */
     val routeResults: Flow<SharedRouteImportResult> = results.receiveAsFlow()
@@ -58,10 +62,16 @@ class SharedFilesViewModel @Inject constructor(
     /** Shared files once copied in, ready to ask about; collect once. */
     val staged: Flow<StagedFiles> = stagedFiles.receiveAsFlow()
 
-    /** Copies [uris] into the app before asking what they are. */
+    /**
+     * Copies [uris] into the app before asking what they are. A single ZIP goes to the Strava import
+     * instead, which copies it itself once the user starts (archives run to gigabytes).
+     */
     fun stage(uris: List<Uri>) {
         if (uris.isEmpty()) return
-        viewModelScope.launch { stagedFiles.send(stager.stage(uris)) }
+        viewModelScope.launch {
+            val zip = uris.singleOrNull()?.takeIf { stager.isZip(it) }
+            if (zip != null) zips.send(zip) else stagedFiles.send(stager.stage(uris))
+        }
     }
 
     /** Saves [uris] as routes, then reports how it went and which route to open (a single new one). */
@@ -142,6 +152,27 @@ class SharedFileStager @Inject constructor(@ApplicationContext private val conte
         StagedFiles(files, rejected, unreadable)
     }
 
+    /** Whether the shared file is a ZIP: by its type or name, or else by its first bytes. */
+    suspend fun isZip(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        val type = try {
+            context.contentResolver.getType(uri)
+        } catch (e: RuntimeException) {
+            null
+        }
+        if (type in ZIP_TYPES) return@withContext true
+        if (displayName(uri)?.endsWith(".zip", ignoreCase = true) == true) return@withContext true
+        try {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                val head = ByteArray(4)
+                input.read(head) == 4 && looksLikeZip(head)
+            } ?: false
+        } catch (e: IOException) {
+            false
+        } catch (e: SecurityException) {
+            false
+        }
+    }
+
     /** Copies at most [MAX_BYTES]; false when the file is bigger or unreadable. */
     private fun copy(from: Uri, to: File): Boolean {
         val input = context.contentResolver.openInputStream(from) ?: return false
@@ -179,6 +210,12 @@ class SharedFileStager @Inject constructor(@ApplicationContext private val conte
         fun safeName(name: String): String = name.replace(Regex("[^A-Za-z0-9._-]"), "_").take(MAX_NAME).ifEmpty { "file" }
 
         private const val MAX_NAME = 80
+
+        private val ZIP_TYPES = setOf("application/zip", "application/x-zip-compressed", "application/x-zip")
+
+        /** The local-file-header signature every ZIP starts with ("PK" 3 4). */
+        fun looksLikeZip(head: ByteArray): Boolean =
+            head.size >= 4 && head[0] == 'P'.code.toByte() && head[1] == 'K'.code.toByte() && head[2] == 3.toByte() && head[3] == 4.toByte()
 
         fun looksLikeActivityFile(file: File): Boolean {
             val head = ByteArray(HEADER)

@@ -11,6 +11,8 @@
     <string name="channel_goals_description">A goal reached, and a reminder when you are 80% there</string>
     <string name="channel_weekly_name">Weekly summary</string>
     <string name="channel_weekly_description">Totals of the week just ended, on the first morning of the new week</string>
+    <string name="channel_imports_name">Imports</string>
+    <string name="channel_imports_description">Progress and result of a Strava archive import</string>
 
     <!-- Launcher shortcuts (long-press the app icon). Short labels fit in about 10 characters. -->
     <string name="shortcut_record_run_short">Record Run</string>

@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import org.openactivity.app.navigation.AppLinks
+import org.openactivity.app.feature.stravaimport.StravaImportWorker
 import org.openactivity.app.notifications.AndroidSystemNotifier
 import org.openactivity.core.recordingservice.notification.RecordingNotifications
 
@@ -38,6 +39,12 @@ sealed interface LaunchRequest {
     /** Open the inbox itself (the notifications' group summary). */
     data object OpenInbox : LaunchRequest
 
+    /** Open the Strava import (its progress or result notification was tapped). */
+    data object OpenStravaImport : LaunchRequest
+
+    /** Health Connect asks why the app wants health data: show the privacy information. */
+    data object ShowPrivacy : LaunchRequest
+
     companion object {
         /**
          * Reads and removes the request from [intent], so a configuration change or a re-delivered
@@ -59,7 +66,16 @@ sealed interface LaunchRequest {
                 if (intent.data?.let(AppLinks::isAppLink) == true) intent.data = null
                 intent.removeExtra(AndroidSystemNotifier.EXTRA_INBOX_ID)
                 intent.removeExtra(AndroidSystemNotifier.EXTRA_OPEN_INBOX)
+                intent.removeExtra(StravaImportWorker.EXTRA_OPEN_STRAVA_IMPORT)
                 return null
+            }
+            if (intent.action in PRIVACY_ACTIONS) {
+                intent.action = Intent.ACTION_MAIN
+                return ShowPrivacy
+            }
+            if (intent.getBooleanExtra(StravaImportWorker.EXTRA_OPEN_STRAVA_IMPORT, false)) {
+                intent.removeExtra(StravaImportWorker.EXTRA_OPEN_STRAVA_IMPORT)
+                return OpenStravaImport
             }
             if (intent.getBooleanExtra(AndroidSystemNotifier.EXTRA_OPEN_INBOX, false)) {
                 intent.removeExtra(AndroidSystemNotifier.EXTRA_OPEN_INBOX)
@@ -126,5 +142,11 @@ sealed interface LaunchRequest {
             }
 
         private const val NO_ID = -1L
+
+        /**
+         * Health Connect's "why does this app want my data" links: the rationale action on Android 13 and
+         * lower, the permission-usage action (through an activity alias) on Android 14 and later.
+         */
+        internal val PRIVACY_ACTIONS = setOf("androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE", "android.intent.action.VIEW_PERMISSION_USAGE")
     }
 }

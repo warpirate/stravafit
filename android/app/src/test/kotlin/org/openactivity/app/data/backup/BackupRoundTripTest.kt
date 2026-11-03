@@ -19,6 +19,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.openactivity.core.database.OpenActivityDatabase
 import org.openactivity.core.database.entity.GoalEntity
+import org.openactivity.core.database.entity.PrivacyZoneEntity
 import org.openactivity.core.database.entity.RecordingJournalEntity
 import org.robolectric.RobolectricTestRunner
 import java.io.ByteArrayInputStream
@@ -52,6 +53,7 @@ class BackupRoundTripTest {
     @Test
     fun `a backup restores goals, photos, profile and settings and drops the recording journal`() = runTest {
         database.goalDao().insert(goal(target = 50_000.0))
+        database.privacyZoneDao().insert(zone("home"))
         database.recordingJournalDao().begin(journal())
         write("activity-extras/1/photo-a.jpg", "photo bytes")
         write("activity-extras/1/index.json", "{}")
@@ -70,6 +72,7 @@ class BackupRoundTripTest {
 
         // Things change after the backup: a goal edit, a new photo, a lost avatar.
         database.goalDao().insert(goal(target = 1.0))
+        database.privacyZoneDao().insert(zone("added-later"))
         write("activity-extras/2/photo-b.jpg", "later photo")
         File(context.filesDir, "profile/avatar-1.jpg").delete()
 
@@ -82,6 +85,7 @@ class BackupRoundTripTest {
         database = OpenActivityDatabase.build(context)
         val goals = database.goalDao().observeAll().first()
         assertEquals(listOf(50_000.0), goals.map { it.target })
+        assertEquals("privacy zones travel with the backup", listOf("home"), database.privacyZoneDao().getAll().map { it.uuid })
         assertNull("the recording in progress is not restored", database.recordingJournalDao().get())
         assertEquals("photo bytes", read("activity-extras/1/photo-a.jpg"))
         assertFalse(File(context.filesDir, "activity-extras/2").exists())
@@ -184,6 +188,16 @@ class BackupRoundTripTest {
     }
 
     private fun reader() = BackupReader(locations, OpenActivityDatabase.VERSION)
+
+    private fun zone(uuid: String) = PrivacyZoneEntity(
+        uuid = uuid,
+        label = "Home",
+        centerLatitude = 18.52,
+        centerLongitude = 73.85,
+        radiusMeters = 400,
+        createdAtMillis = 1,
+        updatedAtMillis = 1,
+    )
 
     private fun goal(target: Double) =
         GoalEntity(sport = null, period = "WEEK", metric = "DISTANCE", target = target, createdAtMillis = 1, updatedAtMillis = 1)

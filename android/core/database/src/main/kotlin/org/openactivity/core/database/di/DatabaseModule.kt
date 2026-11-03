@@ -11,6 +11,7 @@ import org.openactivity.core.database.OpenActivityDatabase
 import org.openactivity.core.database.dao.ActivityDao
 import org.openactivity.core.database.dao.GoalDao
 import org.openactivity.core.database.dao.NotificationDao
+import org.openactivity.core.database.dao.PrivacyZoneDao
 import org.openactivity.core.database.dao.RecordingJournalDao
 import org.openactivity.core.database.dao.RouteDao
 import javax.inject.Singleton
@@ -37,4 +38,7 @@ object DatabaseModule {
 
     @Provides
     fun notificationDao(db: OpenActivityDatabase): NotificationDao = db.notificationDao()
+
+    @Provides
+    fun privacyZoneDao(db: OpenActivityDatabase): PrivacyZoneDao = db.privacyZoneDao()
 }

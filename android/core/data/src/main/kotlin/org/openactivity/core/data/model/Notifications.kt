@@ -20,6 +20,9 @@ enum class NotificationType {
 
     /** An activity saved from a recording that was interrupted and recovered. */
     RECORDING_RECOVERED,
+
+    /** An automatic backup could not be written. */
+    BACKUP_FAILED,
 }
 
 /** Where tapping an inbox entry leads. */
@@ -38,6 +41,8 @@ enum class NotificationTarget {
 
     /** The weekly recap screen of the week named in the entry's dedupe key (`weekly:2026-10-26`). */
     RECAP,
+    /** Settings (backups and other app setup). */
+    SETTINGS,
 }
 
 /**

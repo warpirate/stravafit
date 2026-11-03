@@ -21,10 +21,12 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableStateFlow
+import org.openactivity.app.feature.healthconnect.HealthConnectStartup
 import org.openactivity.app.feature.onboarding.OnboardingScreen
 import org.openactivity.app.model.ThemeMode
 import org.openactivity.app.ui.OpenActivityApp
 import org.openactivity.core.designsystem.theme.RidgelineTheme
+import javax.inject.Inject
 
 /**
  * The single activity. Draws edge to edge, follows the in-app theme preference and shows first-run
@@ -35,6 +37,8 @@ import org.openactivity.core.designsystem.theme.RidgelineTheme
 class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
+
+    @Inject lateinit var healthConnect: HealthConnectStartup
 
     /** Set when a recording notification launched or re-opened the app; cleared once handled. */
     private val launchRequest = MutableStateFlow<LaunchRequest?>(null)
@@ -84,6 +88,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Phones whose Health Connect cannot read in the background stay in sync this way.
+        healthConnect.onAppOpened()
     }
 
     override fun onNewIntent(intent: Intent) {

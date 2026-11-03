@@ -44,6 +44,7 @@ sealed interface InboxDestination {
 
     /** The weekly recap of the week starting [weekStart]. */
     data class Recap(val weekStart: LocalDate) : InboxDestination
+    data object Settings : InboxDestination
 
     companion object {
         /** The destination of [entry]; an activity entry whose activity is gone falls back to Progress. */
@@ -56,6 +57,7 @@ sealed interface InboxDestination {
             NotificationTarget.RECAP -> entry.dedupeKey.removePrefix(WEEKLY_KEY_PREFIX)
                 .let { runCatching { LocalDate.parse(it) }.getOrNull() }
                 ?.let(::Recap) ?: Progress
+            NotificationTarget.SETTINGS -> Settings
         }
 
         private const val WEEKLY_KEY_PREFIX = "weekly:"

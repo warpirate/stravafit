@@ -119,4 +119,20 @@ class LaunchRequestTest {
         assertNull(LaunchRequest.consume(replay))
         assertFalse(replay.hasExtra(AndroidSystemNotifier.EXTRA_INBOX_ID))
     }
+
+    @Test
+    fun `health connect asking why opens the privacy information`() {
+        for (action in listOf("androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE", "android.intent.action.VIEW_PERMISSION_USAGE")) {
+            val intent = Intent(action)
+            assertEquals(LaunchRequest.ShowPrivacy, LaunchRequest.consume(intent))
+            assertNull(LaunchRequest.consume(intent))
+        }
+    }
+
+    @Test
+    fun `the strava import notification opens the import once`() {
+        val intent = Intent().putExtra(org.openactivity.app.feature.stravaimport.StravaImportWorker.EXTRA_OPEN_STRAVA_IMPORT, true)
+        assertEquals(LaunchRequest.OpenStravaImport, LaunchRequest.consume(intent))
+        assertNull(LaunchRequest.consume(intent))
+    }
 }

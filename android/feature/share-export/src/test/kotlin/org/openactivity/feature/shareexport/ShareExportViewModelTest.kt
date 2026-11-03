@@ -93,6 +93,25 @@ class ShareExportViewModelTest {
     }
 
     @Test
+    fun `privacy zones turn hiding on by default without adding a start or end distance`() {
+        val zoned = Fixtures.run().copy(
+            privacy = org.openactivity.core.export.model.ExportPrivacy(
+                hideStartMeters = 0.0,
+                hideEndMeters = 0.0,
+                zones = listOf(org.openactivity.core.export.model.ExportPrivacyZone(47.37, 8.53, 400.0)),
+            ),
+        )
+        val vm = viewModel("run-1", FakeProvider(zoned))
+        val initial = vm.content { it.preview is PreviewState.Ready }
+        assertEquals(true, initial.spec.privacyTrim)
+        assertEquals(0, initial.hiddenStartMeters)
+        assertEquals(0, initial.hiddenEndMeters)
+        assertEquals(1, initial.privacyZoneCount)
+        vm.setPrivacyTrim(false)
+        assertEquals(0, vm.content { !it.spec.privacyTrim }.privacyZoneCount)
+    }
+
+    @Test
     fun `each template remembers its own size and transparency`() {
         val vm = viewModel("run-1")
         vm.content { it.preview is PreviewState.Ready }

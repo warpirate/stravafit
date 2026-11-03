@@ -10,6 +10,7 @@ import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import org.openactivity.core.database.entity.ActivityEntity
 import org.openactivity.core.database.entity.ActivityMetadataEntity
+import org.openactivity.core.database.entity.ActivityPrivacyEntity
 import org.openactivity.core.database.entity.ActivityPointEntity
 import org.openactivity.core.database.entity.ActivityStatRow
 import org.openactivity.core.database.entity.BestEffortEntity
@@ -95,6 +96,18 @@ abstract class ActivityDao {
     /** Updates only the editable metadata columns. Returns the number of rows changed (0 or 1). */
     @Update(entity = ActivityEntity::class)
     abstract suspend fun updateMetadata(metadata: ActivityMetadataEntity): Int
+
+    /** Updates only the start/end hiding distances. Returns the number of rows changed (0 or 1). */
+    @Update(entity = ActivityEntity::class)
+    abstract suspend fun updatePrivacy(privacy: ActivityPrivacyEntity): Int
+
+    /** Updates the metadata and, when given, the start/end hiding in one transaction. */
+    @Transaction
+    open suspend fun updateMetadataAndPrivacy(metadata: ActivityMetadataEntity, privacy: ActivityPrivacyEntity?): Int {
+        val changed = updateMetadata(metadata)
+        if (changed > 0 && privacy != null) updatePrivacy(privacy)
+        return changed
+    }
 
     /** Deletes an activity; its child rows go with it (foreign keys cascade). */
     @Query("DELETE FROM activities WHERE id = :id")

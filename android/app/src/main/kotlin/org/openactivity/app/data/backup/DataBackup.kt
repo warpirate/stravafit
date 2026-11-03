@@ -12,6 +12,7 @@ import org.openactivity.core.database.OpenActivityDatabase
 import org.openactivity.core.recordingservice.RecordingController
 import java.io.File
 import java.io.IOException
+import java.io.OutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,6 +27,14 @@ interface DataBackup {
      * @throws IOException when the document cannot be written.
      */
     suspend fun backUp(destination: Uri): BackupManifest
+
+    /**
+     * Writes a backup ZIP into [output], which stays open for the caller. Automatic backups use this with
+     * a file they created in the chosen folder.
+     *
+     * @throws IOException when the stream cannot be written.
+     */
+    suspend fun backUp(output: OutputStream): BackupManifest
 
     /**
      * Reads and checks the backup at [source] without changing any data, so the user can confirm.
@@ -53,7 +62,11 @@ class LocalDataBackup @Inject constructor(
 
     override suspend fun backUp(destination: Uri): BackupManifest = withContext(Dispatchers.IO) {
         val output = context.contentResolver.openOutputStream(destination, "wt") ?: throw IOException("Cannot open the chosen file")
-        output.use { BackupWriter(locations, BuildConfig.VERSION_NAME, OpenActivityDatabase.VERSION, ::snapshot).write(it) }
+        output.use { backUp(it) }
+    }
+
+    override suspend fun backUp(output: OutputStream): BackupManifest = withContext(Dispatchers.IO) {
+        BackupWriter(locations, BuildConfig.VERSION_NAME, OpenActivityDatabase.VERSION, ::snapshot).write(output)
     }
 
     override suspend fun stageRestore(source: Uri): BackupManifest = withContext(Dispatchers.IO) {

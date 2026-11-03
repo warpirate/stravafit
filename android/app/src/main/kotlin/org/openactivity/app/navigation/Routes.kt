@@ -45,3 +45,21 @@ typealias RecordRoute = org.openactivity.feature.record.navigation.RecordDestina
 
 /** "Share this month": the monthly card of [year]-[month] (1..12), from the You tab. */
 @Serializable data class MonthCardRoute(val year: Int, val month: Int)
+
+/** Settings, "Import from Strava": the whole Strava archive. [sharedUri] is a ZIP shared to the app. */
+@Serializable data class StravaImportRoute(val sharedUri: String? = null)
+
+/** Settings, Health Connect: write activities, read other apps' workouts. */
+@Serializable data object HealthConnectRoute
+
+/** The Privacy page: where data lives and who sees what (from Settings). */
+@Serializable data object PrivacyRoute
+
+/** The privacy zones list. */
+@Serializable data object PrivacyZonesRoute
+
+/** Add (`zoneId` 0) or edit a privacy zone. */
+@Serializable data class PrivacyZoneEditorRoute(val zoneId: Long = 0)
+
+/** Default audience for new activities, overall and per sport. */
+@Serializable data object VisibilityRoute
