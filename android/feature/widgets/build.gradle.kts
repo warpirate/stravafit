@@ -29,7 +29,10 @@ android {
     }
 
     testOptions {
-        unitTests.isIncludeAndroidResources = true
+        unitTests {
+            isIncludeAndroidResources = true
+            all { it.systemProperty("robolectric.graphicsMode", "NATIVE") }
+        }
     }
 }
 
@@ -40,6 +43,7 @@ kotlin {
 dependencies {
     implementation(project(":android:core:recording-service"))
     implementation(project(":android:core:data"))
+    implementation(project(":android:core:export")) // route drawing on "Last activity" (route-art + SVG rasterizer)
     implementation(project(":shared:model"))
 
     implementation(libs.androidx.core.ktx)

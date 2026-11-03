@@ -17,6 +17,7 @@ import org.openactivity.core.data.model.InboxNotification
 import org.openactivity.core.data.model.NotificationTarget
 import org.openactivity.core.data.model.NotificationType
 import org.openactivity.core.data.repository.NotificationRepository
+import java.time.LocalDate
 import javax.inject.Inject
 
 /** One row of the inbox, formatted. */
@@ -41,6 +42,9 @@ sealed interface InboxDestination {
 
     data object Activities : InboxDestination
 
+    /** The weekly recap of the week starting [weekStart]. */
+    data class Recap(val weekStart: LocalDate) : InboxDestination
+
     companion object {
         /** The destination of [entry]; an activity entry whose activity is gone falls back to Progress. */
         fun of(entry: InboxNotification): InboxDestination = when (entry.target) {
@@ -48,7 +52,13 @@ sealed interface InboxDestination {
             NotificationTarget.GOALS -> Goals
             NotificationTarget.PROGRESS -> Progress
             NotificationTarget.ACTIVITIES -> Activities
+            // The recap names its week in the entry's key ("weekly:2026-10-26"); an unreadable key shows Progress.
+            NotificationTarget.RECAP -> entry.dedupeKey.removePrefix(WEEKLY_KEY_PREFIX)
+                .let { runCatching { LocalDate.parse(it) }.getOrNull() }
+                ?.let(::Recap) ?: Progress
         }
+
+        private const val WEEKLY_KEY_PREFIX = "weekly:"
     }
 }
 

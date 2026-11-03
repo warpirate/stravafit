@@ -145,6 +145,12 @@ class SettingsViewModel @Inject constructor(
 
     fun setDefaultSport(sport: SportType) = launch { settingsRepository.setDefaultSport(sport) }
 
+    /** The Monday weekly recap (notification and inbox entry); on by default. */
+    fun setWeeklyRecap(enabled: Boolean) = launch {
+        val current = settingsRepository.settings.first().notifications
+        settingsRepository.setNotifications(current.copy(weeklySummary = enabled))
+    }
+
     fun setAutoPause(sport: SportType, enabled: Boolean) = launch { settingsRepository.setAutoPause(sport, enabled) }
 
     fun setAudioCuesEnabled(enabled: Boolean) = updateCues { it.copy(enabled = enabled) }

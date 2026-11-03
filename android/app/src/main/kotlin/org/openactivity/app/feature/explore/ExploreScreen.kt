@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.feature.explore
 
+import org.openactivity.core.designsystem.component.IncludedFreeLabel
 import org.openactivity.core.designsystem.component.FrostedSurface
 import org.openactivity.core.designsystem.component.LocalFrost
 import org.openactivity.core.designsystem.component.rememberFrost
@@ -487,7 +488,10 @@ private fun RoutesSheet(
                 )
             }
             Row(Modifier.fillMaxWidth().padding(start = Spacing.gutter, end = Spacing.xs, top = Spacing.m), verticalAlignment = Alignment.CenterVertically) {
-                Text("Suggested routes", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                Text("Suggested routes", style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.width(Spacing.s))
+                IncludedFreeLabel()
+                Spacer(Modifier.weight(1f))
                 RefreshButton(suggestions, suggestionActions.onRefresh)
             }
             if (suggestions.status != SuggestionsStatus.Disabled) {

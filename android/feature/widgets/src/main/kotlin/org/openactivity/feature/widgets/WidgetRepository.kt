@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.feature.widgets
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.content.SharedPreferences
 import android.os.PowerManager
 import android.os.SystemClock
+import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -107,6 +110,7 @@ class WidgetRepository @Inject constructor(
             finishArmedUntilMillis = values.finishArmedUntilMillis,
             nowMillis = System.currentTimeMillis(),
             elapsedRealtimeNow = SystemClock.elapsedRealtime(),
+            canRecord = hasLocationPermission(context),
         )
     }
         .filter { state -> shouldPublish(state) }
@@ -130,8 +134,9 @@ class WidgetRepository @Inject constructor(
 internal data class RenderKey(val kind: String, val status: String, val detail: List<Any?>)
 
 internal fun renderKey(state: WidgetState): RenderKey = when (state) {
-    is WidgetState.Ready -> RenderKey("ready", "", state.sports)
-    is WidgetState.Countdown -> RenderKey("countdown", state.sport.name, listOf(state.endsAtElapsedRealtime / 1000))
+    is WidgetState.Ready -> RenderKey("ready", "", listOf(state.sports, state.canRecord))
+    is WidgetState.Countdown -> RenderKey("countdown", state.sport.name, listOf(state.endsAtElapsedRealtime / 1000, state.gps?.state))
+    is WidgetState.WaitingForGps -> RenderKey("waiting", state.sport.name, listOf(state.gps?.state))
     is WidgetState.Recording -> RenderKey(
         kind = "recording",
         status = if (state.paused) "paused" else "running",
@@ -147,6 +152,13 @@ internal fun renderKey(state: WidgetState): RenderKey = when (state) {
     is WidgetState.Done -> RenderKey("done", state.activity.id.toString(), emptyList())
     WidgetState.Interrupted -> RenderKey("interrupted", "", emptyList())
 }
+
+/**
+ * Precise location is what a recording needs (the record screen asks for it). Checked on every state, so
+ * the widget follows a permission granted in the app at its next update.
+ */
+internal fun hasLocationPermission(context: Context): Boolean =
+    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
 private const val DISTANCE_STEP_METERS = 10.0
 private const val TIME_STEP_SECONDS = 5L

@@ -12,6 +12,16 @@
 
     <string name="widget_starting">Starting your %1$s</string>
     <string name="widget_cancel">Cancel</string>
+    <string name="widget_needs_permission">Tap a sport to allow location</string>
+    <string name="widget_gps_ready">GPS ready</string>
+    <string name="widget_gps_weak">Weak GPS</string>
+    <string name="widget_gps_searching">Finding GPS</string>
+    <string name="widget_gps_off">Location is off</string>
+    <string name="widget_waiting_gps">Waiting for GPS</string>
+    <string name="widget_gps_short">No GPS</string>
+    <string name="widget_start_anyway">Start anyway</string>
+    <string name="widget_start_anyway_short">Tap to start</string>
+    <string name="widget_waiting_gps_small_description">Waiting for GPS. Tap to start without a fix</string>
 
     <string name="widget_recording">Recording</string>
     <string name="widget_paused">Paused</string>
@@ -38,6 +48,38 @@
     <string name="widget_interrupted">Recording stopped</string>
     <string name="widget_interrupted_action">Tap to recover</string>
 
+    <string name="week_widget_label">This week</string>
+    <string name="week_widget_description">Distance, time and activities this week, against your weekly goal</string>
+    <string name="last_widget_label">Last activity</string>
+    <string name="last_widget_description">Your latest activity with its route and stats</string>
+    <string name="widget_this_week">This week</string>
+    <string name="widget_activities_caption">Activities</string>
+    <plurals name="widget_activities">
+        <item quantity="one">%d activity</item>
+        <item quantity="other">%d activities</item>
+    </plurals>
+    <plurals name="widget_activities_unit">
+        <item quantity="one">activity</item>
+        <item quantity="other">activities</item>
+    </plurals>
+    <string name="widget_week_spoken">This week: %1$s, %2$s, %3$s</string>
+    <string name="widget_week_no_goal">No weekly goal set</string>
+    <string name="widget_goal_all">Weekly goal</string>
+    <string name="widget_goal_sport">%1$s goal</string>
+    <string name="widget_goal_reached">Reached · %1$s</string>
+    <string name="widget_no_activity">No activities yet</string>
+    <string name="widget_today">Today</string>
+    <string name="widget_yesterday">Yesterday</string>
+
+    <string name="tile_record">Record</string>
+    <string name="tile_ready">Ready to start</string>
+    <string name="tile_recording">Recording · %1$s</string>
+    <string name="tile_paused">Paused · %1$s</string>
+    <string name="tile_starting">Starting</string>
+    <string name="tile_waiting_gps">Waiting for GPS</string>
+
+    <string name="widget_unit_m">m</string>
+    <string name="widget_unit_ft">ft</string>
     <string name="widget_unit_km">km</string>
     <string name="widget_unit_mi">mi</string>
     <string name="widget_unit_per_km">/km</string>

@@ -6,7 +6,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.openactivity.core.location.GpsState
+import org.openactivity.core.location.GpsStatus
 import org.openactivity.core.recordingservice.PendingStart
+import org.openactivity.core.recordingservice.needsGpsFix
 import org.openactivity.core.recordingservice.RecordingUiSnapshot
 import org.openactivity.model.Distance
 import org.openactivity.model.Lap
@@ -65,6 +68,44 @@ class WidgetStateTest {
     fun `a widget start counting down shows the countdown`() {
         val state = resolve(pending = PendingStart(SportType.RIDE, null, elapsedNow + 3000))
         assertEquals(WidgetState.Countdown(SportType.RIDE, elapsedNow + 3000), state)
+    }
+
+    @Test
+    fun `the countdown carries the GPS reading`() {
+        val gps = GpsStatus.forAccuracy(38.0)
+        val state = resolve(pending = PendingStart(SportType.RUN, null, elapsedNow + 3000, gps = gps)) as WidgetState.Countdown
+        assertEquals(gps, state.gps)
+    }
+
+    @Test
+    fun `a countdown that ended without a fix waits for GPS`() {
+        val pending = PendingStart(SportType.RUN, null, elapsedNow - 1, gps = GpsStatus.SEARCHING, waitingForGps = true)
+        assertEquals(WidgetState.WaitingForGps(SportType.RUN, GpsStatus.SEARCHING), resolve(pending = pending))
+    }
+
+    @Test
+    fun `GPS sports need a fix to start, a weak one is enough`() {
+        assertTrue(needsGpsFix(SportType.RUN, null))
+        assertTrue(needsGpsFix(SportType.RUN, GpsStatus.SEARCHING))
+        assertTrue(needsGpsFix(SportType.RIDE, GpsStatus(GpsState.DISABLED)))
+        assertFalse(needsGpsFix(SportType.RUN, GpsStatus.forAccuracy(38.0)))
+        assertFalse(needsGpsFix(SportType.WALK, GpsStatus.forAccuracy(6.0)))
+        assertFalse(needsGpsFix(SportType.VIRTUAL_RIDE, null))
+    }
+
+    @Test
+    fun `without location permission Ready says the start opens the app`() {
+        val state = resolveWidgetState(idle, null, false, null, null, null, nowMillis, elapsedNow, canRecord = false)
+        assertEquals(WidgetState.Ready(DEFAULT_SPORTS, canRecord = false), state)
+    }
+
+    @Test
+    fun `render key follows the GPS state while counting down or waiting`() {
+        val a = WidgetState.Countdown(SportType.RUN, elapsedNow, GpsStatus.SEARCHING)
+        assertNotEquals(renderKey(a), renderKey(a.copy(gps = GpsStatus.forAccuracy(8.0))))
+        val w = WidgetState.WaitingForGps(SportType.RUN, GpsStatus.SEARCHING)
+        assertNotEquals(renderKey(w), renderKey(w.copy(gps = GpsStatus(GpsState.DISABLED))))
+        assertNotEquals(renderKey(a), renderKey(w))
     }
 
     @Test

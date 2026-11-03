@@ -96,6 +96,7 @@ class LocalNotificationRepository @Inject constructor(
             activityId = activityId,
             createdAt = Instant.ofEpochMilli(createdAtMillis),
             isRead = isRead,
+            dedupeKey = dedupeKey,
         )
     }
 

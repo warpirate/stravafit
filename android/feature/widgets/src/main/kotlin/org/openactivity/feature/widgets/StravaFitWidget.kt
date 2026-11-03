@@ -60,6 +60,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import dagger.hilt.android.EntryPointAccessors
+import org.openactivity.core.location.GpsStatus
 import org.openactivity.core.recordingservice.RecordingIntents
 import org.openactivity.model.SportType
 import org.openactivity.model.UnitSystem
@@ -96,7 +97,7 @@ class StravaFitWidget : GlanceAppWidget() {
 // ---------------------------------------------------------------------------------------------------
 // Tokens: core/designsystem theme/Color.kt. Orange only on the one primary action.
 
-private object Palette {
+internal object Palette {
     val surface = DayNight(day = Color(0xFFFFFFFF), night = Color(0xFF1C1C1F))
     val soft = DayNight(day = Color(0xFFF5F5F7), night = Color(0xFF2A2A2F))
     val text = DayNight(day = Color(0xFF242428), night = Color(0xFFF2F2F4))
@@ -109,16 +110,17 @@ private object Palette {
     val recording = DayNight(day = Color(0xFFE5322D), night = Color(0xFFE5322D))
     val paused = DayNight(day = Color(0xFFC43B00), night = Color(0xFFC43B00))
     val ok = DayNight(day = Color(0xFF16884A), night = Color(0xFF3CC47A))
+    val warning = DayNight(day = Color(0xFFE8A317), night = Color(0xFFE8A317))
 
     val clockDay = Color(0xFF242428)
     val clockNight = Color(0xFFF2F2F4)
     val clockAccent = Color(0xFFFC5200)
 }
 
-private enum class Layout { SMALL, WIDE, TALL }
+internal enum class Layout { SMALL, WIDE, TALL }
 
 @Composable
-private fun currentLayout(): Layout {
+internal fun currentLayout(): Layout {
     val size = LocalSize.current
     return when {
         size.width < 180.dp -> Layout.SMALL
@@ -140,6 +142,7 @@ internal fun WidgetContent(state: WidgetState) {
         when (state) {
             is WidgetState.Ready -> Ready(state, layout)
             is WidgetState.Countdown -> Countdown(state, layout)
+            is WidgetState.WaitingForGps -> WaitingForGps(state, layout)
             is WidgetState.Recording -> Recording(state, layout)
             is WidgetState.Done -> Done(state, layout)
             WidgetState.Interrupted -> Interrupted(layout)
@@ -154,6 +157,7 @@ internal fun WidgetContent(state: WidgetState) {
 private fun Ready(state: WidgetState.Ready, layout: Layout) {
     val context = LocalContext.current
     val main = state.sports.first()
+    val startAction: (Context, SportType) -> Action = if (state.canRecord) ::startAction else ::openRecorderAction
     when (layout) {
         Layout.SMALL -> Column(
             modifier = GlanceModifier.fillMaxSize().clickable(startAction(context, main)),
@@ -171,11 +175,14 @@ private fun Ready(state: WidgetState.Ready, layout: Layout) {
             Column(GlanceModifier.defaultWeight()) {
                 Mark()
                 Spacer(GlanceModifier.height(4.dp))
-                Text(context.getString(R.string.widget_ready_hint), style = body(12.sp, Palette.muted), maxLines = 1)
+                Text(
+                    context.getString(if (state.canRecord) R.string.widget_ready_hint else R.string.widget_needs_permission),
+                    style = body(12.sp, Palette.muted), maxLines = 1,
+                )
             }
             state.sports.forEachIndexed { i, sport ->
                 if (i > 0) Spacer(GlanceModifier.width(12.dp))
-                SportButton(sport, primary = i == 0)
+                SportButton(sport, primary = i == 0, action = startAction(context, sport))
             }
         }
         Layout.TALL -> Column(GlanceModifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 14.dp)) {
@@ -185,7 +192,10 @@ private fun Ready(state: WidgetState.Ready, layout: Layout) {
                 Text(context.getString(R.string.widget_label), style = body(12.sp, Palette.text, FontWeight.Bold))
             }
             Spacer(GlanceModifier.defaultWeight())
-            Text(context.getString(R.string.widget_ready_hint), style = body(16.sp, Palette.text, FontWeight.Bold), maxLines = 1)
+            Text(
+                context.getString(if (state.canRecord) R.string.widget_ready_hint else R.string.widget_needs_permission),
+                style = body(16.sp, Palette.text, FontWeight.Bold), maxLines = 1,
+            )
             Spacer(GlanceModifier.height(10.dp))
             Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Pill(
@@ -208,10 +218,10 @@ private fun Ready(state: WidgetState.Ready, layout: Layout) {
 }
 
 @Composable
-private fun SportButton(sport: SportType, primary: Boolean) {
+private fun SportButton(sport: SportType, primary: Boolean, action: Action) {
     val context = LocalContext.current
     Column(
-        modifier = GlanceModifier.clickable(startAction(context, sport)),
+        modifier = GlanceModifier.clickable(action),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         RoundIcon(
@@ -249,11 +259,88 @@ private fun Countdown(state: WidgetState.Countdown, layout: Layout) {
         ) {
             Clock(state.endsAtElapsedRealtime, running = true, countDown = true, sizeSp = if (layout == Layout.TALL) 56f else 34f, accent = true)
             Spacer(GlanceModifier.width(14.dp))
-            Text(starting, style = body(14.sp, Palette.text2, FontWeight.Bold), maxLines = 2, modifier = GlanceModifier.defaultWeight())
+            Column(GlanceModifier.defaultWeight()) {
+                Text(starting, style = body(14.sp, Palette.text2, FontWeight.Bold), maxLines = 1)
+                if (state.sport.usesGps) {
+                    Spacer(GlanceModifier.height(4.dp))
+                    GpsLine(state.gps)
+                }
+            }
             Pill(context.getString(R.string.widget_cancel), R.drawable.ic_widget_close, cancel, primary = false, height = 40)
         }
     }
 }
+
+/**
+ * The countdown is over and there is no fix. Recording starts by itself on the first fix; "Start anyway"
+ * is the athlete's explicit choice to record without one (the record screen's rule).
+ */
+@Composable
+private fun WaitingForGps(state: WidgetState.WaitingForGps, layout: Layout) {
+    val context = LocalContext.current
+    val cancel = actionStartService(RecordingIntents.cancelStart(context), isForegroundService = true)
+    val anyway = actionStartService(RecordingIntents.startNow(context), isForegroundService = true)
+    when (layout) {
+        Layout.SMALL -> Column(
+            modifier = GlanceModifier.fillMaxSize().clickable(anyway)
+                .semantics { contentDescription = context.getString(R.string.widget_waiting_gps_small_description) },
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Dot(Palette.warning)
+            Spacer(GlanceModifier.height(6.dp))
+            Label(context.getString(R.string.widget_gps_short), Palette.text)
+            Label(context.getString(R.string.widget_start_anyway_short), Palette.accentText)
+        }
+        else -> Row(
+            modifier = GlanceModifier.fillMaxSize().padding(start = 16.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(GlanceModifier.defaultWeight()) {
+                Text(
+                    context.getString(R.string.widget_waiting_gps),
+                    style = body(if (layout == Layout.TALL) 16.sp else 14.sp, Palette.text, FontWeight.Bold), maxLines = 1,
+                )
+                Spacer(GlanceModifier.height(4.dp))
+                GpsLine(state.gps)
+            }
+            Pill(context.getString(R.string.widget_start_anyway), R.drawable.ic_widget_play, anyway, primary = false, height = 40)
+            Box(GlanceModifier.size(40.dp).clickable(cancel), contentAlignment = Alignment.Center) {
+                Image(
+                    ImageProvider(R.drawable.ic_widget_close), context.getString(R.string.widget_cancel),
+                    GlanceModifier.size(16.dp), colorFilter = ColorFilter.tint(Palette.muted),
+                )
+            }
+        }
+    }
+}
+
+/** "GPS ready · ±6 m", "Weak GPS · ±38 m", "Finding GPS", "Location is off", with a coloured dot. */
+@Composable
+private fun GpsLine(gps: GpsStatus?) {
+    val context = LocalContext.current
+    val line = gpsLine(gps)
+    val text = when (line.kind) {
+        GpsLineKind.READY -> context.getString(R.string.widget_gps_ready)
+        GpsLineKind.WEAK -> context.getString(R.string.widget_gps_weak)
+        GpsLineKind.SEARCHING -> context.getString(R.string.widget_gps_searching)
+        GpsLineKind.OFF -> context.getString(R.string.widget_gps_off)
+    } + (line.accuracyMeters?.let { " · ±$it m" } ?: "")
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Dot(
+            when (line.kind) {
+                GpsLineKind.READY -> Palette.ok
+                GpsLineKind.WEAK, GpsLineKind.SEARCHING -> Palette.warning
+                GpsLineKind.OFF -> Palette.recording
+            },
+        )
+        Spacer(GlanceModifier.width(6.dp))
+        Text(text, style = body(11.sp, Palette.muted, FontWeight.Bold), maxLines = 1)
+    }
+}
+
+@Composable
+internal fun Dot(color: ColorProvider) = Box(GlanceModifier.size(8.dp).cornerRadius(4.dp).background(color)) {}
 
 // ---------------------------------------------------------------------------------------------------
 // Recording
@@ -396,11 +483,7 @@ private fun Done(state: WidgetState.Done, layout: Layout) {
     val context = LocalContext.current
     val a = state.activity
     // Phase 1 opens the activity; the one-tap share sheet (sticker) follows with the trampoline activity.
-    val open = actionStartActivity(
-        Intent(Intent.ACTION_VIEW, Uri.parse("openactivity://activity/${a.id}"))
-            .setPackage(context.packageName)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
-    )
+    val open = actionStartActivity(WidgetLinks.intent(context, WidgetLinks.activity(a.id)))
     val dismiss = actionRunCallback<DismissDoneAction>(actionParametersOf(DismissDoneAction.ACTIVITY_ID to a.id))
     val distance = WidgetFormat.distance(a.distanceMeters, state.units)
     val unit = context.getString(if (state.units == UnitSystem.METRIC) R.string.widget_unit_km else R.string.widget_unit_mi)
@@ -488,7 +571,7 @@ private fun Clock(base: Long, running: Boolean, sizeSp: Float, countDown: Boolea
 }
 
 @Composable
-private fun Value(value: String, unit: String, size: TextUnit) {
+internal fun Value(value: String, unit: String, size: TextUnit) {
     Row(verticalAlignment = Alignment.Bottom) {
         Text(value, style = body(size, Palette.text, FontWeight.Bold), maxLines = 1)
         if (unit.isNotEmpty()) {
@@ -498,17 +581,17 @@ private fun Value(value: String, unit: String, size: TextUnit) {
 }
 
 @Composable
-private fun Caption(text: String) =
+internal fun Caption(text: String) =
     Text(text.uppercase(), style = body(10.sp, Palette.muted, FontWeight.Bold), maxLines = 1, modifier = GlanceModifier.padding(bottom = 4.dp))
 
 @Composable
-private fun Label(text: String, color: ColorProvider) = Text(text, style = body(11.sp, color, FontWeight.Bold), maxLines = 1)
+internal fun Label(text: String, color: ColorProvider) = Text(text, style = body(11.sp, color, FontWeight.Bold), maxLines = 1)
 
 @Composable
-private fun Mark() = Image(ImageProvider(R.drawable.ic_widget_mark), null, GlanceModifier.size(16.dp))
+internal fun Mark() = Image(ImageProvider(R.drawable.ic_widget_mark), null, GlanceModifier.size(16.dp))
 
 @Composable
-private fun RoundIcon(icon: Int, description: String?, sizeDp: Int, background: ColorProvider, tint: ColorProvider) {
+internal fun RoundIcon(icon: Int, description: String?, sizeDp: Int, background: ColorProvider, tint: ColorProvider) {
     Box(
         modifier = GlanceModifier.size(sizeDp.dp).cornerRadius((sizeDp / 2).dp).background(background),
         contentAlignment = Alignment.Center,
@@ -543,31 +626,35 @@ private fun Pill(
     }
 }
 
-private fun body(size: TextUnit, color: ColorProvider, weight: FontWeight = FontWeight.Medium) =
+internal fun body(size: TextUnit, color: ColorProvider, weight: FontWeight = FontWeight.Medium) =
     TextStyle(fontSize = size, color = color, fontWeight = weight)
 
 private fun startAction(context: Context, sport: SportType): Action =
     actionStartService(RecordingIntents.start(context, sport), isForegroundService = true)
 
-private fun sportIcon(sport: SportType): Int = when {
+/** Without location permission the start goes through the app's recorder, which asks for it. */
+private fun openRecorderAction(context: Context, sport: SportType): Action =
+    actionStartActivity(WidgetLinks.intent(context, WidgetLinks.record(sport)))
+
+internal fun sportIcon(sport: SportType): Int = when {
     sport.isRideLike -> R.drawable.ic_widget_ride
     sport == SportType.WALK || sport == SportType.HIKE -> R.drawable.ic_widget_walk
     else -> R.drawable.ic_widget_run
 }
 
 /** The launcher's own widget corner radius on Android 12+ (Glance ignores corner radius below that). */
-private fun GlanceModifier.widgetCorners(): GlanceModifier =
+internal fun GlanceModifier.widgetCorners(): GlanceModifier =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) cornerRadius(android.R.dimen.system_app_widget_background_radius)
     else cornerRadius(16.dp)
 
-private fun sportLabel(context: Context, sport: SportType): String = when (sport) {
+internal fun sportLabel(context: Context, sport: SportType): String = when (sport) {
     SportType.RUN -> context.getString(R.string.widget_sport_run)
     SportType.RIDE -> context.getString(R.string.widget_sport_ride)
     SportType.WALK -> context.getString(R.string.widget_sport_walk)
     else -> sport.name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
 }
 
-private fun speedUnit(context: Context, sport: SportType, units: UnitSystem): String = context.getString(
+internal fun speedUnit(context: Context, sport: SportType, units: UnitSystem): String = context.getString(
     when {
         sport.displaysPace && units == UnitSystem.METRIC -> R.string.widget_unit_per_km
         sport.displaysPace -> R.string.widget_unit_per_mi

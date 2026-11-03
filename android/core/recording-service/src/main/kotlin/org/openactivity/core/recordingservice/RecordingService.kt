@@ -17,9 +17,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.openactivity.core.data.repository.ActivityRepository
+import org.openactivity.core.location.GpsStatusMonitor
 import org.openactivity.core.recordingservice.audio.CueSpeaker
 import org.openactivity.core.recordingservice.notification.RecordingNotifications
 import org.openactivity.model.SportType
@@ -48,6 +51,8 @@ class RecordingService : Service() {
 
     @Inject lateinit var countdown: StartCountdown
 
+    @Inject lateinit var gpsMonitor: GpsStatusMonitor
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var wakeLock: WakeLockHolder
     private var inForeground = false
@@ -55,6 +60,7 @@ class RecordingService : Service() {
     private var busy = 0 // recovery or finish in progress: do not stop while the state is briefly idle
     private var lastNotification: NotificationKey? = null
     private var countdownJob: Job? = null
+    private val startNow = MutableStateFlow(false)
 
     private data class NotificationKey(val status: RecordingStatus, val seconds: Long, val tensOfMeters: Long)
 
@@ -84,6 +90,7 @@ class RecordingService : Service() {
             ACTION_START -> Unit
             ACTION_WIDGET_START -> startAfterCountdown(intent)
             ACTION_CANCEL_START -> countdownJob?.cancel()
+            ACTION_START_NOW -> startNow.value = true
             else -> recover()
         }
         render(controller.state.value)
@@ -110,8 +117,11 @@ class RecordingService : Service() {
 
     /**
      * Start from the widget: count down (cancellable with [ACTION_CANCEL_START]), then record. The service is
-     * already in the foreground, so GPS can warm up and the countdown survives the launcher going away.
-     * A second tap while counting down, or a tap while already recording, does nothing.
+     * already in the foreground, so GPS warms up during the countdown and the countdown survives the launcher
+     * going away. Like the record screen, a GPS sport never starts without a fix unless the athlete asks for
+     * it: after the countdown the widget shows "Waiting for GPS" with "Start anyway" ([ACTION_START_NOW]),
+     * and the start is dropped after [GPS_WAIT_LIMIT_MILLIS] without one, so a forgotten tap does not keep
+     * GPS on. A second tap while counting down, or a tap while already recording, does nothing.
      */
     private fun startAfterCountdown(intent: Intent) {
         if (controller.state.value.isActive || countdownJob?.isActive == true) return
@@ -119,10 +129,32 @@ class RecordingService : Service() {
         val routeId = intent.getLongExtra(EXTRA_ROUTE_ID, -1L).takeIf { it >= 0 }
         val seconds = intent.getIntExtra(EXTRA_COUNTDOWN_SECONDS, RecordingIntents.DEFAULT_COUNTDOWN_SECONDS).coerceIn(0, MAX_COUNTDOWN_SECONDS)
         busy++
-        countdown.set(PendingStart(sport, routeId, SystemClock.elapsedRealtime() + seconds * 1000L))
+        startNow.value = false
+        var pending = PendingStart(sport, routeId, SystemClock.elapsedRealtime() + seconds * 1000L)
+        countdown.set(pending)
         countdownJob = scope.launch {
+            val gps = if (sport.usesGps) {
+                launch {
+                    gpsMonitor.status().collect { status ->
+                        pending = pending.copy(gps = status)
+                        countdown.set(pending)
+                    }
+                }
+            } else {
+                null
+            }
             try {
-                delay(seconds * 1000L)
+                withTimeoutOrNull(seconds * 1000L) { startNow.first { it } }
+                if (!startNow.value && needsGpsFix(sport, pending.gps)) {
+                    pending = pending.copy(waitingForGps = true)
+                    countdown.set(pending)
+                    val go = withTimeoutOrNull(GPS_WAIT_LIMIT_MILLIS) {
+                        // A fix arriving or "Start anyway", whichever comes first.
+                        while (!startNow.value && needsGpsFix(sport, pending.gps)) delay(GPS_POLL_MILLIS)
+                    }
+                    if (go == null) return@launch
+                }
+                gps?.cancel()
                 countdown.set(null)
                 controller.start(sport, routeId)
             } catch (e: CancellationException) {
@@ -130,6 +162,7 @@ class RecordingService : Service() {
             } catch (e: Exception) {
                 // Already recording (a race with the app) or the journal failed: nothing was started.
             } finally {
+                gps?.cancel()
                 countdown.set(null)
                 busy--
                 render(controller.state.value)
@@ -236,13 +269,20 @@ class RecordingService : Service() {
         /** Cancels a widget countdown before anything is recorded. */
         const val ACTION_CANCEL_START: String = "org.openactivity.recording.CANCEL_START"
 
+        /** "Start anyway" on the widget: start the counting-down (or GPS-waiting) recording now, fix or not. */
+        const val ACTION_START_NOW: String = "org.openactivity.recording.START_NOW"
+
         const val EXTRA_SPORT: String = "org.openactivity.recording.extra.SPORT"
         const val EXTRA_ROUTE_ID: String = "org.openactivity.recording.extra.ROUTE_ID"
         const val EXTRA_COUNTDOWN_SECONDS: String = "org.openactivity.recording.extra.COUNTDOWN_SECONDS"
 
         private const val MAX_COUNTDOWN_SECONDS = 10
 
+        /** A widget start waits this long for a fix before it is dropped. */
+        private const val GPS_WAIT_LIMIT_MILLIS = 3 * 60_000L
+        private const val GPS_POLL_MILLIS = 250L
+
         /** Actions that begin something new rather than being about a recording that may need recovery. */
-        private val FRESH_ACTIONS = setOf(ACTION_START, ACTION_WIDGET_START, ACTION_CANCEL_START)
+        private val FRESH_ACTIONS = setOf(ACTION_START, ACTION_WIDGET_START, ACTION_CANCEL_START, ACTION_START_NOW)
     }
 }

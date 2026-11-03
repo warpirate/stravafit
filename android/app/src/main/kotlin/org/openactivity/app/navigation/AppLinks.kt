@@ -15,6 +15,7 @@ import org.openactivity.feature.activitydetail.ActivityDetailRoute
  * - `openactivity://route/{id}`, `https://{host}/routes/{id}`: a saved route
  * - `openactivity://record`, `https://{host}/record`: the recorder; `?sport=RUN` preselects a sport
  *   (the launcher shortcuts use this) and `?routeId=7` a saved route
+ * - `openactivity://you`: the You tab (the "This week" widget)
  *
  * The https host is a placeholder until the project has a domain: set the Gradle property
  * `openactivity.linkHost` and both the manifest and these patterns follow ([BuildConfig.LINK_HOST]).
@@ -40,6 +41,14 @@ object AppLinks {
         navDeepLink<RecordRoute>(basePath = "$SCHEME://record"),
         navDeepLink<RecordRoute>(basePath = "https://$host/record"),
     )
+
+    /** The You tab; only our own scheme (the home-screen widget), there is no web page for it. */
+    const val YOU: String = "$SCHEME://you"
+
+    fun you(): List<NavDeepLink> = listOf(navDeepLink { uriPattern = YOU })
+
+    /** True for a link to the You tab, which switches tabs instead of stacking a second You. */
+    fun isYou(uri: Uri): Boolean = uri.scheme == SCHEME && uri.host == "you"
 
     /** True for a link this app opens itself: our scheme, or https on our host. */
     fun isAppLink(uri: Uri, host: String = this.host): Boolean =

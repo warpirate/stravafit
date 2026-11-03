@@ -35,9 +35,16 @@ enum class NotificationTarget {
 
     /** You, Activities. */
     ACTIVITIES,
+
+    /** The weekly recap screen of the week named in the entry's dedupe key (`weekly:2026-10-26`). */
+    RECAP,
 }
 
-/** One inbox entry. */
+/**
+ * One inbox entry.
+ *
+ * @property dedupeKey the event it records (see [NewNotification.dedupeKey]); some destinations read it.
+ */
 data class InboxNotification(
     val id: Long,
     val type: NotificationType,
@@ -47,6 +54,7 @@ data class InboxNotification(
     val activityId: Long?,
     val createdAt: Instant,
     val isRead: Boolean,
+    val dedupeKey: String = "",
 )
 
 /**

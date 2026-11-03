@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.feature.widgets
 
+import org.openactivity.core.location.GpsStatus
 import org.openactivity.core.recordingservice.PendingStart
 import org.openactivity.core.recordingservice.RecordingUiSnapshot
 import org.openactivity.model.SportType
@@ -14,14 +15,22 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * What the widget shows. The state follows the recording, not the widget size (widgets-spec.md, Shape):
- * Ready → Countdown → Recording (paused or not) → Done → Ready, plus Interrupted when the app died mid-run.
+ * Ready → Countdown → (WaitingForGps) → Recording (paused or not) → Done → Ready, plus Interrupted when the
+ * app died mid-run.
  */
 sealed interface WidgetState {
-    /** Nothing recording. [sports] are the start buttons, the first being the main one. */
-    data class Ready(val sports: List<SportType>) : WidgetState
+    /**
+     * Nothing recording. [sports] are the start buttons, the first being the main one.
+     *
+     * @property canRecord location permission is granted; without it a start opens the app's permission flow.
+     */
+    data class Ready(val sports: List<SportType>, val canRecord: Boolean = true) : WidgetState
 
-    /** A widget start counting down; recording begins at [endsAtElapsedRealtime]. */
-    data class Countdown(val sport: SportType, val endsAtElapsedRealtime: Long) : WidgetState
+    /** A widget start counting down; the countdown ends at [endsAtElapsedRealtime]. [gps] is null until the first reading. */
+    data class Countdown(val sport: SportType, val endsAtElapsedRealtime: Long, val gps: GpsStatus? = null) : WidgetState
+
+    /** The countdown ended without a fix: recording starts on the first fix, or now with "Start anyway". */
+    data class WaitingForGps(val sport: SportType, val gps: GpsStatus?) : WidgetState
 
     /**
      * Recording or paused.
@@ -92,8 +101,15 @@ fun resolveWidgetState(
     nowMillis: Long,
     elapsedRealtimeNow: Long,
     sports: List<SportType> = DEFAULT_SPORTS,
+    canRecord: Boolean = true,
 ): WidgetState {
-    if (pending != null && !snapshot.isActive) return WidgetState.Countdown(pending.sport, pending.endsAtElapsedRealtime)
+    if (pending != null && !snapshot.isActive) {
+        return if (pending.waitingForGps) {
+            WidgetState.WaitingForGps(pending.sport, pending.gps)
+        } else {
+            WidgetState.Countdown(pending.sport, pending.endsAtElapsedRealtime, pending.gps)
+        }
+    }
     if (snapshot.isActive) {
         return WidgetState.Recording(
             sport = snapshot.sport ?: sports.first(),
@@ -112,7 +128,7 @@ fun resolveWidgetState(
     if (lastSaved != null && lastSaved.id != dismissedActivityId && isFresh(lastSaved, nowMillis)) {
         return WidgetState.Done(lastSaved, snapshot.units)
     }
-    return WidgetState.Ready(sports)
+    return WidgetState.Ready(sports, canRecord)
 }
 
 /** Saved less than [DONE_TTL] ago and on the same local day (midnight resets the widget). */

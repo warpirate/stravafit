@@ -292,17 +292,21 @@ not done, the release notes say so; the widget is never called "verified" withou
 
 ## Implementation status
 
-Phase 1 (branch `feat/widgets`):
+Phase 2 (2026-11-03, branch `feat/widgets`, merged with main `6d2b64d`). Built and unit-tested; **not yet run
+on the emulator or a phone** (the lead session does device tests).
+
+Decided by the lead after the cut list above: the "This week" and "Last activity" widgets come back as two
+separate widgets next to the recording widget, plus a Quick Settings tile.
 
 | Part | Where | State |
 |------|-------|-------|
-| Start / cancel from widget, countdown in the service | `core/recording-service` `StartCountdown.kt`, `RecordingService` (`ACTION_WIDGET_START`, `ACTION_CANCEL_START`) | written |
-| Latest-activity query (LIMIT 1) | `ActivityDao.observeLatest`, `ActivityRepository.observeLatestActivity` | written |
-| State machine (Ready, Countdown, Recording, Done, Interrupted) + finish confirm + Done expiry | `feature/widgets` `WidgetState.kt` | written + unit tests |
-| Number formatting, `--:--` rule, TalkBack clock text | `WidgetFormat.kt` | written + unit tests |
-| Update throttle (5 s / 10 m, status changes only with the screen off) | `WidgetRepository.kt` | written + unit tests (render key) |
-| Glance UI: 3 sizes × states, Chronometer clock | `StravaFitWidget.kt` | written |
-| App wiring | `OpenActivityApplication` starts `WidgetUpdater` | written |
+| Recording widget: Ready, Countdown (with live GPS line), Waiting for GPS, Recording, Paused, Finish confirm, Done, Interrupted; 1×1, 4×1, 4×2 | `feature/widgets` `StravaFitWidget.kt`, `WidgetState.kt` | built + state tests |
+| No start without a fix unless tapped: after the countdown a GPS sport waits for a fix ("Waiting for GPS", "Start anyway"); dropped after 3 min without one | `core/recording-service` `RecordingService` (`ACTION_START_NOW`), `needsGpsFix` | built + unit tests |
+| Without location permission a sport tap opens the app recorder (permission flow) | `StravaFitWidget.kt`, `hasLocationPermission` | built |
+| "This week" widget: distance, time, count, weekly goal bar; opens You (`openactivity://you`) | `SummaryWidgets.kt`, `SummaryState.kt` | built + state tests |
+| "Last activity" widget: title, sport, stats, route drawing (route-art minimal sticker, hidden start/end removed); opens the activity | `SummaryWidgets.kt`, `WidgetRouteArt.kt` | built + state tests |
+| Quick Settings "Record" tile: opens the recorder idle; shows live time while recording; tap pauses / resumes | `RecordTileService.kt` | built + model tests |
+| Updates pushed on recording state, new activities and goal changes | `WidgetUpdater.kt` | built |
 
-Not yet: build, Glance UI tests, emulator E2E, real-phone tests, share trampoline, H3 watchdog alarm,
-TalkBack text on the clock view, voice lines, settings screen, picker preview image.
+Still not done: emulator E2E and real phones, Glance UI tests, share trampoline (Done still opens the
+activity), H3 watchdog alarm, voice lines, per-widget settings screen, picker preview images.
