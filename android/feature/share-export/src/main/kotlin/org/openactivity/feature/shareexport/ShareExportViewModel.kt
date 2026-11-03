@@ -67,15 +67,16 @@ public class ShareExportViewModel(
     private val spec = MutableStateFlow<ArtSpec?>(null)
 
     /**
-     * The stored activity, or, with "Hide start and finish" on while the owner set no privacy zone, a copy
-     * that hides the default distance, so the switch (and the "removed from the files" note) always tells
-     * the truth. Without this the GPX still began exactly at the start point.
+     * The stored activity, or, with "Hide start and finish" on while the owner hides nothing for it (no
+     * start/end distance, no privacy zone), a copy that hides the default distance, so the switch (and the
+     * "removed from the files" note) always tells the truth. Without this the GPX still began exactly at
+     * the start point. Privacy zones always come with the activity and are applied on top.
      */
     private val activity: ExportActivity?
         get() {
             val raw = stored ?: return null
             val on = spec.value?.privacyTrim ?: return raw
-            return if (on && !raw.privacy.hidesAnything) raw.copy(privacy = ExportPrivacy()) else raw
+            return if (on && !raw.privacy.hidesAnything) raw.copy(privacy = ExportPrivacy(zones = raw.privacy.zones)) else raw
         }
 
     init {
@@ -103,7 +104,7 @@ public class ShareExportViewModel(
             }
             stored = loaded
             val units = runCatching { provider.units() }.getOrDefault(org.openactivity.core.export.art.ArtUnits.METRIC)
-            // Hiding is on by default only when the owner set it up (onboarding's privacy zone, settings).
+            // Hiding is on by default only when the owner set it up (start/end hiding on the activity, privacy zones).
             val initial = ArtSpec(colorBy = defaultColorBy(loaded), units = units, privacyTrim = loaded.privacy.hidesAnything)
             _uiState.value = ShareExportUiState.Content(
                 title = loaded.title,
@@ -239,6 +240,7 @@ public class ShareExportViewModel(
         return content.copy(
             hiddenStartMeters = privacy?.hideStartMeters?.toInt() ?: 0,
             hiddenEndMeters = privacy?.hideEndMeters?.toInt() ?: 0,
+            privacyZoneCount = privacy?.zones?.size ?: 0,
         )
     }
 

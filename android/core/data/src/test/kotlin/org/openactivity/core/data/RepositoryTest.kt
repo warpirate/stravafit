@@ -94,6 +94,13 @@ class RepositoryTest {
         assertEquals(SportType.TRAIL_RUN, edited.sport)
         assertEquals(8, edited.perceivedExertion)
         assertFalse(activities.updateMetadata(999, ActivityMetadataUpdate(SportType.RUN, "x", "", Visibility.ONLY_ME, null)))
+        // Hide start and end: given, it is stored; left out, the stored value stays.
+        assertTrue(activities.updateMetadata(id, ActivityMetadataUpdate(SportType.TRAIL_RUN, "Ridge", "", Visibility.ONLY_ME, 8, 0.0, 0.0)))
+        assertEquals(0.0, activities.observeActivity(id).first()!!.hideStartMeters, 0.0)
+        assertTrue(activities.updateMetadata(id, ActivityMetadataUpdate(SportType.TRAIL_RUN, "Ridge", "", Visibility.ONLY_ME, 8)))
+        assertEquals(0.0, activities.observeActivity(id).first()!!.hideEndMeters, 0.0)
+        assertTrue(activities.updateMetadata(id, ActivityMetadataUpdate(SportType.TRAIL_RUN, "Ridge", "", Visibility.ONLY_ME, 8, 200.0, 200.0)))
+        assertEquals(200.0, activities.observeActivity(id).first()!!.hideEndMeters, 0.0)
 
         assertTrue(activities.delete(id))
         assertFalse(activities.delete(id))

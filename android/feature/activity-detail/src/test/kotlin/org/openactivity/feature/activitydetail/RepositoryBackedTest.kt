@@ -7,6 +7,7 @@ import androidx.test.core.app.ApplicationProvider
 import org.junit.After
 import org.junit.Before
 import org.openactivity.core.data.repository.LocalActivityRepository
+import org.openactivity.core.data.repository.LocalPrivacyZoneRepository
 import org.openactivity.core.database.OpenActivityDatabase
 import java.time.Clock
 import java.time.Instant
@@ -17,6 +18,7 @@ abstract class RepositoryBackedTest {
     protected lateinit var context: Context
     protected lateinit var db: OpenActivityDatabase
     protected lateinit var activities: LocalActivityRepository
+    protected lateinit var zones: LocalPrivacyZoneRepository
     protected val settings = FakeSettingsRepository()
     protected val extras = FakeExtrasRepository()
     protected val clock: Clock = Clock.fixed(Instant.ofEpochMilli(Recordings.START_MILLIS + 86_400_000L), ZoneOffset.UTC)
@@ -26,6 +28,7 @@ abstract class RepositoryBackedTest {
         context = ApplicationProvider.getApplicationContext()
         db = Room.inMemoryDatabaseBuilder(context, OpenActivityDatabase::class.java).allowMainThreadQueries().build()
         activities = LocalActivityRepository(db.activityDao(), clock)
+        zones = LocalPrivacyZoneRepository(db.privacyZoneDao(), clock)
     }
 
     @After

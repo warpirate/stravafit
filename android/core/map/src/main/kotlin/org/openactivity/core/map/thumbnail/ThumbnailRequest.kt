@@ -23,6 +23,7 @@ import java.security.MessageDigest
  * @property subjectId what the picture shows, e.g. `activity-42` or `route-7`, or null. It joins the
  *   cache key, so each activity or route keeps its own files per theme and size; the route itself is
  *   still part of the key, so editing or cropping the route re-renders it.
+ * @property showEndpoints draw the start and finish markers; off for outlines such as a privacy zone.
  */
 data class ThumbnailRequest(
     val points: List<LatLng>,
@@ -32,6 +33,7 @@ data class ThumbnailRequest(
     val style: MapStyleKind,
     val palette: MapPalette,
     val subjectId: String? = null,
+    val showEndpoints: Boolean = true,
 ) {
     init {
         require(widthPx > 0 && heightPx > 0) { "thumbnail size must be positive: ${widthPx}x$heightPx" }
@@ -59,6 +61,7 @@ data class ThumbnailRequest(
             append(KEY_VERSION).append('|').append(subjectId.orEmpty()).append('|').append(style.name).append('|')
             append(widthPx).append('x').append(heightPx).append('@').append(density).append('|')
             append(palette.hashCode()).append('|')
+            if (!showEndpoints) append("plain|")
             append(PolylineCodec.encode(points))
         }
         digest.digest(material.toByteArray()).joinToString("") { "%02x".format(it) }

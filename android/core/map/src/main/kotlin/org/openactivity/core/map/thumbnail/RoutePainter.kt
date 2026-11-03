@@ -18,6 +18,7 @@ internal object RoutePainter {
     /**
      * @param camera the camera the canvas shows (see [ThumbnailRequest.camera]).
      * @param density pixels per dp of [canvas].
+     * @param showEndpoints false for an outline that has no start or finish (a privacy zone's circle).
      */
     fun draw(
         canvas: Canvas,
@@ -30,6 +31,7 @@ internal object RoutePainter {
         startColor: Int = 0xFF1FA45B.toInt(),
         finishColor: Int = 0xFF242428.toInt(),
         ringColor: Int = 0xFFFFFFFF.toInt(),
+        showEndpoints: Boolean = true,
     ) {
         if (points.size < 2) return
         val widthDp = canvas.width / density
@@ -50,6 +52,7 @@ internal object RoutePainter {
         stroke.color = lineColor
         stroke.strokeWidth = OverlayPlanner.LINE_WIDTH * density * THUMB_SCALE
         canvas.drawPath(path, stroke)
+        if (!showEndpoints) return
 
         val start = CameraMath.project(points.first(), camera, widthDp, heightDp)
         val finish = CameraMath.project(points.last(), camera, widthDp, heightDp)

@@ -259,6 +259,7 @@ private fun Content(state: ShareExportUiState.Content, actions: ShareExportActio
             enabled = state.busy == null,
             hiddenStartMeters = state.hiddenStartMeters,
             hiddenEndMeters = state.hiddenEndMeters,
+            privacyZoneCount = state.privacyZoneCount,
             onExport = actions.onExport,
             onDismiss = { actions.onFormatSheet(false) },
         )

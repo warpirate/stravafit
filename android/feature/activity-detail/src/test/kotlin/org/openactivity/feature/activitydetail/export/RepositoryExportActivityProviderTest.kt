@@ -19,7 +19,7 @@ import java.time.Instant
 @RunWith(RobolectricTestRunner::class)
 class RepositoryExportActivityProviderTest : RepositoryBackedTest() {
 
-    private fun provider() = RepositoryExportActivityProvider(activities, settings)
+    private fun provider() = RepositoryExportActivityProvider(activities, settings, zones)
 
     @Test
     fun `stored activities map to the export model`() = runTest {
@@ -40,6 +40,16 @@ class RepositoryExportActivityProviderTest : RepositoryBackedTest() {
         assertNull(export.stats.calories)
         assertEquals(120.0, export.privacy.hideStartMeters, 0.0)
         assertEquals(80.0, export.privacy.hideEndMeters, 0.0)
+    }
+
+    @Test
+    fun `privacy zones come with every exported activity`() = runTest {
+        val id = activities.saveFinished(Recordings.hillyRun(seconds = 300), NewActivity("rec-z"), UnitSystem.METRIC)
+        zones.add("Home", org.openactivity.model.LatLng(47.0, 8.0), 800).getOrThrow()
+        val zone = provider().load(id.toString())!!.privacy.zones.single()
+        assertEquals(47.0, zone.latitude, 0.0)
+        assertEquals(8.0, zone.longitude, 0.0)
+        assertEquals(800.0, zone.radiusMeters, 0.0)
     }
 
     @Test

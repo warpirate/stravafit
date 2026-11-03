@@ -23,6 +23,16 @@ import org.openactivity.app.data.PreferencesRepository
 import org.openactivity.app.data.ProfileRepository
 import org.openactivity.app.data.SettingsBackedPreferencesRepository
 import org.openactivity.app.data.backup.AppRestarter
+import org.openactivity.app.data.backup.AutoBackupScheduler
+import org.openactivity.app.data.backup.AutoBackupSettings
+import org.openactivity.app.data.backup.AutoBackupStore
+import org.openactivity.app.data.backup.BackupFolders
+import org.openactivity.app.data.backup.DataStoreAutoBackupStore
+import org.openactivity.app.data.backup.FileLocalSpaceCheck
+import org.openactivity.app.data.backup.LocalAutoBackupSettings
+import org.openactivity.app.data.backup.LocalSpaceCheck
+import org.openactivity.app.data.backup.SafBackupFolders
+import org.openactivity.app.data.backup.WorkManagerAutoBackupScheduler
 import org.openactivity.app.data.backup.ControllerUnsavedRecordingCheck
 import org.openactivity.app.data.backup.DataBackup
 import org.openactivity.app.data.backup.LocalDataBackup
@@ -69,6 +79,16 @@ abstract class DataModule {
     @Binds abstract fun appRestarter(impl: ProcessAppRestarter): AppRestarter
 
     @Binds abstract fun unsavedRecordingCheck(impl: ControllerUnsavedRecordingCheck): UnsavedRecordingCheck
+
+    @Binds abstract fun autoBackupStore(impl: DataStoreAutoBackupStore): AutoBackupStore
+
+    @Binds abstract fun backupFolders(impl: SafBackupFolders): BackupFolders
+
+    @Binds abstract fun localSpaceCheck(impl: FileLocalSpaceCheck): LocalSpaceCheck
+
+    @Binds abstract fun autoBackupScheduler(impl: WorkManagerAutoBackupScheduler): AutoBackupScheduler
+
+    @Binds abstract fun autoBackupSettings(impl: LocalAutoBackupSettings): AutoBackupSettings
 
     @Binds abstract fun feedSeenRepository(impl: LocalFeedSeenRepository): FeedSeenRepository
     @Binds abstract fun suggestionSettings(impl: LocalSuggestionSettings): org.openactivity.app.data.SuggestionSettings

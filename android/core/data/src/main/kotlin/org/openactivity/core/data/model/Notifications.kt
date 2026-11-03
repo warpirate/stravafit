@@ -20,6 +20,9 @@ enum class NotificationType {
 
     /** An activity saved from a recording that was interrupted and recovered. */
     RECORDING_RECOVERED,
+
+    /** An automatic backup could not be written. */
+    BACKUP_FAILED,
 }
 
 /** Where tapping an inbox entry leads. */
@@ -35,6 +38,9 @@ enum class NotificationTarget {
 
     /** You, Activities. */
     ACTIVITIES,
+
+    /** Settings (backups and other app setup). */
+    SETTINGS,
 }
 
 /** One inbox entry. */

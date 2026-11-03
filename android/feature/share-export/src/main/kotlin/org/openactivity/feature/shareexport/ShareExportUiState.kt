@@ -46,6 +46,8 @@ public sealed interface ShareExportUiState {
         /** Metres hidden at the start and the finish while "Hide start and finish" is on. */
         val hiddenStartMeters: Int = 0,
         val hiddenEndMeters: Int = 0,
+        /** Privacy zones applied while "Hide start and finish" is on. */
+        val privacyZoneCount: Int = 0,
     ) : ShareExportUiState {
         /** True when the current template can be drawn, so image actions are enabled. */
         val imageAvailable: Boolean get() = preview !is PreviewState.Unavailable

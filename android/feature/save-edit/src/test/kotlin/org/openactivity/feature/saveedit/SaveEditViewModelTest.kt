@@ -137,6 +137,45 @@ class SaveEditViewModelTest {
     }
 
     @Test
+    fun `hide start and end can be switched off and back on for one activity`(): Unit = runBlocking {
+        val id = stored()
+        val vm = vm(id, isNew = false)
+        assertTrue(vm.editing().form.hideStartEnd)
+        vm.setHideStartEnd(false)
+        assertTrue(vm.editing().dirty)
+        vm.save()
+        withTimeout(10_000) { vm.effects.first() }
+        val off = activities.observeActivity(id).first()!!
+        assertEquals(0.0, off.hideStartMeters, 0.0)
+        assertEquals(0.0, off.hideEndMeters, 0.0)
+
+        // Settings hides nothing, so switching it back on for this activity hides 200 m at each end.
+        settings.state.value = settings.state.value.copy(privacy = org.openactivity.core.datastore.PrivacySettings(0.0, 0.0))
+        val again = vm(id, isNew = false)
+        assertFalse(again.editing().form.hideStartEnd)
+        assertEquals(200.0, again.editing().facts.hideStartMeters, 0.0)
+        again.setHideStartEnd(true)
+        again.save()
+        withTimeout(10_000) { again.effects.first() }
+        val on = activities.observeActivity(id).first()!!
+        assertEquals(200.0, on.hideStartMeters, 0.0)
+        assertEquals(200.0, on.hideEndMeters, 0.0)
+    }
+
+    @Test
+    fun `saving without touching the switch keeps the stored distances`(): Unit = runBlocking {
+        val id = activities.saveFinished(steadyRun(), NewActivity("rec", hideStartMeters = 400.0, hideEndMeters = 100.0, timeZone = ZoneOffset.UTC), UnitSystem.METRIC)
+        val vm = vm(id, isNew = false)
+        vm.editing()
+        vm.setTitle("Renamed")
+        vm.save()
+        withTimeout(10_000) { vm.effects.first() }
+        val a = activities.observeActivity(id).first()!!
+        assertEquals(400.0, a.hideStartMeters, 0.0)
+        assertEquals(100.0, a.hideEndMeters, 0.0)
+    }
+
+    @Test
     fun `save stores every field, and an empty title saves as the default`(): Unit = runBlocking {
         val id = stored()
         val vm = vm(id)

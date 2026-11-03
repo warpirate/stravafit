@@ -12,6 +12,8 @@ import org.openactivity.model.Visibility
  * @property title the typed title; an empty title saves as the default "<part of day> <sport>".
  * @property perceivedExertion 1..10, or null when not rated.
  * @property muted keep the activity out of home and club feeds.
+ * @property hideStartEnd hide the first and last part of the route in anything shared (images, stickers,
+ *   files); the owner still sees the whole route.
  */
 @Immutable
 data class SaveEditForm(
@@ -21,6 +23,7 @@ data class SaveEditForm(
     val visibility: Visibility,
     val perceivedExertion: Int?,
     val muted: Boolean,
+    val hideStartEnd: Boolean = false,
 )
 
 /**
@@ -28,7 +31,9 @@ data class SaveEditForm(
  *
  * @property defaultTitle the title an empty field saves as, for the field's placeholder.
  * @property summary e.g. "5.02 km · 26:14", or null for activities without distance.
- * @property hideStartMeters radius hidden around the start from other people (0 when off).
+ * @property hideStartMeters track distance hidden at the start while [SaveEditForm.hideStartEnd] is on: the
+ *   stored distance, or the Settings default (200 m unless changed) when it was off.
+ * @property hideEndMeters same, at the end.
  */
 @Immutable
 data class SaveEditFacts(

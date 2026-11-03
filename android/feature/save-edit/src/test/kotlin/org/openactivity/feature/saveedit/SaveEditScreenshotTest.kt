@@ -40,6 +40,7 @@ class SaveEditScreenshotTest {
             visibility = if (isNew) Visibility.FOLLOWERS else Visibility.EVERYONE,
             perceivedExertion = rpe,
             muted = !isNew,
+            hideStartEnd = isNew,
         ),
         facts = SaveEditFacts(
             defaultTitle = "Morning Run",

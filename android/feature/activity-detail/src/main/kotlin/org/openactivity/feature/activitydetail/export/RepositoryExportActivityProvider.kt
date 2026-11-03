@@ -3,12 +3,15 @@ package org.openactivity.feature.activitydetail.export
 
 import kotlinx.coroutines.flow.first
 import org.openactivity.core.data.model.ActivityDetail
+import org.openactivity.core.data.model.SavedPrivacyZone
 import org.openactivity.core.data.repository.ActivityRepository
+import org.openactivity.core.data.repository.PrivacyZoneRepository
 import org.openactivity.core.data.repository.SettingsRepository
 import org.openactivity.core.export.art.ArtUnits
 import org.openactivity.core.export.model.ExportActivity
 import org.openactivity.core.export.model.ExportPoint
 import org.openactivity.core.export.model.ExportPrivacy
+import org.openactivity.core.export.model.ExportPrivacyZone
 import org.openactivity.core.export.model.ExportStats
 import org.openactivity.feature.shareexport.ExportActivityProvider
 import org.openactivity.model.UnitSystem
@@ -20,17 +23,20 @@ import kotlin.math.roundToInt
 /**
  * [ExportActivityProvider] over the local database: the share screen and file export read the same
  * stored samples and summary the detail screen shows. Activity ids are the database ids as strings.
+ * The owner's privacy zones ride along, so the share screen's privacy trimming applies them with the
+ * activity's own start/end hiding (one trimming path for every image, sticker and file).
  */
 @Singleton
 class RepositoryExportActivityProvider @Inject constructor(
     private val activities: ActivityRepository,
     private val settings: SettingsRepository,
+    private val zones: PrivacyZoneRepository,
 ) : ExportActivityProvider {
 
     override suspend fun load(activityId: String): ExportActivity? {
         val id = activityId.toLongOrNull() ?: return null
         val detail = activities.observeActivityDetail(id).first() ?: return null
-        return toExport(detail)
+        return toExport(detail, zones.zones())
     }
 
     override suspend fun units(): ArtUnits =
@@ -41,7 +47,7 @@ class RepositoryExportActivityProvider @Inject constructor(
          * Maps a stored activity to the export model. Samples taken while paused are left out: they are
          * kept in the database for cropping but are not part of the activity.
          */
-        fun toExport(detail: ActivityDetail): ExportActivity {
+        fun toExport(detail: ActivityDetail, zones: List<SavedPrivacyZone> = emptyList()): ExportActivity {
             val a = detail.activity
             return ExportActivity(
                 id = a.id.toString(),
@@ -70,7 +76,11 @@ class RepositoryExportActivityProvider @Inject constructor(
                     calories = null,
                 ),
                 zone = a.timeZone,
-                privacy = ExportPrivacy(hideStartMeters = a.hideStartMeters, hideEndMeters = a.hideEndMeters),
+                privacy = ExportPrivacy(
+                    hideStartMeters = a.hideStartMeters,
+                    hideEndMeters = a.hideEndMeters,
+                    zones = zones.map { ExportPrivacyZone(it.center.latitude, it.center.longitude, it.radiusMeters.toDouble()) },
+                ),
             )
         }
     }

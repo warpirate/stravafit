@@ -9,6 +9,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import org.openactivity.core.database.dao.GoalDao
 import org.openactivity.core.database.dao.NotificationDao
+import org.openactivity.core.database.dao.PrivacyZoneDao
 import org.openactivity.core.database.dao.ActivityDao
 import org.openactivity.core.database.dao.RecordingJournalDao
 import org.openactivity.core.database.dao.RouteDao
@@ -19,6 +20,7 @@ import org.openactivity.core.database.entity.GoalEntity
 import org.openactivity.core.database.entity.JournalPointEntity
 import org.openactivity.core.database.entity.LapEntity
 import org.openactivity.core.database.entity.NotificationEntity
+import org.openactivity.core.database.entity.PrivacyZoneEntity
 import org.openactivity.core.database.entity.RecordingJournalEntity
 import org.openactivity.core.database.entity.RouteEntity
 import org.openactivity.core.database.entity.RoutePointEntity
@@ -41,6 +43,7 @@ import org.openactivity.core.database.entity.SplitEntity
         RoutePointEntity::class,
         GoalEntity::class,
         NotificationEntity::class,
+        PrivacyZoneEntity::class,
     ],
     version = OpenActivityDatabase.VERSION,
     exportSchema = true,
@@ -56,9 +59,11 @@ abstract class OpenActivityDatabase : RoomDatabase() {
 
     abstract fun notificationDao(): NotificationDao
 
+    abstract fun privacyZoneDao(): PrivacyZoneDao
+
     companion object {
         /** Current schema version. */
-        const val VERSION: Int = 2
+        const val VERSION: Int = 3
 
         /** File name of the on-device database. */
         const val NAME: String = "openactivity.db"
@@ -99,6 +104,18 @@ object DatabaseMigrations {
         }
     }
 
+    /** Version 3 adds privacy zones (hidden places); existing rows are untouched. */
+    val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `privacy_zones` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`uuid` TEXT NOT NULL, `label` TEXT, `center_latitude` REAL NOT NULL, `center_longitude` REAL NOT NULL, " +
+                    "`radius_meters` INTEGER NOT NULL, `created_at_millis` INTEGER NOT NULL, `updated_at_millis` INTEGER NOT NULL)",
+            )
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_privacy_zones_uuid` ON `privacy_zones` (`uuid`)")
+        }
+    }
+
     /** Every migration the database knows, oldest first. */
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2)
+    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
 }

@@ -39,3 +39,15 @@ typealias RecordRoute = org.openactivity.feature.record.navigation.RecordDestina
  * Goals: the list with progress, plus the editor. [newGoal] opens the editor for a new goal straight away.
  */
 @Serializable data class GoalsRoute(val newGoal: Boolean = false)
+
+/** The Privacy page: where data lives and who sees what (from Settings). */
+@Serializable data object PrivacyRoute
+
+/** The privacy zones list. */
+@Serializable data object PrivacyZonesRoute
+
+/** Add (`zoneId` 0) or edit a privacy zone. */
+@Serializable data class PrivacyZoneEditorRoute(val zoneId: Long = 0)
+
+/** Default audience for new activities, overall and per sport. */
+@Serializable data object VisibilityRoute
