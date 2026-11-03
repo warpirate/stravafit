@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.feature.record.ui
 
+import org.openactivity.core.designsystem.component.FrostedSurface
+import org.openactivity.core.designsystem.component.LocalFrost
+import org.openactivity.core.designsystem.component.rememberFrost
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -113,10 +117,11 @@ private fun TopArea(
     modifier: Modifier,
 ) {
     val pager = rememberPagerState(initialPage = initialPage.coerceIn(0, 1)) { 2 }
+    val frost = rememberFrost()
     Box(modifier) {
         HorizontalPager(state = pager, modifier = Modifier.fillMaxSize(), beyondViewportPageCount = 1) { page ->
             if (page == MAP_PAGE) {
-                MapPage(state, recording, mapState)
+                MapPage(state, recording, mapState, frost)
             } else {
                 SplitsPage(recording)
             }
@@ -125,7 +130,7 @@ private fun TopArea(
             Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars).padding(Spacing.gutter),
             verticalArrangement = Arrangement.spacedBy(Spacing.s),
         ) {
-            TopRow(recording, actions)
+            CompositionLocalProvider(LocalFrost provides frost) { TopRow(recording, actions) }
             RecordingNotices(recording)
         }
         PageDots(pager, Modifier.align(Alignment.BottomCenter).padding(bottom = Spacing.s))
@@ -163,14 +168,11 @@ private fun StatusPillLive(recording: RecordingUi, modifier: Modifier = Modifier
         },
     )
     val text = "$label · ${recording.sport.label}"
-    Surface(
+    FrostedSurface(
+        shape = PillShape,
         modifier = modifier.semantics(mergeDescendants = true) {
             contentDescription = "$text, ${recording.metrics.time.value}"
         },
-        shape = PillShape,
-        color = RidgelineTheme.colors.float,
-        contentColor = RidgelineTheme.colors.onFloat,
-        shadowElevation = Elevation.float,
     ) {
         Row(Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s), verticalAlignment = Alignment.CenterVertically) {
             RecordingDot(active = !recording.isPaused && !recording.isAutoPaused)

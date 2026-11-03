@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.feature.feed
 
+import org.openactivity.core.designsystem.component.FrostedScaffold
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.automirrored.outlined.Chat
@@ -18,7 +19,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -39,7 +39,6 @@ import androidx.compose.material.icons.rounded.FilterAltOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -64,6 +63,8 @@ import org.openactivity.app.feature.suggest.SuggestionsStatus
 import org.openactivity.app.feature.suggest.SuggestionsUiState
 import org.openactivity.app.feature.suggest.rememberSuggestionActions
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -154,10 +155,9 @@ fun FeedContent(
 ) {
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     var pendingDelete by rememberSaveable { mutableStateOf<Long?>(null) }
-    Scaffold(
+    FrostedScaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = RidgelineTheme.colors.gap,
-        contentWindowInsets = WindowInsets(0),
         topBar = {
             RidgelineTopAppBar(
                 title = "Home",
@@ -175,18 +175,28 @@ fun FeedContent(
         val loading = suggestions?.isRefreshing == true
         var pulled by remember { mutableStateOf(false) }
         LaunchedEffect(loading) { if (!loading) pulled = false }
+        val pullState = rememberPullToRefreshState()
         PullToRefreshBox(
             isRefreshing = pulled && loading,
             onRefresh = {
                 pulled = true
                 suggestionActions.onRefresh()
             },
-            modifier = Modifier.fillMaxSize().padding(padding),
+            modifier = Modifier.fillMaxSize(),
+            state = pullState,
             contentAlignment = Alignment.TopCenter,
+            // The list runs up behind the frosted top bar; the indicator drops from under it.
+            indicator = {
+                PullToRefreshDefaults.Indicator(
+                    state = pullState,
+                    isRefreshing = pulled && loading,
+                    modifier = Modifier.align(Alignment.TopCenter).padding(padding),
+                )
+            },
         ) {
             LazyColumn(
                 modifier = Modifier.widthIn(max = Spacing.feedMaxWidth).fillMaxWidth(),
-                contentPadding = PaddingValues(bottom = Spacing.l + LocalBottomBarPadding.current),
+                contentPadding = PaddingValues(top = padding.calculateTopPadding(), bottom = Spacing.l + LocalBottomBarPadding.current),
                 verticalArrangement = Arrangement.spacedBy(Spacing.cardGap),
             ) {
                 if (state.sports.isNotEmpty()) {

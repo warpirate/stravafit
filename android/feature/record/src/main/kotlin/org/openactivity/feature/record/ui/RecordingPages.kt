@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.feature.record.ui
 
+import org.openactivity.core.designsystem.component.LocalFrost
+import org.openactivity.core.designsystem.component.frostSource
+import androidx.compose.runtime.CompositionLocalProvider
+import dev.chrisbanes.haze.HazeState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -71,10 +75,10 @@ import org.openactivity.feature.record.format.LiveMetrics
 
 /** Map page: live track and route with the locate button. */
 @Composable
-internal fun MapPage(state: RecordUiState, recording: RecordingUi, mapState: MapState) {
+internal fun MapPage(state: RecordUiState, recording: RecordingUi, mapState: MapState, frost: HazeState? = null) {
     Box(Modifier.fillMaxSize()) {
         RidgelineMap(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().frostSource(frost),
             state = mapState,
             overlays = MapOverlays(liveTrack = recording.track, plannedRoute = state.route?.points.orEmpty()),
             location = recording.location,
@@ -85,10 +89,12 @@ internal fun MapPage(state: RecordUiState, recording: RecordingUi, mapState: Map
             Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background.copy(alpha = AUTO_PAUSE_DIM)))
         }
         if (recording.location != null) {
-            RecenterButton(
-                mapState,
-                Modifier.align(Alignment.BottomEnd).padding(end = Spacing.gutter, bottom = Spacing.x3),
-            )
+            CompositionLocalProvider(LocalFrost provides frost) {
+                RecenterButton(
+                    mapState,
+                    Modifier.align(Alignment.BottomEnd).padding(end = Spacing.gutter, bottom = Spacing.x3),
+                )
+            }
         }
     }
 }

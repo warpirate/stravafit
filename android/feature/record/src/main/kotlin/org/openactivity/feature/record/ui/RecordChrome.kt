@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.feature.record.ui
 
+import org.openactivity.core.designsystem.component.FrostedSurface
+import org.openactivity.core.designsystem.component.LocalFrost
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -132,7 +134,7 @@ private fun PillIcon(icon: ImageVector, tint: Color) {
     Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = tint)
 }
 
-/** 48 dp round button floating over the map, with a shadow so it reads on any tiles. */
+/** 48 dp round button floating over the map: frosted against it, or solid with a shadow without [LocalFrost]. */
 @Composable
 internal fun MapIconButton(
     icon: ImageVector,
@@ -140,13 +142,7 @@ internal fun MapIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier = modifier,
-        shape = PillShape,
-        color = RidgelineTheme.colors.float,
-        contentColor = RidgelineTheme.colors.onFloat,
-        shadowElevation = Elevation.float,
-    ) {
+    FrostedSurface(shape = PillShape, modifier = modifier) {
         IconButton(onClick = onClick) { Icon(icon, contentDescription = contentDescription) }
     }
 }

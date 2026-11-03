@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.feature.settings
 
+import org.openactivity.core.designsystem.component.FrostedScaffold
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,16 +42,15 @@ val OpenSourceLicenses: List<LicenseEntry> = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LicensesScreen(onNavigateUp: () -> Unit, modifier: Modifier = Modifier) {
-    Scaffold(
+    FrostedScaffold(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = WindowInsets(0),
         topBar = { RidgelineTopAppBar(title = "Open-source licences", onNavigateUp = onNavigateUp) },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             LazyColumn(
                 Modifier.widthIn(max = Spacing.feedMaxWidth).fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = Spacing.gutter, vertical = Spacing.s),
+                contentPadding = PaddingValues(start = Spacing.gutter, top = Spacing.s + padding.calculateTopPadding(), end = Spacing.gutter, bottom = Spacing.s),
             ) {
                 item {
                     SettingsGroup {

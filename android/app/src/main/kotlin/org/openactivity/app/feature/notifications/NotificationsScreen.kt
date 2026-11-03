@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.feature.notifications
 
+import org.openactivity.core.designsystem.component.FrostedScaffold
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -35,7 +36,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -82,10 +82,9 @@ fun NotificationsContent(
     onMarkAllRead: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    Scaffold(
+    FrostedScaffold(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.surface,
-        contentWindowInsets = WindowInsets(0),
         topBar = {
             RidgelineTopAppBar(title = "Notifications", onNavigateUp = onNavigateUp) {
                 if (state.unreadCount > 0) {
@@ -94,17 +93,18 @@ fun NotificationsContent(
             }
         },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             when {
-                state.isLoading -> ActivityCardSkeleton(Modifier.padding(Spacing.gutter))
+                state.isLoading -> ActivityCardSkeleton(Modifier.padding(padding).padding(Spacing.gutter))
                 state.items.isEmpty() -> EmptyState(
+                    modifier = Modifier.padding(padding),
                     icon = Icons.Rounded.NotificationsNone,
                     title = "No notifications yet",
                     body = "New personal records, goals reached and your weekly summary show up here.",
                 )
                 else -> LazyColumn(
                     Modifier.widthIn(max = Spacing.feedMaxWidth).fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars),
-                    contentPadding = PaddingValues(bottom = Spacing.l),
+                    contentPadding = PaddingValues(top = padding.calculateTopPadding(), bottom = Spacing.l),
                 ) {
                     items(state.items, key = { it.id }) { item ->
                         InboxRow(item, onClick = { onOpen(item) })

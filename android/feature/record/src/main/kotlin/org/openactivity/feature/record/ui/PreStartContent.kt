@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.feature.record.ui
 
+import org.openactivity.core.designsystem.component.LocalFrost
+import org.openactivity.core.designsystem.component.rememberFrost
+import org.openactivity.core.designsystem.component.frostSource
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -81,59 +85,62 @@ private fun PreStartMap(state: RecordUiState, actions: RecordActions, mapState: 
     val dark = isMapThemeDark()
     var chosenStyle by rememberSaveable { mutableStateOf<MapStyleKind?>(null) }
     val styleKind = chosenStyle ?: MapStyleKind.default(dark)
+    val frost = rememberFrost()
     Box(modifier) {
-        if (state.sport.usesGps) {
-            val route = state.route
-            LaunchedEffect(route?.id) {
-                // Show the whole route once when it is chosen; Recenter brings the user back.
-                if (route != null) mapState.fitTo(route.points, MapPadding.all(ROUTE_FIT_PADDING_DP))
-            }
-            RidgelineMap(
-                modifier = Modifier.fillMaxSize(),
-                state = mapState,
-                styleKind = styleKind,
-                overlays = MapOverlays(plannedRoute = route?.points.orEmpty()),
-                location = state.location,
-                contentPadding = PaddingValues(bottom = Spacing.xs),
-            )
-        } else {
-            IndoorBackdrop(Modifier.fillMaxSize())
-        }
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(Spacing.gutter),
-            verticalArrangement = Arrangement.spacedBy(Spacing.s),
-        ) {
-            Box(Modifier.fillMaxWidth()) {
-                MapIconButton(Icons.Rounded.KeyboardArrowDown, stringResource(R.string.record_close), actions.onClose, Modifier.align(Alignment.CenterStart))
-                GpsStatusPill(state.gps, onFix = actions.onFixLocation, modifier = Modifier.align(Alignment.Center))
-                MapIconButton(
-                    Icons.Rounded.Settings,
-                    stringResource(R.string.record_settings),
-                    { actions.onShowSheet(RecordSheet.Settings) },
-                    Modifier.align(Alignment.CenterEnd),
+        CompositionLocalProvider(LocalFrost provides frost) {
+            if (state.sport.usesGps) {
+                val route = state.route
+                LaunchedEffect(route?.id) {
+                    // Show the whole route once when it is chosen; Recenter brings the user back.
+                    if (route != null) mapState.fitTo(route.points, MapPadding.all(ROUTE_FIT_PADDING_DP))
+                }
+                RidgelineMap(
+                    modifier = Modifier.fillMaxSize().frostSource(frost),
+                    state = mapState,
+                    styleKind = styleKind,
+                    overlays = MapOverlays(plannedRoute = route?.points.orEmpty()),
+                    location = state.location,
+                    contentPadding = PaddingValues(bottom = Spacing.xs),
                 )
+            } else {
+                IndoorBackdrop(Modifier.fillMaxSize())
             }
-            if (state.showBatteryPrompt) {
-                BatteryPrompt(actions.onAllowBackground, actions.onDismissBatteryPrompt, Modifier.fillMaxWidth())
-            }
-            if (state.showSlowFixHint && state.gps.indicator == GpsIndicator.Acquiring && state.phase != RecordPhase.WaitingForGps) {
-                RecordBanner(stringResource(R.string.record_slow_fix_hint), Modifier.fillMaxWidth(), icon = Icons.Rounded.GpsNotFixed)
-            }
-        }
-        if (state.sport.usesGps) {
             Column(
-                Modifier.align(Alignment.BottomEnd).padding(end = Spacing.gutter, bottom = Spacing.x3),
-                verticalArrangement = Arrangement.spacedBy(Spacing.m),
+                Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .padding(Spacing.gutter),
+                verticalArrangement = Arrangement.spacedBy(Spacing.s),
             ) {
-                MapLayersButton(
-                    available = MapStyleKind.entries,
-                    selected = styleKind,
-                    onSelect = { chosenStyle = it },
-                )
-                if (state.location != null) RecenterButton(mapState)
+                Box(Modifier.fillMaxWidth()) {
+                    MapIconButton(Icons.Rounded.KeyboardArrowDown, stringResource(R.string.record_close), actions.onClose, Modifier.align(Alignment.CenterStart))
+                    GpsStatusPill(state.gps, onFix = actions.onFixLocation, modifier = Modifier.align(Alignment.Center))
+                    MapIconButton(
+                        Icons.Rounded.Settings,
+                        stringResource(R.string.record_settings),
+                        { actions.onShowSheet(RecordSheet.Settings) },
+                        Modifier.align(Alignment.CenterEnd),
+                    )
+                }
+                if (state.showBatteryPrompt) {
+                    BatteryPrompt(actions.onAllowBackground, actions.onDismissBatteryPrompt, Modifier.fillMaxWidth())
+                }
+                if (state.showSlowFixHint && state.gps.indicator == GpsIndicator.Acquiring && state.phase != RecordPhase.WaitingForGps) {
+                    RecordBanner(stringResource(R.string.record_slow_fix_hint), Modifier.fillMaxWidth(), icon = Icons.Rounded.GpsNotFixed)
+                }
+            }
+            if (state.sport.usesGps) {
+                Column(
+                    Modifier.align(Alignment.BottomEnd).padding(end = Spacing.gutter, bottom = Spacing.x3),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.m),
+                ) {
+                    MapLayersButton(
+                        available = MapStyleKind.entries,
+                        selected = styleKind,
+                        onSelect = { chosenStyle = it },
+                    )
+                    if (state.location != null) RecenterButton(mapState)
+                }
             }
         }
     }

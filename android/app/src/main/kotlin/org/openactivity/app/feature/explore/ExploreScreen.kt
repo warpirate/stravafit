@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.feature.explore
 
+import org.openactivity.core.designsystem.component.FrostedSurface
+import org.openactivity.core.designsystem.component.LocalFrost
+import org.openactivity.core.designsystem.component.rememberFrost
+import org.openactivity.core.designsystem.component.frostSource
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -253,65 +258,68 @@ private fun ExploreMap(
     // Landscape only: the map runs down behind the floating bar there.
     bottomInset: Dp = 0.dp,
 ) {
+        val frost = rememberFrost()
         Box(modifier) {
-            val points = onMap.highlight
-            // Frame the route clear of the search pill and chips above and the buttons on the right.
-            val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-            val fitPadding = MapPadding(FIT_SIDE_DP, statusBar.value + FIT_TOP_DP, FIT_RIGHT_DP, FIT_BOTTOM_DP + bottomInset.value)
-            LaunchedEffect(onMap.key) { if (points.size >= 2) mapState.fitTo(points, fitPadding) }
-            // Without a route to show, open on the athlete (once), as Record does.
-            val location = state.userLocation
-            LaunchedEffect(location != null, onMap.key == null) {
-                if (location != null && onMap.key == null && mapState.camera?.let { it.zoom < 10.0 } != false) mapState.followUser()
-            }
-            LaunchedEffect(tilted) {
-                mapState.camera?.let { mapState.moveTo(it.copy(tilt = if (tilted) TILT_3D else 0.0)) }
-            }
-            RidgelineMap(
-                modifier = Modifier.fillMaxSize(),
-                state = mapState,
-                styleKind = styleKind ?: MapStyleKind.default(dark),
-                overlays = MapOverlays(
-                    activityRoute = if (points.size >= 2) ActivityRouteOverlay(points, colorByPace = false) else null,
-                    alternateRoutes = onMap.alternates,
-                ),
-                location = location,
-                onMapClick = onMapClick.takeIf { onMap.alternates.isNotEmpty() },
-            )
-            Column(Modifier.fillMaxWidth().statusBarsPadding().padding(top = Spacing.s)) {
-                Row(Modifier.padding(horizontal = Spacing.gutter), verticalAlignment = Alignment.CenterVertically) {
-                    SearchPill(query, onQuery, Modifier.weight(1f))
-                    Spacer(Modifier.width(Spacing.m))
-                    MapLayersButton(MapStyleKind.entries, styleKind ?: MapStyleKind.default(dark), onStyle)
+            CompositionLocalProvider(LocalFrost provides frost) {
+                val points = onMap.highlight
+                // Frame the route clear of the search pill and chips above and the buttons on the right.
+                val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                val fitPadding = MapPadding(FIT_SIDE_DP, statusBar.value + FIT_TOP_DP, FIT_RIGHT_DP, FIT_BOTTOM_DP + bottomInset.value)
+                LaunchedEffect(onMap.key) { if (points.size >= 2) mapState.fitTo(points, fitPadding) }
+                // Without a route to show, open on the athlete (once), as Record does.
+                val location = state.userLocation
+                LaunchedEffect(location != null, onMap.key == null) {
+                    if (location != null && onMap.key == null && mapState.camera?.let { it.zoom < 10.0 } != false) mapState.followUser()
                 }
-                Row(
-                    Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.gutter, vertical = Spacing.m),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+                LaunchedEffect(tilted) {
+                    mapState.camera?.let { mapState.moveTo(it.copy(tilt = if (tilted) TILT_3D else 0.0)) }
+                }
+                RidgelineMap(
+                    modifier = Modifier.fillMaxSize().frostSource(frost),
+                    state = mapState,
+                    styleKind = styleKind ?: MapStyleKind.default(dark),
+                    overlays = MapOverlays(
+                        activityRoute = if (points.size >= 2) ActivityRouteOverlay(points, colorByPace = false) else null,
+                        alternateRoutes = onMap.alternates,
+                    ),
+                    location = location,
+                    onMapClick = onMapClick.takeIf { onMap.alternates.isNotEmpty() },
+                )
+                Column(Modifier.fillMaxWidth().statusBarsPadding().padding(top = Spacing.s)) {
+                    Row(Modifier.padding(horizontal = Spacing.gutter), verticalAlignment = Alignment.CenterVertically) {
+                        SearchPill(query, onQuery, Modifier.weight(1f))
+                        Spacer(Modifier.width(Spacing.m))
+                        MapLayersButton(MapStyleKind.entries, styleKind ?: MapStyleKind.default(dark), onStyle)
+                    }
+                    Row(
+                        Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.gutter, vertical = Spacing.m),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+                    ) {
+                        SportChip(sportFilter, state.routes.mapNotNull { it.sport }.distinct(), onSport)
+                        MapChip("Heatmap", selected = false) { actions.onNotAvailable(SERVER_NEEDED) }
+                        MapChip("Routes", selected = true) {}
+                        MapChip("Segments", selected = false) { actions.onNotAvailable(SERVER_NEEDED) }
+                    }
+                }
+                Column(
+                    Modifier.align(Alignment.CenterEnd).padding(end = Spacing.gutter),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.m),
                 ) {
-                    SportChip(sportFilter, state.routes.mapNotNull { it.sport }.distinct(), onSport)
-                    MapChip("Heatmap", selected = false) { actions.onNotAvailable(SERVER_NEEDED) }
-                    MapChip("Routes", selected = true) {}
-                    MapChip("Segments", selected = false) { actions.onNotAvailable(SERVER_NEEDED) }
+                    MapRoundButton(onClick = onTilt, modifier = Modifier.semantics { contentDescription = "3D view" }) {
+                        Text("3D", style = MaterialTheme.typography.titleSmall, color = if (tilted) RidgelineTheme.colors.accent else RidgelineTheme.colors.onFloat)
+                    }
+                    MapRoundButton(
+                        onClick = {
+                            when {
+                                location != null -> mapState.followUser()
+                                points.size >= 2 -> mapState.fitTo(points, fitPadding)
+                            }
+                        },
+                        modifier = Modifier.semantics { contentDescription = if (location != null) "Show my location" else "Show the route" },
+                    ) { Icon(Icons.Rounded.NearMe, contentDescription = null) }
                 }
+                CreateRoutePill(state.isImporting, actions, Modifier.align(Alignment.BottomEnd).padding(bottom = bottomInset).padding(Spacing.gutter))
             }
-            Column(
-                Modifier.align(Alignment.CenterEnd).padding(end = Spacing.gutter),
-                verticalArrangement = Arrangement.spacedBy(Spacing.m),
-            ) {
-                MapRoundButton(onClick = onTilt, modifier = Modifier.semantics { contentDescription = "3D view" }) {
-                    Text("3D", style = MaterialTheme.typography.titleSmall, color = if (tilted) RidgelineTheme.colors.accent else RidgelineTheme.colors.onFloat)
-                }
-                MapRoundButton(
-                    onClick = {
-                        when {
-                            location != null -> mapState.followUser()
-                            points.size >= 2 -> mapState.fitTo(points, fitPadding)
-                        }
-                    },
-                    modifier = Modifier.semantics { contentDescription = if (location != null) "Show my location" else "Show the route" },
-                ) { Icon(Icons.Rounded.NearMe, contentDescription = null) }
-            }
-            CreateRoutePill(state.isImporting, actions, Modifier.align(Alignment.BottomEnd).padding(bottom = bottomInset).padding(Spacing.gutter))
         }
 }
 
@@ -327,13 +335,7 @@ private const val SERVER_NEEDED = "Needs a server account. That is coming soon."
 
 @Composable
 private fun SearchPill(query: String, onQuery: (String) -> Unit, modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier.height(52.dp),
-        shape = PillShape,
-        color = RidgelineTheme.colors.float,
-        contentColor = RidgelineTheme.colors.onFloat,
-        shadowElevation = Elevation.float,
-    ) {
+    FrostedSurface(shape = PillShape, modifier = modifier.height(52.dp)) {
         Row(Modifier.padding(horizontal = Spacing.l), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.Search, contentDescription = null)
             Spacer(Modifier.width(Spacing.m))
@@ -387,13 +389,14 @@ private fun SportChip(selected: SportType?, sports: List<SportType>, onSelect: (
 /** A layer chip: dark with an orange check when on, white and floating when off. */
 @Composable
 private fun MapChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
+    // Off chips frost like the other controls; the on chip stays solid dark, the strava accent.
+    FrostedSurface(
         shape = PillShape,
+        modifier = Modifier.semantics { this.selected = selected },
+        onClick = onClick,
         color = if (selected) RidgelineTheme.colors.pillInverse else RidgelineTheme.colors.float,
         contentColor = if (selected) RidgelineTheme.colors.onPillInverse else RidgelineTheme.colors.onFloat,
-        shadowElevation = Elevation.float,
-        modifier = Modifier.semantics { this.selected = selected },
+        frost = if (selected) null else LocalFrost.current,
     ) {
         Row(Modifier.height(40.dp).padding(horizontal = Spacing.l), verticalAlignment = Alignment.CenterVertically) {
             if (selected) {

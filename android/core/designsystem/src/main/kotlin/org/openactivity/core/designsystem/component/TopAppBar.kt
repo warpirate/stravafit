@@ -25,6 +25,8 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -33,7 +35,8 @@ import org.openactivity.core.designsystem.theme.RidgelineTheme
 
 /**
  * Ridgeline top app bar: left-aligned title on the canvas colour, tinting to `surface` when
- * content scrolls underneath.
+ * content scrolls underneath. Inside a [FrostedScaffold] the content scrolls up behind it and shows
+ * through frosted.
  *
  * @param onNavigateUp shows a back arrow when not null.
  */
@@ -49,7 +52,10 @@ fun RidgelineTopAppBar(
     hairline: Boolean = true,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    Column(modifier) {
+    val surface = MaterialTheme.colorScheme.surface
+    val frosted = LocalFrost.current != null
+    val container = if (frosted) Color.Transparent else surface
+    Column(if (frosted) modifier.frosted(RectangleShape, surface) else modifier) {
         TopAppBar(
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -74,8 +80,8 @@ fun RidgelineTopAppBar(
             actions = actions,
             scrollBehavior = scrollBehavior,
             colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-                scrolledContainerColor = MaterialTheme.colorScheme.surface,
+                containerColor = container,
+                scrolledContainerColor = container,
                 titleContentColor = MaterialTheme.colorScheme.onSurface,
                 actionIconContentColor = MaterialTheme.colorScheme.onSurface,
                 navigationIconContentColor = MaterialTheme.colorScheme.onSurface,

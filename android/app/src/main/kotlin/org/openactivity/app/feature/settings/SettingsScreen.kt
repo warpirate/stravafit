@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.feature.settings
 
+import org.openactivity.core.designsystem.component.FrostedScaffold
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
@@ -25,7 +26,6 @@ import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -186,18 +186,18 @@ data class SettingsActions(
 fun SettingsContent(state: SettingsUiState, actions: SettingsActions, modifier: Modifier = Modifier) {
     val settings = state.settings
     val formatter = UnitFormatter(settings.units, Locale.getDefault())
-    Scaffold(
+    FrostedScaffold(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = WindowInsets(0),
         topBar = { RidgelineTopAppBar(title = "Settings", onNavigateUp = actions.onNavigateUp) },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             Column(
                 Modifier
                     .widthIn(max = Spacing.feedMaxWidth)
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
+                    .padding(top = padding.calculateTopPadding())
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(horizontal = Spacing.gutter, vertical = Spacing.s),
             ) {
