@@ -19,6 +19,8 @@ import org.openactivity.core.data.repository.PrivacyZoneRepository
 import org.openactivity.core.data.repository.LocalActivityRepository
 import org.openactivity.core.data.repository.LocalRouteRepository
 import org.openactivity.core.data.repository.RouteRepository
+import org.openactivity.core.data.repository.LocalSegmentRepository
+import org.openactivity.core.data.repository.SegmentRepository
 import org.openactivity.core.data.repository.SettingsRepository
 import java.time.Clock
 import javax.inject.Qualifier
@@ -52,6 +54,9 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun privacyZoneRepository(impl: LocalPrivacyZoneRepository): PrivacyZoneRepository
+
+    @Binds
+    abstract fun segmentRepository(impl: LocalSegmentRepository): SegmentRepository
 
     companion object {
         @Provides

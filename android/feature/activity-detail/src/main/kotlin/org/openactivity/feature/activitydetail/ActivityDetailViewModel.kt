@@ -32,6 +32,7 @@ import org.openactivity.core.data.mapper.EffortKind
 import org.openactivity.core.data.model.EffortMedal
 import org.openactivity.core.data.repository.ActivityRepository
 import org.openactivity.core.data.repository.EffortRanking
+import org.openactivity.core.data.repository.SegmentRepository
 import org.openactivity.core.data.repository.SettingsRepository
 import org.openactivity.core.datastore.AppSettings
 import org.openactivity.core.export.file.ExportFormat
@@ -63,6 +64,7 @@ class ActivityDetailViewModel internal constructor(
     settings: SettingsRepository,
     private val fileExporter: ActivityFileExporter,
     private val clock: Clock,
+    private val segments: SegmentRepository? = null,
 ) : ViewModel() {
 
     @Inject
@@ -72,6 +74,7 @@ class ActivityDetailViewModel internal constructor(
         extras: ActivityExtrasRepository,
         settings: SettingsRepository,
         fileExporter: ActivityFileExporter,
+        segments: SegmentRepository,
     ) : this(
         activityId = checkNotNull(savedStateHandle.get<Long>(ARG_ACTIVITY_ID)) { "activityId missing" },
         activities = activities,
@@ -79,6 +82,7 @@ class ActivityDetailViewModel internal constructor(
         settings = settings,
         fileExporter = fileExporter,
         clock = Clock.systemDefaultZone(),
+        segments = segments,
     )
 
     private val dialogs = MutableStateFlow(DetailDialogs())
@@ -105,7 +109,11 @@ class ActivityDetailViewModel internal constructor(
             settings.settings.map { DisplaySettings.of(it, detail.activity.sport) }.distinctUntilChanged(),
             extras.observe(activityId),
             medals,
-        ) { display, ex, earned -> buildContent(detail, display.units, ex, earned, LocalDate.now(clock), display.speed) }
+            segments?.observeEffortsOfActivity(activityId) ?: flowOf(emptyList()),
+        ) { display, ex, earned, efforts ->
+            buildContent(detail, display.units, ex, earned, LocalDate.now(clock), display.speed)
+                .copy(segments = DetailRows.segments(efforts, display.units, display.speed))
+        }
     }.flowOn(Dispatchers.Default)
 
     /** Current screen state. */

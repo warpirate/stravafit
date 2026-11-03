@@ -8,6 +8,7 @@ import org.openactivity.model.UnitSystem
 import org.openactivity.recording.RecordingState
 import org.openactivity.recording.RecordingStatus
 import org.openactivity.recording.route.RouteEvent
+import org.openactivity.recording.segment.LiveSegmentEvent
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.roundToLong
@@ -91,6 +92,20 @@ sealed interface AudioCue {
     data object BackOnRoute : AudioCue
 
     data object RouteCompleted : AudioCue
+
+    /** A starred segment starts [distanceMeters] ahead. */
+    data class SegmentAhead(val name: String, val distanceMeters: Double) : AudioCue
+
+    /** Through a starred segment's start gate; [prSeconds] is your PR to beat, null before a first effort. */
+    data class SegmentStarted(val name: String, val prSeconds: Long?) : AudioCue
+
+    /**
+     * Through a starred segment's finish.
+     *
+     * @property deltaSeconds against your PR (negative is faster), null without one.
+     * @property newPr faster than your PR.
+     */
+    data class SegmentFinished(val name: String, val elapsedSeconds: Long, val deltaSeconds: Long?, val newPr: Boolean) : AudioCue
 }
 
 /**
@@ -173,6 +188,24 @@ class AudioCuePlanner(
                 is RouteEvent.OffRoute -> AudioCue.OffRoute(event.distanceMeters)
                 RouteEvent.BackOnRoute -> AudioCue.BackOnRoute
                 RouteEvent.Completed -> AudioCue.RouteCompleted
+            }
+        }
+    }
+
+    /** Cues for live segment events (an abandoned attempt is shown, not spoken). */
+    fun onSegments(events: List<LiveSegmentEvent>): List<AudioCue> {
+        if (!settings.enabled || !settings.announceSegments) return emptyList()
+        return events.mapNotNull { event ->
+            when (event) {
+                is LiveSegmentEvent.Approaching -> AudioCue.SegmentAhead(event.name, event.distanceMeters)
+                is LiveSegmentEvent.Started -> AudioCue.SegmentStarted(event.name, event.prElapsedMillis?.let { (it + 500) / 1000 })
+                is LiveSegmentEvent.Finished -> AudioCue.SegmentFinished(
+                    name = event.name,
+                    elapsedSeconds = (event.elapsedMillis + 500) / 1000,
+                    deltaSeconds = event.deltaMillis?.let { Math.round(it / 1000.0) },
+                    newPr = event.isNewPr,
+                )
+                is LiveSegmentEvent.Abandoned -> null
             }
         }
     }

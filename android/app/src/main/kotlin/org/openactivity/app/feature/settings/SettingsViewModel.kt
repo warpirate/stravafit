@@ -193,6 +193,8 @@ class SettingsViewModel @Inject constructor(
 
     fun setAnnounceRoute(enabled: Boolean) = updateCues { it.copy(announceRoute = enabled) }
 
+    fun setAnnounceSegments(enabled: Boolean) = updateCues { it.copy(announceSegments = enabled) }
+
     fun setDistanceCues(enabled: Boolean) = updateCues { it.copy(distanceCues = enabled) }
 
     fun setCueTimeInterval(minutes: Int) = updateCues { it.copy(timeIntervalMinutes = minutes) }

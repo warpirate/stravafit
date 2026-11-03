@@ -40,6 +40,9 @@ import androidx.compose.ui.semantics.semantics
 import org.openactivity.app.ui.common.label
 import androidx.compose.foundation.verticalScroll
 import org.openactivity.app.feature.suggest.IntroCard
+import org.openactivity.app.feature.segments.SegmentListRow
+import org.openactivity.app.feature.segments.SegmentRowUi
+import androidx.compose.material.icons.rounded.Timeline
 import org.openactivity.app.navigation.LocalBottomBarPadding
 import org.openactivity.app.feature.suggest.RefreshButton
 import org.openactivity.app.feature.suggest.RouteSuggestionsViewModel
@@ -120,6 +123,7 @@ import org.openactivity.core.map.thumbnail.RouteMapThumbnail
 fun ExploreScreen(
     onOpenRoute: (Long) -> Unit,
     onOpenSuggestion: (String) -> Unit = {},
+    onOpenSegment: (Long) -> Unit = {},
     viewModel: ExploreViewModel = hiltViewModel(),
     suggestionsViewModel: RouteSuggestionsViewModel = hiltViewModel(),
 ) {
@@ -141,6 +145,8 @@ fun ExploreScreen(
             onOpenRoute = onOpenRoute,
             onShowOnMap = viewModel::selectRoute,
             onNotAvailable = messenger::show,
+            onOpenSegment = onOpenSegment,
+            onToggleSegmentStar = viewModel::toggleSegmentStar,
         ),
         suggestions = suggestions,
         suggestionActions = suggestionActions,
@@ -152,8 +158,10 @@ data class ExploreActions(
     val onImport: () -> Unit = {},
     val onOpenRoute: (Long) -> Unit = {},
     val onShowOnMap: (Long) -> Unit = {},
-    /** Heatmap and segments need a server; this explains that. */
+    /** The heatmap needs a server; this explains that. */
     val onNotAvailable: (String) -> Unit = {},
+    val onOpenSegment: (Long) -> Unit = {},
+    val onToggleSegmentStar: (Long, Boolean) -> Unit = { _, _ -> },
 )
 
 /**
@@ -176,6 +184,11 @@ fun ExploreContent(
     // The map shows the suggestions (strava) until a saved route is picked; swiping a card goes back to them.
     var showSaved by rememberSaveable { mutableStateOf(false) }
     var suggestionId by rememberSaveable { mutableStateOf<String?>(null) }
+    // The Segments layer: your segments on the map and in the sheet, in place of the routes.
+    var showSegments by rememberSaveable { mutableStateOf(false) }
+    var segmentId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val segments = state.segments.filter { sportFilter == null || it.sport == sportFilter }
+    val segment = segments.firstOrNull { it.id == segmentId } ?: segments.firstOrNull()
     val mapState = rememberMapState()
     val routes = state.routes
         .filter { sportFilter == null || it.sport == sportFilter }
@@ -183,7 +196,9 @@ fun ExploreContent(
     val selected = state.selectedRoute?.takeIf { it in routes } ?: routes.firstOrNull()
     val cards = suggestions.cards
     val suggestion = cards.firstOrNull { it.id == suggestionId } ?: cards.firstOrNull()
-    val onMap = if (!showSaved && suggestion != null) {
+    val onMap = if (showSegments) {
+        OnMap(segment?.points.orEmpty(), segment?.let { "g:${it.id}" }, segments.filter { it.id != segment?.id }.map { it.points })
+    } else if (!showSaved && suggestion != null) {
         OnMap(suggestion.points, "s:${suggestion.id}", cards.filter { it.id != suggestion.id }.map { it.points })
     } else {
         OnMap(selected?.points.orEmpty(), selected?.id, emptyList())
@@ -194,7 +209,16 @@ fun ExploreContent(
         SuggestionPager(cards, suggestion?.id, onSelect = selectSuggestion, onOpen = suggestionActions.onOpen)
     }
     val onMapClick: (LatLng) -> Unit = { tap ->
-        nearestCard(cards, tap, mapState.camera?.zoom)?.let(selectSuggestion)
+        val zoom = mapState.camera?.zoom
+        if (showSegments) {
+            nearestLine(segments.map { it.id to it.points }, tap, zoom)?.let { segmentId = it }
+        } else {
+            nearestLine(cards.map { it.id to it.points }, tap, zoom)?.let(selectSuggestion)
+        }
+    }
+    val layer = MapLayer(showSegments) { showSegments = it }
+    val segmentsSheet: @Composable (Modifier, Boolean) -> Unit = { m, side ->
+        SegmentsSheet(segments, segment?.id, state.isLoading, actions, onSelect = { segmentId = it }, modifier = m, side = side)
     }
     val dark = isMapThemeDark()
     // Landscape: the routes sit in a side panel so the map keeps the full height (a bottom sheet hid it).
@@ -203,13 +227,21 @@ fun ExploreContent(
         val sheetMax = maxHeight * SHEET_MAX_FRACTION
         if (landscape) {
             Row(Modifier.fillMaxSize()) {
-                ExploreMap(state, onMap, onMapClick, actions, mapState, query, { query = it }, styleKind, { styleKind = it }, tilted, { tilted = !tilted }, sportFilter, { sportFilter = it }, dark, Modifier.weight(1f).fillMaxHeight(), bottomInset = LocalBottomBarPadding.current)
-                RoutesSheet(routes, selected.takeIf { showSaved }, state, sheetActions, suggestions, suggestionActions, carousel, Modifier.width(SIDE_PANEL_WIDTH).fillMaxHeight(), side = true)
+                ExploreMap(state, onMap, onMapClick, actions, mapState, query, { query = it }, styleKind, { styleKind = it }, tilted, { tilted = !tilted }, sportFilter, { sportFilter = it }, dark, Modifier.weight(1f).fillMaxHeight(), bottomInset = LocalBottomBarPadding.current, layer = layer)
+                if (showSegments) {
+                    segmentsSheet(Modifier.width(SIDE_PANEL_WIDTH).fillMaxHeight(), true)
+                } else {
+                    RoutesSheet(routes, selected.takeIf { showSaved }, state, sheetActions, suggestions, suggestionActions, carousel, Modifier.width(SIDE_PANEL_WIDTH).fillMaxHeight(), side = true)
+                }
             }
         } else {
             Column(Modifier.fillMaxSize()) {
-                ExploreMap(state, onMap, onMapClick, actions, mapState, query, { query = it }, styleKind, { styleKind = it }, tilted, { tilted = !tilted }, sportFilter, { sportFilter = it }, dark, Modifier.weight(1f).fillMaxWidth())
-                RoutesSheet(routes, selected.takeIf { showSaved }, state, sheetActions, suggestions, suggestionActions, carousel, Modifier.heightIn(max = sheetMax))
+                ExploreMap(state, onMap, onMapClick, actions, mapState, query, { query = it }, styleKind, { styleKind = it }, tilted, { tilted = !tilted }, sportFilter, { sportFilter = it }, dark, Modifier.weight(1f).fillMaxWidth(), layer = layer)
+                if (showSegments) {
+                    segmentsSheet(Modifier.heightIn(max = sheetMax), false)
+                } else {
+                    RoutesSheet(routes, selected.takeIf { showSaved }, state, sheetActions, suggestions, suggestionActions, carousel, Modifier.heightIn(max = sheetMax))
+                }
             }
         }
     }
@@ -221,14 +253,17 @@ fun ExploreContent(
  */
 private data class OnMap(val highlight: List<LatLng>, val key: Any?, val alternates: List<List<LatLng>>)
 
-/** The suggestion whose line is within a finger's width of [tap] at [zoom], nearest first. */
-private fun nearestCard(cards: List<SuggestionCardUi>, tap: LatLng, zoom: Double?): String? {
+/** Which layer the chips show: your routes and suggestions, or your segments. */
+private class MapLayer(val segments: Boolean, val onSegments: (Boolean) -> Unit)
+
+/** The line (suggestion or segment) within a finger's width of [tap] at [zoom], nearest first. */
+private fun <K> nearestLine(lines: List<Pair<K, List<LatLng>>>, tap: LatLng, zoom: Double?): K? {
     if (zoom == null) return null
     // A 512-dp world at zoom 0: metres per dp at this latitude and zoom.
     val metersPerDp = EARTH_CIRCUMFERENCE_M * cos(Math.toRadians(tap.latitude)) / (TILE_DP * 2.0.pow(zoom))
     val reach = TAP_REACH_DP * metersPerDp
-    return cards
-        .map { card -> card.id to card.points.zipWithNext().minOfOrNull { (a, b) -> PlanarGeometry.pointToSegmentDistance(tap, a, b) } }
+    return lines
+        .map { (id, points) -> id to points.zipWithNext().minOfOrNull { (a, b) -> PlanarGeometry.pointToSegmentDistance(tap, a, b) } }
         .filter { (_, d) -> d != null && d <= reach }
         .minByOrNull { (_, d) -> d!! }
         ?.first
@@ -257,6 +292,7 @@ private fun ExploreMap(
     modifier: Modifier,
     // Landscape only: the map runs down behind the floating bar there.
     bottomInset: Dp = 0.dp,
+    layer: MapLayer = MapLayer(false) {},
 ) {
         val frost = rememberFrost()
         Box(modifier) {
@@ -297,8 +333,8 @@ private fun ExploreMap(
                     ) {
                         SportChip(sportFilter, state.routes.mapNotNull { it.sport }.distinct(), onSport)
                         MapChip("Heatmap", selected = false) { actions.onNotAvailable(SERVER_NEEDED) }
-                        MapChip("Routes", selected = true) {}
-                        MapChip("Segments", selected = false) { actions.onNotAvailable(SERVER_NEEDED) }
+                        MapChip("Routes", selected = !layer.segments) { layer.onSegments(false) }
+                        MapChip("Segments", selected = layer.segments) { layer.onSegments(!layer.segments) }
                     }
                 }
                 Column(
@@ -502,6 +538,74 @@ private fun RoutesSheet(
             }
             SuggestionsBody(suggestions, suggestionActions, carousel)
             YourRoutes(routes, selected, state, actions, side)
+        }
+    }
+}
+
+/**
+ * The sheet with the Segments layer on: your segments (starred first) with their best time and a star;
+ * tapping one shows it on the map, tapping it again opens it.
+ */
+@Composable
+private fun SegmentsSheet(
+    segments: List<SegmentRowUi>,
+    selectedId: Long?,
+    loading: Boolean,
+    actions: ExploreActions,
+    onSelect: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+    side: Boolean = false,
+) {
+    Surface(modifier, shape = if (side) RectangleShape else SheetTopShape, color = RidgelineTheme.colors.sheetOverMap, shadowElevation = Elevation.sheet) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .let { if (side) it.statusBarsPadding() else it }
+                .verticalScroll(rememberScrollState())
+                .padding(top = Spacing.s, bottom = Spacing.l + LocalBottomBarPadding.current),
+        ) {
+            if (!side) {
+                Box(
+                    Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .size(width = 32.dp, height = 4.dp)
+                        .background(RidgelineTheme.colors.borderStrong, PillShape),
+                )
+            }
+            Text(
+                "Your segments",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.m),
+            )
+            Text(
+                if (segments.isEmpty()) "On this device" else "${segments.size} on this device · starred ones show up while you record",
+                style = MaterialTheme.typography.bodyMedium,
+                color = RidgelineTheme.colors.textMuted,
+                modifier = Modifier.padding(horizontal = Spacing.gutter),
+            )
+            if (!loading && segments.isEmpty()) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = Spacing.gutter, vertical = Spacing.m),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Rounded.Timeline, contentDescription = null, tint = RidgelineTheme.colors.textMuted)
+                    Spacer(Modifier.width(Spacing.m))
+                    Text(
+                        "No segments yet. Open an activity, tap More and choose Create segment.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = RidgelineTheme.colors.textSecondary,
+                    )
+                }
+            }
+            segments.forEach { row ->
+                Box(Modifier.background(if (row.id == selectedId) RidgelineTheme.colors.gap else androidx.compose.ui.graphics.Color.Transparent)) {
+                    SegmentListRow(
+                        row,
+                        onOpen = { if (row.id == selectedId) actions.onOpenSegment(row.id) else onSelect(row.id) },
+                        onToggleStar = { actions.onToggleSegmentStar(row.id, row.starred) },
+                    )
+                }
+            }
         }
     }
 }

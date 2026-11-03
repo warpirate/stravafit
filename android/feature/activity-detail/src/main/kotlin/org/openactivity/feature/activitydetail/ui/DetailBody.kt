@@ -67,7 +67,7 @@ import org.openactivity.feature.activitydetail.format.DetailFormat
 
 /** The scrolling body of the detail screen. Chart scrubbing and split selection drive the map. */
 @Composable
-internal fun DetailBody(content: DetailContent, listState: LazyListState = rememberLazyListState()) {
+internal fun DetailBody(content: DetailContent, listState: LazyListState = rememberLazyListState(), onOpenSegment: (Long) -> Unit = {}) {
     var scrubIndex by remember(content.id) { mutableStateOf<Int?>(null) }
     var selectedSplit by rememberSaveable(content.id) { mutableStateOf<Int?>(null) }
     val marker = scrubIndex?.let { content.chart?.positions?.getOrNull(it) }
@@ -173,6 +173,11 @@ internal fun DetailBody(content: DetailContent, listState: LazyListState = remem
         if (content.laps.isNotEmpty()) {
             item(key = "laps") {
                 Section("Laps") { LapsTable(content.laps, DetailFormat.speedLabel(content.speedDisplay)) }
+            }
+        }
+        if (content.segments.isNotEmpty()) {
+            item(key = "segments") {
+                Section("Segments") { SegmentsList(content.segments, onOpenSegment) }
             }
         }
         if (content.showEfforts) {

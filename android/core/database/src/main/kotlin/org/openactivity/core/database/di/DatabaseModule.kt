@@ -14,6 +14,7 @@ import org.openactivity.core.database.dao.NotificationDao
 import org.openactivity.core.database.dao.PrivacyZoneDao
 import org.openactivity.core.database.dao.RecordingJournalDao
 import org.openactivity.core.database.dao.RouteDao
+import org.openactivity.core.database.dao.SegmentDao
 import javax.inject.Singleton
 
 /** Provides the Room database and its DAOs. */
@@ -41,4 +42,7 @@ object DatabaseModule {
 
     @Provides
     fun privacyZoneDao(db: OpenActivityDatabase): PrivacyZoneDao = db.privacyZoneDao()
+
+    @Provides
+    fun segmentDao(db: OpenActivityDatabase): SegmentDao = db.segmentDao()
 }

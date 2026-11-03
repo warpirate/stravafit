@@ -37,7 +37,7 @@ enum class NotificationCategory(val channelId: String) {
     companion object {
         /** The category an inbox entry of [type] posts under, or null when it stays in the inbox only. */
         fun of(type: NotificationType): NotificationCategory? = when (type) {
-            NotificationType.PERSONAL_RECORD, NotificationType.BEST_EFFORT -> ACHIEVEMENTS
+            NotificationType.PERSONAL_RECORD, NotificationType.BEST_EFFORT, NotificationType.SEGMENT_PR -> ACHIEVEMENTS
             NotificationType.GOAL_REACHED, NotificationType.GOAL_REMINDER -> GOALS
             NotificationType.WEEKLY_SUMMARY -> WEEKLY_SUMMARY
             NotificationType.IMPORT_FINISHED, NotificationType.IMPORT_FAILED, NotificationType.RECORDING_RECOVERED,

@@ -18,7 +18,8 @@ import java.io.File
 /**
  * Checks the exported schemas against the code: every historic version can be created from its exported
  * JSON, each migration path reaches the current version with the schema Room expects, and data written at
- * version 1 survives (version 2 adds goals and the notifications inbox, version 3 privacy zones).
+ * version 1 survives (version 2 adds goals and the notifications inbox, version 3 privacy zones, version 4
+ * personal segments and their efforts).
  */
 @RunWith(RobolectricTestRunner::class)
 class MigrationTest {
@@ -120,6 +121,43 @@ class MigrationTest {
     }
 
     @Test
+    fun `migration 3 to 4 keeps activities and adds segments and efforts`() {
+        helper.createDatabase(dbName, 3).apply {
+            execSQL(
+                "INSERT INTO activities (id, uuid, sport, title, description, visibility, start_epoch_millis, " +
+                    "time_zone_id, elapsed_millis, moving_millis, distance_meters, elevation_gain_meters, " +
+                    "elevation_loss_meters, altitude_source, average_speed_mps, max_speed_mps, auto_pause_count, " +
+                    "privacy_hide_start_meters, privacy_hide_end_meters, flags, created_at_millis, updated_at_millis) " +
+                    "VALUES (5, 'u5', 'RUN', 'Hill Repeats', '', 'EVERYONE', 1000, 'UTC', 60000, 60000, 1000.0, 0.0, " +
+                    "0.0, 'GPS', 3.0, 4.0, 0, 0.0, 0.0, '', 1000, 1000)",
+            )
+            close()
+        }
+        val db = helper.runMigrationsAndValidate(dbName, 4, true, DatabaseMigrations.MIGRATION_3_4)
+        db.query("SELECT title FROM activities WHERE id = 5").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("Hill Repeats", c.getString(0))
+        }
+        db.execSQL(
+            "INSERT INTO segments (id, uuid, name, sport, polyline, elevations, distance_meters, elevation_gain_meters, " +
+                "average_grade_percent, start_latitude, start_longitude, end_latitude, end_longitude, bbox_south, bbox_west, " +
+                "bbox_north, bbox_east, source_activity_id, starred, created_at_millis) VALUES (1, 's1', 'The Climb', 'RUN', " +
+                "'_p~iF~ps|U_ulLnnqC', '', 400.0, 20.0, 5.0, 1, 2, 3, 4, 1, 2, 3, 4, 5, 1, 1)",
+        )
+        db.execSQL(
+            "INSERT INTO segment_efforts (segment_id, activity_id, start_index, end_index, start_offset_millis, " +
+                "start_epoch_millis, year, elapsed_millis, moving_millis, distance_meters, average_speed_mps, " +
+                "is_personal_record, created_at_millis) VALUES (1, 5, 3, 40, 3000, 4000, 2026, 120000, 118000, 402.0, 3.3, 0, 1)",
+        )
+        // Deleting the activity takes its efforts with it; the segment stays.
+        db.execSQL("PRAGMA foreign_keys = ON")
+        db.execSQL("DELETE FROM activities WHERE id = 5")
+        db.query("SELECT COUNT(*) FROM segment_efforts").use { c -> c.moveToFirst(); assertEquals(0, c.getInt(0)) }
+        db.query("SELECT COUNT(*) FROM segments").use { c -> c.moveToFirst(); assertEquals(1, c.getInt(0)) }
+        db.close()
+    }
+
+    @Test
     fun `room opens a migrated database`() = runTest {
         helper.createDatabase(dbName, 1).close()
         val room = Room.databaseBuilder(ApplicationProvider.getApplicationContext(), OpenActivityDatabase::class.java, dbName)
@@ -129,6 +167,7 @@ class MigrationTest {
         assertEquals(0, room.activityDao().getPoints(1).size)
         assertEquals(0, room.notificationDao().observeUnreadCount().first())
         assertEquals(0, room.privacyZoneDao().count())
+        assertEquals(0, room.segmentDao().count())
         room.close()
     }
 }

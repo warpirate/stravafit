@@ -33,6 +33,9 @@ import org.openactivity.core.designsystem.component.RankMedal
 import org.openactivity.core.designsystem.theme.RidgelineTheme
 import org.openactivity.core.designsystem.theme.Spacing
 import org.openactivity.feature.activitydetail.EffortRow
+import org.openactivity.feature.activitydetail.SegmentRow
+import androidx.compose.material.icons.rounded.Timeline
+import androidx.compose.ui.semantics.role
 import org.openactivity.feature.activitydetail.LapRow
 import org.openactivity.feature.activitydetail.SplitRow
 import org.openactivity.feature.activitydetail.format.Measure
@@ -149,6 +152,57 @@ internal fun EffortsList(rows: List<EffortRow>, modifier: Modifier = Modifier) {
                     )
                 }
                 Text(row.result, style = RidgelineTheme.text.statS, color = MaterialTheme.colorScheme.onSurface)
+            }
+        }
+    }
+}
+
+/**
+ * Efforts on your segments: medal (frozen at save), name with distance, grade and pace, a PR label and the
+ * time. Each row opens the segment.
+ */
+@Composable
+internal fun SegmentsList(rows: List<SegmentRow>, onOpen: (Long) -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxWidth()) {
+        rows.forEach { row ->
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp)
+                    .clickable(onClickLabel = "Open segment") { onOpen(row.segmentId) }
+                    .clearAndSetSemantics {
+                        contentDescription = listOfNotNull(row.name, row.time, row.medalLabel?.let(::spokenMedal), row.detail).joinToString(", ")
+                        role = androidx.compose.ui.semantics.Role.Button
+                    }
+                    .padding(vertical = Spacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
+                    if (row.rank != null) {
+                        RankMedal(row.rank, yearly = row.yearly)
+                    } else {
+                        androidx.compose.material3.Icon(
+                            androidx.compose.material.icons.Icons.Rounded.Timeline,
+                            contentDescription = null,
+                            tint = RidgelineTheme.colors.textMuted,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+                Column(Modifier.padding(start = Spacing.m).weight(1f)) {
+                    Text(row.name, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    Text(row.detail, style = MaterialTheme.typography.bodySmall, color = RidgelineTheme.colors.textSecondary, maxLines = 1)
+                }
+                Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(start = Spacing.s)) {
+                    Text(row.time, style = RidgelineTheme.text.statS, color = MaterialTheme.colorScheme.onSurface)
+                    row.medalLabel?.let { label ->
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (row.isPersonalRecord) RidgelineTheme.colors.signalText else RidgelineTheme.colors.textSecondary,
+                        )
+                    }
+                }
             }
         }
     }

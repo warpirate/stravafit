@@ -24,6 +24,7 @@ import org.openactivity.recording.RecordingEngine
 import org.openactivity.recording.RecordingState
 import org.openactivity.recording.RecordingStatus
 import org.openactivity.recording.route.RouteEvent
+import org.openactivity.recording.segment.LiveSegmentEvent
 import java.util.Locale
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -132,6 +133,23 @@ class PureLogicTest {
         assertEquals(5.minutes, (readout as AudioCue.TimeReadout).timerTime)
         assertEquals(emptyList<AudioCue>(), planner.onState(state(RecordingStatus.RECORDING, 1.0, 6.minutes).copy(timerTime = 6.minutes)))
         assertEquals(1, planner.onState(state(RecordingStatus.RECORDING, 1.9, 10.minutes).copy(timerTime = 10.minutes)).size)
+    }
+
+    @Test
+    fun `segment cues follow their toggle and an abandoned attempt stays quiet`() {
+        val events = listOf(
+            LiveSegmentEvent.Approaching(1, "Hill", 180.0),
+            LiveSegmentEvent.Started(1, "Hill", 125_400L),
+            LiveSegmentEvent.Finished(1, "Hill", 119_600L, -5_800L, isNewPr = true),
+            LiveSegmentEvent.Abandoned(2, "Bridge"),
+        )
+        val on = AudioCuePlanner(AudioCueSettings(), UnitSystem.METRIC, SportType.RUN)
+        assertEquals(
+            listOf(AudioCue.SegmentAhead("Hill", 180.0), AudioCue.SegmentStarted("Hill", 125L), AudioCue.SegmentFinished("Hill", 120L, -6L, newPr = true)),
+            on.onSegments(events),
+        )
+        assertEquals(emptyList<AudioCue>(), AudioCuePlanner(AudioCueSettings(announceSegments = false), UnitSystem.METRIC, SportType.RUN).onSegments(events))
+        assertEquals(emptyList<AudioCue>(), AudioCuePlanner(AudioCueSettings(enabled = false), UnitSystem.METRIC, SportType.RUN).onSegments(events))
     }
 
     @Test

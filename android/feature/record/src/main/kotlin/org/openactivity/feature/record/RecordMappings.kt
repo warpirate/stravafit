@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.feature.record
 
+import org.openactivity.recording.segment.LiveSegmentPhase
+import org.openactivity.recording.segment.LiveSegmentStatus
+import kotlin.math.abs
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
@@ -104,6 +108,23 @@ internal object RecordingMapping {
             recovered = snapshot.recoveredAfterInterruption,
             mockLocation = snapshot.isMockLocation,
             route = snapshot.route?.let { route(it, snapshot.units) },
+            segment = snapshot.segment?.let { segment(it, snapshot.units) },
+        )
+    }
+
+    /** The live segment banner's texts. */
+    internal fun segment(status: LiveSegmentStatus, units: UnitSystem): SegmentLiveUi {
+        val delta = status.deltaMillis
+        return SegmentLiveUi(
+            name = status.name,
+            approaching = status.phase == LiveSegmentPhase.APPROACHING,
+            finished = status.phase == LiveSegmentPhase.FINISHED,
+            toStart = status.distanceToStartMeters?.let { RecordFormat.shortDistance(it, units) },
+            time = RecordFormat.duration(status.elapsedMillis.milliseconds),
+            versusPr = delta?.let { (if (it < 0) "-" else "+") + RecordFormat.duration(abs(it).milliseconds) },
+            ahead = delta == null || delta <= 0,
+            fraction = status.fraction.toFloat(),
+            newPr = status.isNewPr,
         )
     }
 

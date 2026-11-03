@@ -11,19 +11,22 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import org.openactivity.app.data.segments.SegmentMatchWatcher
 import java.time.Clock
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * Starts the on-device notification sources when the app process starts: the channels, the watcher that
- * turns new activities into inbox entries, and the daily weekly-summary check.
+ * turns new activities into inbox entries, the segment matcher (with its PR entries), and the daily
+ * weekly-summary check.
  */
 @Singleton
 class InboxStartup @Inject constructor(
     @ApplicationContext private val context: Context,
     private val notifier: AndroidSystemNotifier,
     private val processor: ActivityEventProcessor,
+    private val segmentWatcher: SegmentMatchWatcher,
     private val clock: Clock,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -35,6 +38,7 @@ class InboxStartup @Inject constructor(
         started = true
         notifier.createChannels()
         processor.start(scope)
+        segmentWatcher.start(scope)
         WeeklySummaryWorker.schedule(context, clock)
     }
 

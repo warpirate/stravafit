@@ -134,6 +134,7 @@ fun SettingsScreen(
             onAnnounceSplits = viewModel::setAnnounceSplits,
             onAnnounceLaps = viewModel::setAnnounceLaps,
             onAnnounceRoute = viewModel::setAnnounceRoute,
+            onAnnounceSegments = viewModel::setAnnounceSegments,
             onDistanceCues = viewModel::setDistanceCues,
             onCueTimeInterval = viewModel::setCueTimeInterval,
             onAutoLap = viewModel::setAutoLap,
@@ -204,6 +205,7 @@ data class SettingsActions(
     val onAnnounceSplits: (Boolean) -> Unit = {},
     val onAnnounceLaps: (Boolean) -> Unit = {},
     val onAnnounceRoute: (Boolean) -> Unit = {},
+    val onAnnounceSegments: (Boolean) -> Unit = {},
     val onDistanceCues: (Boolean) -> Unit = {},
     val onCueTimeInterval: (Int) -> Unit = {},
     val onAutoLap: (Double) -> Unit = {},
@@ -405,6 +407,7 @@ private fun RecordingSettings(state: SettingsUiState, actions: SettingsActions) 
         SwitchRow("Start, pause and finish", "Say when the activity starts, pauses, resumes and saves", cues.announceStatus, actions.onAnnounceStatus, enabled = on)
         SwitchRow("Announce auto-pause", "Say when the timer stops and restarts", cues.announceAutoPause, actions.onAnnounceAutoPause, enabled = on)
         SwitchRow("Route", "Off route, back on route and route finished", cues.announceRoute, actions.onAnnounceRoute, enabled = on)
+        SwitchRow("Segments", "A starred segment ahead, its start and your time against your PR", cues.announceSegments, actions.onAnnounceSegments, enabled = on)
         RowDivider()
         SwitchRow("Custom distance", "Distance, time and pace at your own interval", cues.distanceCues, actions.onDistanceCues, enabled = on)
         if (cues.distanceCues) {

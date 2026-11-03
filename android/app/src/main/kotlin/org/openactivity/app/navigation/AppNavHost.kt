@@ -14,6 +14,9 @@ import androidx.navigation.compose.composable
 import org.openactivity.app.feature.explore.ExploreScreen
 import org.openactivity.app.feature.feed.FeedScreen
 import org.openactivity.app.feature.goals.GoalsScreen
+import org.openactivity.app.feature.segments.CreateSegmentScreen
+import org.openactivity.app.feature.segments.SegmentDetailScreen
+import org.openactivity.app.feature.segments.SegmentsScreen
 import org.openactivity.app.feature.notifications.InboxDestination
 import org.openactivity.app.feature.notifications.NotificationsScreen
 import org.openactivity.app.feature.groups.GroupsScreen
@@ -60,6 +63,7 @@ fun AppNavHost(navController: NavHostController, startTab: LaunchTab = LaunchTab
     val exportProvider = rememberExportActivityProvider()
     val openActivity: (Long) -> Unit = { id -> navController.navigateToActivityDetail(id) }
     val openSuggestion: (String) -> Unit = { id -> navController.navigate(SuggestedRouteRoute(id)) { launchSingleTop = true } }
+    val openSegment: (Long) -> Unit = { id -> navController.navigate(SegmentDetailRoute(id)) { launchSingleTop = true } }
     NavHost(
         navController = navController,
         // Record is not a tab root: the app opens on Home with the recorder on top (see MainActivity).
@@ -85,6 +89,7 @@ fun AppNavHost(navController: NavHostController, startTab: LaunchTab = LaunchTab
             ExploreScreen(
                 onOpenRoute = { id -> navController.navigate(RouteDetailRoute(id)) { launchSingleTop = true } },
                 onOpenSuggestion = openSuggestion,
+                onOpenSegment = openSegment,
             )
         }
         composable<GroupsRoute> {
@@ -97,6 +102,7 @@ fun AppNavHost(navController: NavHostController, startTab: LaunchTab = LaunchTab
                 onOpenActivity = openActivity,
                 onRecord = { navController.openRecorder() },
                 onOpenGoals = { newGoal -> navController.navigate(GoalsRoute(newGoal)) { launchSingleTop = true } },
+                onOpenSegments = dropUnlessResumed { navController.navigate(SegmentsRoute) { launchSingleTop = true } },
             )
         }
         composable<NotificationsRoute> {
@@ -104,6 +110,27 @@ fun AppNavHost(navController: NavHostController, startTab: LaunchTab = LaunchTab
                 onNavigateUp = dropUnlessResumed { navController.popBackStack() },
                 onOpen = { destination -> navController.openInboxDestination(destination) },
             )
+        }
+        composable<CreateSegmentRoute> {
+            CreateSegmentScreen(
+                onNavigateUp = dropUnlessResumed { navController.popBackStack() },
+                // The new segment replaces the create screen, so Back returns to the activity.
+                onCreated = { id ->
+                    navController.navigate(SegmentDetailRoute(id)) {
+                        popUpTo<CreateSegmentRoute> { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
+        composable<SegmentDetailRoute> {
+            SegmentDetailScreen(
+                onNavigateUp = dropUnlessResumed { navController.popBackStack() },
+                onOpenActivity = openActivity,
+            )
+        }
+        composable<SegmentsRoute> {
+            SegmentsScreen(onNavigateUp = dropUnlessResumed { navController.popBackStack() }, onOpenSegment = openSegment)
         }
         composable<GoalsRoute> {
             GoalsScreen(onNavigateUp = dropUnlessResumed { navController.popBackStack() })
@@ -176,6 +203,8 @@ fun AppNavHost(navController: NavHostController, startTab: LaunchTab = LaunchTab
                 onBack = { navController.popBackStack() },
                 onEdit = { id -> navController.navigateToEditActivity(id) },
                 onShare = { id -> navController.navigateToShareExport(id.toString()) },
+                onCreateSegment = { id -> navController.navigate(CreateSegmentRoute(id)) { launchSingleTop = true } },
+                onOpenSegment = openSegment,
             ),
             deepLinks = AppLinks.activity(),
         )

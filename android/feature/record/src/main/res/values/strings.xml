@@ -109,4 +109,10 @@
     <string name="record_split_label">%1$s %2$d</string>
     <string name="record_heart_rate">Heart Rate</string>
     <string name="record_map_layers">Map layers</string>
+    <string name="record_segment_ahead">Segment ahead · %1$s</string>
+    <string name="record_segment_running">Segment</string>
+    <string name="record_segment_finished">Segment finished</string>
+    <string name="record_segment_new_pr">New PR!</string>
+    <string name="record_segment_ahead_of_pr">%1$s vs PR</string>
+    <string name="record_segment_behind_pr">%1$s vs PR</string>
 </resources>

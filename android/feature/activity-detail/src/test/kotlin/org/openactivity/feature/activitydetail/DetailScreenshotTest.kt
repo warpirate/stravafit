@@ -34,6 +34,7 @@ import org.openactivity.feature.activitydetail.ui.ActivityDetailContent
 import org.openactivity.feature.activitydetail.ui.AnalysisSection
 import org.openactivity.feature.activitydetail.ui.DetailActions
 import org.openactivity.feature.activitydetail.ui.EffortsList
+import org.openactivity.feature.activitydetail.ui.SegmentsList
 import org.openactivity.feature.activitydetail.ui.SplitsTable
 import org.openactivity.model.SportType
 import org.openactivity.model.UnitSystem
@@ -127,6 +128,22 @@ class DetailScreenshotTest : RepositoryBackedTest() {
     fun elapsedHeadlineDark() {
         val c = content(Recordings.hillyRun(seconds = 1800, sport = SportType.ALPINE_SKI, withHeartRate = false), "Bluebird laps")
         snap("detail_elapsed_headline_dark", dark = true) { ActivityDetailContent(ActivityDetailUiState.Content(c), DetailActions()) }
+    }
+
+    private val segmentRows = listOf(
+        SegmentRow(1, 11, "Riverside sprint", "1:42", "0.52 km · 0.4% · 3:16 /km", rank = 1, yearly = false, isPersonalRecord = true),
+        SegmentRow(2, 12, "Church hill climb", "4:05", "0.80 km · 6.2% · 5:06 /km", rank = 2, yearly = true, isPersonalRecord = false),
+        SegmentRow(3, 13, "Bridge to the gate, the long way round the park", "2:31", "0.61 km · -1.1% · 4:08 /km", rank = null, yearly = false, isPersonalRecord = false),
+    )
+
+    @Test
+    fun segmentsLight() = snap("detail_segments_light", dark = false) {
+        Column(Modifier.padding(Spacing.gutter)) { SegmentsList(segmentRows, onOpen = {}) }
+    }
+
+    @Test
+    fun segmentsDark() = snap("detail_segments_dark", dark = true) {
+        Column(Modifier.padding(Spacing.gutter)) { SegmentsList(segmentRows, onOpen = {}) }
     }
 
     @Test

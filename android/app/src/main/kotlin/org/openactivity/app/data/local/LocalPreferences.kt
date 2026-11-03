@@ -65,6 +65,16 @@ class LocalPreferences @Inject constructor(private val dataStore: DataStore<Pref
         dataStore.edit { it[Keys.INBOX_WATERMARK] = activityId }
     }
 
+    /**
+     * Id of the newest activity matched against your segments; null before matching ran for the first time
+     * (activities saved before segments existed are matched when a segment is created instead).
+     */
+    val segmentWatermark: Flow<Long?> = data.map { it[Keys.SEGMENT_WATERMARK] }.distinctUntilChanged()
+
+    suspend fun setSegmentWatermark(activityId: Long) {
+        dataStore.edit { it[Keys.SEGMENT_WATERMARK] = activityId }
+    }
+
     /** Whether Home and Maps suggest loops near you, sending your position to the routing services. */
     val routeSuggestionsEnabled: Flow<Boolean> = data.map { it[Keys.SUGGESTIONS_ENABLED] ?: true }.distinctUntilChanged()
 
@@ -108,6 +118,7 @@ class LocalPreferences @Inject constructor(private val dataStore: DataStore<Pref
         val PHOTO = stringPreferencesKey("profile_photo_path")
         val FEED_SEEN_THROUGH = longPreferencesKey("feed_seen_through_id")
         val INBOX_WATERMARK = longPreferencesKey("inbox_watermark_activity_id")
+        val SEGMENT_WATERMARK = longPreferencesKey("segment_watermark_activity_id")
         val SUGGESTIONS_ENABLED = booleanPreferencesKey("route_suggestions_enabled")
         val SUGGESTIONS_INTRO_SEEN = booleanPreferencesKey("route_suggestions_intro_seen")
     }

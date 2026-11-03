@@ -19,6 +19,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.openactivity.core.database.OpenActivityDatabase
 import org.openactivity.core.database.entity.GoalEntity
+import org.openactivity.core.database.entity.SegmentEntity
 import org.openactivity.core.database.entity.PrivacyZoneEntity
 import org.openactivity.core.database.entity.RecordingJournalEntity
 import org.robolectric.RobolectricTestRunner
@@ -54,6 +55,7 @@ class BackupRoundTripTest {
     fun `a backup restores goals, photos, profile and settings and drops the recording journal`() = runTest {
         database.goalDao().insert(goal(target = 50_000.0))
         database.privacyZoneDao().insert(zone("home"))
+        database.segmentDao().insert(segment("hill"))
         database.recordingJournalDao().begin(journal())
         write("activity-extras/1/photo-a.jpg", "photo bytes")
         write("activity-extras/1/index.json", "{}")
@@ -73,6 +75,7 @@ class BackupRoundTripTest {
         // Things change after the backup: a goal edit, a new photo, a lost avatar.
         database.goalDao().insert(goal(target = 1.0))
         database.privacyZoneDao().insert(zone("added-later"))
+        database.segmentDao().insert(segment("added-later"))
         write("activity-extras/2/photo-b.jpg", "later photo")
         File(context.filesDir, "profile/avatar-1.jpg").delete()
 
@@ -86,6 +89,7 @@ class BackupRoundTripTest {
         val goals = database.goalDao().observeAll().first()
         assertEquals(listOf(50_000.0), goals.map { it.target })
         assertEquals("privacy zones travel with the backup", listOf("home"), database.privacyZoneDao().getAll().map { it.uuid })
+        assertEquals("segments travel with the backup", listOf("hill"), database.segmentDao().getAll().map { it.uuid })
         assertNull("the recording in progress is not restored", database.recordingJournalDao().get())
         assertEquals("photo bytes", read("activity-extras/1/photo-a.jpg"))
         assertFalse(File(context.filesDir, "activity-extras/2").exists())
@@ -197,6 +201,13 @@ class BackupRoundTripTest {
         radiusMeters = 400,
         createdAtMillis = 1,
         updatedAtMillis = 1,
+    )
+
+    private fun segment(uuid: String) = SegmentEntity(
+        uuid = uuid, name = "Hill", sport = "RUN", polyline = "_p~iF~ps|U_ulLnnqC", elevations = "", distanceMeters = 400.0,
+        elevationGainMeters = 20.0, averageGradePercent = 5.0, startLatitude = 38.5, startLongitude = -120.2, endLatitude = 40.7,
+        endLongitude = -120.95, bboxSouth = 38.5, bboxWest = -120.95, bboxNorth = 40.7, bboxEast = -120.2, sourceActivityId = null,
+        starred = true, createdAtMillis = 1,
     )
 
     private fun goal(target: Double) =

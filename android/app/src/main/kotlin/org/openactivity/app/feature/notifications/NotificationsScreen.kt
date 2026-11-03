@@ -167,7 +167,7 @@ private fun InboxRow(item: InboxItemUi, onClick: () -> Unit) {
 
 /** Material Symbols glyph per entry type (Apache-2.0). */
 private fun icon(type: NotificationType): ImageVector = when (type) {
-    NotificationType.PERSONAL_RECORD, NotificationType.BEST_EFFORT -> Icons.Rounded.WorkspacePremium
+    NotificationType.PERSONAL_RECORD, NotificationType.BEST_EFFORT, NotificationType.SEGMENT_PR -> Icons.Rounded.WorkspacePremium
     NotificationType.GOAL_REACHED -> Icons.Rounded.TaskAlt
     NotificationType.GOAL_REMINDER -> Icons.Rounded.Flag
     NotificationType.WEEKLY_SUMMARY -> Icons.Rounded.Insights
@@ -179,7 +179,7 @@ private fun icon(type: NotificationType): ImageVector = when (type) {
 
 @Composable
 private fun iconTint(type: NotificationType) = when (type) {
-    NotificationType.PERSONAL_RECORD -> RidgelineTheme.colors.medalGold
+    NotificationType.PERSONAL_RECORD, NotificationType.SEGMENT_PR -> RidgelineTheme.colors.medalGold
     NotificationType.BEST_EFFORT -> RidgelineTheme.colors.medalSilver
     NotificationType.IMPORT_FAILED, NotificationType.BACKUP_FAILED -> MaterialTheme.colorScheme.error
     NotificationType.GOAL_REACHED -> RidgelineTheme.colors.success

@@ -45,6 +45,13 @@
     <string name="cue_off_route">Off route. The route is %1$s away.</string>
     <string name="cue_back_on_route">Back on route</string>
     <string name="cue_route_completed">Route completed</string>
+    <string name="cue_segment_ahead">Segment %1$s in %2$s.</string>
+    <string name="cue_segment_started">Segment %1$s started.</string>
+    <string name="cue_segment_pr_to_beat">Your PR is %1$s.</string>
+    <string name="cue_segment_finished">Segment %1$s finished in %2$s.</string>
+    <string name="cue_segment_new_pr">New PR, %1$s faster.</string>
+    <string name="cue_segment_behind_pr">%1$s behind your PR.</string>
+    <string name="cue_segment_matched_pr">You matched your PR.</string>
     <string name="cue_kmh">%1$s kilometres per hour</string>
     <string name="cue_mph">%1$s miles per hour</string>
     <plurals name="cue_meters">

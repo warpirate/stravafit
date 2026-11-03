@@ -18,7 +18,8 @@ import javax.inject.Singleton
 
 /**
  * Full backup and restore of everything the app stores on the phone: activities with their GPS
- * streams, laps and best efforts, routes, goals, the inbox, photos and notes, the profile and settings.
+ * streams, laps and best efforts, routes, goals, segments and their efforts, the inbox, photos and notes, the
+ * profile and settings. Everything in the database travels, so new tables are included without listing them.
  */
 interface DataBackup {
     /**

@@ -44,6 +44,7 @@ import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.SearchOff
+import androidx.compose.material.icons.rounded.Timeline
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -88,6 +89,8 @@ data class DetailActions(
     val onDismissDelete: () -> Unit = {},
     val onExport: (ExportFormat, Boolean) -> Unit = { _, _ -> },
     val onDismissExport: () -> Unit = {},
+    val onCreateSegment: () -> Unit = {},
+    val onOpenSegment: (Long) -> Unit = {},
 )
 
 /** The activity detail screen wired to its [ActivityDetailViewModel]. */
@@ -127,6 +130,8 @@ fun ActivityDetailScreen(
             onDismissDelete = viewModel::cancelDelete,
             onExport = viewModel::exportFile,
             onDismissExport = viewModel::closeExportSheet,
+            onCreateSegment = { id?.let(navigation.onCreateSegment) },
+            onOpenSegment = navigation.onOpenSegment,
         ),
     )
 }
@@ -171,7 +176,7 @@ fun ActivityDetailContent(
                     modifier = Modifier.align(Alignment.Center),
                 )
                 is ActivityDetailUiState.Content -> {
-                    Box(Modifier.fillMaxSize().frostSource(frost)) { DetailBody(state.activity, listState) }
+                    Box(Modifier.fillMaxSize().frostSource(frost)) { DetailBody(state.activity, listState, actions.onOpenSegment) }
                     if (state.dialogs.confirmDelete) DeleteActivityDialog(actions.onConfirmDelete, actions.onDismissDelete)
                     state.dialogs.exportFormats?.let { options ->
                         ExportFileSheet(options, state.dialogs.exporting, actions.onExport, actions.onDismissExport)
@@ -180,7 +185,7 @@ fun ActivityDetailContent(
             }
             CompositionLocalProvider(LocalFrost provides frost.takeIf { content != null }) {
             if (collapsed && content != null) {
-                CollapsedBar(content.activity.title, actions)
+                CollapsedBar(content.activity.title, actions, content.activity.hasRoute)
             } else {
                 Row(
                     Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = Spacing.gutter, vertical = Spacing.s),
@@ -188,7 +193,7 @@ fun ActivityDetailContent(
                 ) {
                     FloatingRound(Icons.AutoMirrored.Rounded.ArrowBack, "Navigate up", actions.onBack)
                     Spacer(Modifier.weight(1f))
-                    if (content != null) DetailMenu(actions)
+                    if (content != null) DetailMenu(actions, content.activity.hasRoute)
                 }
             }
             }
@@ -198,7 +203,7 @@ fun ActivityDetailContent(
 
 /** The solid top bar once the hero map has scrolled away: back, the title, share and more. */
 @Composable
-private fun CollapsedBar(title: String, actions: DetailActions) {
+private fun CollapsedBar(title: String, actions: DetailActions, hasRoute: Boolean) {
     // Frosted like the other top bars: the activity scrolls on underneath it.
     Surface(Modifier.frosted(RectangleShape), color = Color.Transparent) {
         Row(
@@ -214,17 +219,17 @@ private fun CollapsedBar(title: String, actions: DetailActions) {
                 modifier = Modifier.weight(1f).padding(horizontal = Spacing.s),
             )
             IconButton(onClick = actions.onShare) { Icon(Icons.Outlined.Share, contentDescription = "Share") }
-            BarMenu(actions)
+            BarMenu(actions, hasRoute)
         }
     }
 }
 
 @Composable
-private fun BarMenu(actions: DetailActions) {
+private fun BarMenu(actions: DetailActions, hasRoute: Boolean) {
     var open by rememberSaveable { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) { Icon(Icons.Rounded.MoreHoriz, contentDescription = "More options") }
-        MenuItems(open, { open = false }, actions)
+        MenuItems(open, { open = false }, actions, hasRoute)
     }
 }
 
@@ -267,20 +272,22 @@ private fun SocialBar(onShare: () -> Unit) {
 }
 
 @Composable
-private fun DetailMenu(actions: DetailActions) {
+private fun DetailMenu(actions: DetailActions, hasRoute: Boolean) {
     var open by rememberSaveable { mutableStateOf(false) }
     FloatingRound(Icons.Outlined.Share, "Share", actions.onShare)
     Spacer(Modifier.width(Spacing.m))
     Box {
         FloatingRound(Icons.Rounded.MoreHoriz, "More options") { open = true }
-        MenuItems(open, { open = false }, actions)
+        MenuItems(open, { open = false }, actions, hasRoute)
     }
 }
 
 @Composable
-private fun MenuItems(open: Boolean, close: () -> Unit, actions: DetailActions) {
+private fun MenuItems(open: Boolean, close: () -> Unit, actions: DetailActions, hasRoute: Boolean) {
     DropdownMenu(expanded = open, onDismissRequest = close) {
         MenuItem("Edit activity", Icons.Rounded.Edit) { close(); actions.onEdit() }
+        // A segment is cut from the GPS track, so activities without one cannot make one.
+        if (hasRoute) MenuItem("Create segment", Icons.Rounded.Timeline) { close(); actions.onCreateSegment() }
         MenuItem("Share & export", Icons.Rounded.IosShare) { close(); actions.onShare() }
         MenuItem("Export file", Icons.Rounded.FileDownload) { close(); actions.onExportFile() }
         DropdownMenuItem(

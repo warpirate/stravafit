@@ -48,11 +48,15 @@ fun NavController.navigateToImportActivities(uris: List<String> = emptyList()) {
  * @property onBack leave the screen.
  * @property onEdit open the edit screen of the activity.
  * @property onShare open the share & export screen of the activity.
+ * @property onCreateSegment open "Create segment" on the activity.
+ * @property onOpenSegment open the detail of a segment (from the Segments section).
  */
 data class ActivityDetailNavigation(
     val onBack: () -> Unit,
     val onEdit: (Long) -> Unit,
     val onShare: (Long) -> Unit,
+    val onCreateSegment: (Long) -> Unit = {},
+    val onOpenSegment: (Long) -> Unit = {},
 )
 
 /** Adds the activity detail destination, reachable from [deepLinks] too. */

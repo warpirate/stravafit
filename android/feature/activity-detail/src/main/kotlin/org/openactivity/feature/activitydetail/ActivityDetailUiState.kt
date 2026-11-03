@@ -37,6 +37,7 @@ sealed interface ActivityDetailUiState {
  * @property notes quality and privacy notes shown under the stats.
  * @property speedDisplay how pace or speed is shown for this sport (the athlete's per-sport choice).
  * @property showSplitGap the splits table has a GAP column (hilly runs).
+ * @property segments efforts on your segments in this activity, in the order they happened.
  */
 @Immutable
 data class DetailContent(
@@ -66,6 +67,7 @@ data class DetailContent(
     val averageSpeedMps: Double? = null,
     val speedDisplay: SpeedDisplay = SpeedDisplays.resolve(sport, units),
     val showSplitGap: Boolean = false,
+    val segments: List<SegmentRow> = emptyList(),
 ) {
     /** True when there is a route to draw on the map. */
     val hasRoute: Boolean get() = route.size >= 2

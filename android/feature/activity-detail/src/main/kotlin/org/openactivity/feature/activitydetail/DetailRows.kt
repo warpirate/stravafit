@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.feature.activitydetail
 
+import org.openactivity.core.data.model.SegmentEffort
 import androidx.compose.runtime.Immutable
 import org.openactivity.core.data.model.ActivityDetail
 import org.openactivity.core.data.model.ActivityPoint
@@ -88,6 +89,35 @@ data class EffortRow(
     }
 }
 
+/**
+ * An effort on one of your segments.
+ *
+ * @property rank its medal (1 to 3, frozen when the activity was saved), or null without one.
+ * @property yearly the medal is a place within the year only (outlined).
+ * @property detail "0.52 km · 4.1% · 5:02 /km".
+ */
+@Immutable
+data class SegmentRow(
+    val effortId: Long,
+    val segmentId: Long,
+    val name: String,
+    val time: String,
+    val detail: String,
+    val rank: Int?,
+    val yearly: Boolean,
+    val isPersonalRecord: Boolean,
+) {
+    /** "PR", "2nd best", "3rd of the year", or null without a medal. */
+    val medalLabel: String?
+        get() = when {
+            rank == null -> null
+            !yearly && rank == 1 -> "PR"
+            !yearly -> if (rank == 2) "2nd best" else "3rd best"
+            rank == 1 -> "Year's best"
+            else -> if (rank == 2) "2nd this year" else "3rd this year"
+        }
+}
+
 /** Builds the detail screen's display rows from stored data. Pure, so it is unit-tested directly. */
 object DetailRows {
     /**
@@ -123,6 +153,23 @@ object DetailRows {
     }
 
     private const val STAT_COLUMNS = 3
+
+    /** The Segments section: each effort with its time, medal and pace or speed. */
+    fun segments(efforts: List<SegmentEffort>, units: UnitSystem, display: SpeedDisplay): List<SegmentRow> = efforts.map { e ->
+        val distance = DetailFormat.distance(e.segmentDistanceMeters, units)
+        val speed = DetailFormat.speed(e.averageSpeedMps, display, units)
+        val grade = String.format(java.util.Locale.getDefault(), "%.1f%%", e.segmentGradePercent)
+        SegmentRow(
+            effortId = e.id,
+            segmentId = e.segmentId,
+            name = e.segmentName,
+            time = DetailFormat.duration(e.elapsed),
+            detail = listOfNotNull("${distance.value} ${distance.unit}", grade, speed?.let { "${it.value} ${it.unit}" }).joinToString(" \u00b7 "),
+            rank = e.medalRank,
+            yearly = e.isYearlyMedal,
+            isPersonalRecord = e.isPersonalRecord,
+        )
+    }
 
     private fun baseStats(activity: SavedActivity, units: UnitSystem, hasElevation: Boolean, display: SpeedDisplay): List<Stat> = buildList {
         val distance = DetailFormat.distance(activity.distanceMeters, units)

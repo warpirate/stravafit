@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.feature.me
 
+import androidx.compose.material.icons.rounded.Timeline
 import org.openactivity.core.designsystem.component.FrostedScaffold
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -95,6 +96,7 @@ fun MeScreen(
     onOpenActivity: (Long) -> Unit,
     onRecord: () -> Unit,
     onOpenGoals: (newGoal: Boolean) -> Unit = {},
+    onOpenSegments: () -> Unit = {},
     viewModel: MeViewModel = hiltViewModel(),
 ) {
     val me by viewModel.uiState.collectAsStateWithLifecycle()
@@ -113,6 +115,7 @@ fun MeScreen(
             onEditProfile = onEditProfile,
             onRecord = onRecord,
             onOpenGoals = onOpenGoals,
+            onOpenSegments = onOpenSegments,
         ),
     )
 }
@@ -129,6 +132,8 @@ data class MeActions(
     val onRecord: () -> Unit = {},
     /** Opens the goals screen; true opens it straight on a new goal. */
     val onOpenGoals: (newGoal: Boolean) -> Unit = {},
+    /** Opens your segments: starred ones and your PRs. */
+    val onOpenSegments: () -> Unit = {},
 )
 
 /**
@@ -319,6 +324,7 @@ private fun LazyListScope.progressItems(state: MeUiState, actions: MeActions) {
         }
     }
     goalItems(state, actions)
+    item(key = "segments") { SegmentsEntry(actions.onOpenSegments) }
     if (state.weekDays.size == DAYS) {
         item(key = "log") {
             Section {
@@ -351,6 +357,33 @@ private fun LazyListScope.progressItems(state: MeUiState, actions: MeActions) {
                 Spacer(Modifier.height(Spacing.m))
                 StatGrid(state.allTime, columns = 2)
             }
+        }
+    }
+}
+
+/** The Segments entry: your starred segments and PRs, on the next screen. */
+@Composable
+private fun SegmentsEntry(onOpen: () -> Unit) {
+    Section {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = Spacing.listRowMin)
+                .clickable(role = Role.Button, onClick = onOpen)
+                .padding(horizontal = Spacing.gutter, vertical = Spacing.m),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Rounded.Timeline, contentDescription = null, tint = RidgelineTheme.colors.accent)
+            Spacer(Modifier.width(Spacing.l))
+            Column(Modifier.weight(1f)) {
+                Text("Segments", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "Your starred segments and PRs",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = RidgelineTheme.colors.textSecondary,
+                )
+            }
+            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = RidgelineTheme.colors.textMuted)
         }
     }
 }

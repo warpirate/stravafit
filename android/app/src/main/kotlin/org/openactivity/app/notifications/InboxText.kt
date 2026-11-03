@@ -10,6 +10,7 @@ import org.openactivity.core.data.model.NewNotification
 import org.openactivity.core.data.model.NotificationTarget
 import org.openactivity.core.data.model.NotificationType
 import org.openactivity.core.data.model.SavedActivity
+import org.openactivity.core.data.model.SegmentEffort
 import org.openactivity.core.data.model.StatTotals
 import org.openactivity.core.data.model.WeeklyStreak
 import java.time.LocalDate
@@ -32,6 +33,30 @@ internal object InboxText {
     }
 
     fun weeklyKey(weekStart: LocalDate): String = "weekly:$weekStart"
+
+    /** Key of a segment PR entry: one per segment and activity. */
+    fun segmentPrKey(segmentId: Long, activityId: Long): String = "segment-pr:$segmentId:$activityId"
+
+    /** "New segment PR: Riverside sprint in 1:42" with the activity and the time saved. */
+    fun segmentPr(effort: SegmentEffort, previousBestSeconds: Long?): NewNotification {
+        val time = UnitFormatter.duration(effort.elapsed.inWholeSeconds)
+        val body = buildString {
+            append(effort.activityTitle)
+            if (previousBestSeconds != null && previousBestSeconds > effort.elapsed.inWholeSeconds) {
+                append(" · ")
+                append(UnitFormatter.duration(previousBestSeconds - effort.elapsed.inWholeSeconds))
+                append(" faster than your old PR")
+            }
+        }
+        return NewNotification(
+            type = NotificationType.SEGMENT_PR,
+            title = "New segment PR: ${effort.segmentName} in $time",
+            body = body,
+            target = NotificationTarget.ACTIVITY,
+            dedupeKey = segmentPrKey(effort.segmentId, effort.activityId),
+            activityId = effort.activityId,
+        )
+    }
 
     /**
      * "New PR: 5K in 24:12" (or "2nd best 10K: 51:40"), with every medal of the activity listed in the

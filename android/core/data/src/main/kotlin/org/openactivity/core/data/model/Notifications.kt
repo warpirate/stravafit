@@ -23,6 +23,9 @@ enum class NotificationType {
 
     /** An automatic backup could not be written. */
     BACKUP_FAILED,
+
+    /** A new personal record on one of your segments. */
+    SEGMENT_PR,
 }
 
 /** Where tapping an inbox entry leads. */

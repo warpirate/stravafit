@@ -38,6 +38,7 @@ enum class LaunchTab {
  * @property announceSplits each completed kilometre or mile split, with its pace.
  * @property announceLaps each lap, manual or automatic.
  * @property announceRoute off route, back on route and route finished, while following a route.
+ * @property announceSegments a starred segment ahead, its start and your time against your PR at its finish.
  * @property distanceCues the custom distance interval cue ([distanceInterval]).
  * @property timeIntervalMinutes a time and distance readout every this many minutes of timer time; 0 is off.
  */
@@ -49,6 +50,7 @@ data class AudioCueSettings(
     val announceSplits: Boolean = true,
     val announceLaps: Boolean = true,
     val announceRoute: Boolean = true,
+    val announceSegments: Boolean = true,
     val distanceCues: Boolean = false,
     val timeIntervalMinutes: Int = 0,
 ) {

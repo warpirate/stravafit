@@ -51,3 +51,12 @@ typealias RecordRoute = org.openactivity.feature.record.navigation.RecordDestina
 
 /** Default audience for new activities, overall and per sport. */
 @Serializable data object VisibilityRoute
+
+/** "Create segment" from activity [activityId]: range picker, name and sport. */
+@Serializable data class CreateSegmentRoute(val activityId: Long)
+
+/** A personal segment: map, profile, your efforts; star, rename, re-match, delete. */
+@Serializable data class SegmentDetailRoute(val segmentId: Long)
+
+/** You, Segments: starred segments, all of them and your PRs. */
+@Serializable data object SegmentsRoute

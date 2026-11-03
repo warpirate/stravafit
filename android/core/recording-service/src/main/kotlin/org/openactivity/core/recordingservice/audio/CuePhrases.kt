@@ -40,6 +40,20 @@ class CuePhrases(private val resources: Resources, private val locale: Locale = 
         is AudioCue.OffRoute -> resources.getString(R.string.cue_off_route, shortDistance(cue.distanceMeters, units))
         AudioCue.BackOnRoute -> resources.getString(R.string.cue_back_on_route)
         AudioCue.RouteCompleted -> resources.getString(R.string.cue_route_completed)
+        is AudioCue.SegmentAhead -> resources.getString(R.string.cue_segment_ahead, cue.name, shortDistance(cue.distanceMeters, units))
+        is AudioCue.SegmentStarted -> buildList {
+            add(resources.getString(R.string.cue_segment_started, cue.name))
+            cue.prSeconds?.let { add(resources.getString(R.string.cue_segment_pr_to_beat, duration(it))) }
+        }.joinToString(" ")
+        is AudioCue.SegmentFinished -> buildList {
+            add(resources.getString(R.string.cue_segment_finished, cue.name, duration(cue.elapsedSeconds)))
+            val delta = cue.deltaSeconds
+            when {
+                cue.newPr -> add(resources.getString(R.string.cue_segment_new_pr, duration(abs(delta ?: 0L))))
+                delta != null && delta > 0 -> add(resources.getString(R.string.cue_segment_behind_pr, duration(delta)))
+                delta != null -> add(resources.getString(R.string.cue_segment_matched_pr))
+            }
+        }.joinToString(" ")
     }
 
     private fun milestone(cue: AudioCue.Milestone, units: UnitSystem): String = buildList {

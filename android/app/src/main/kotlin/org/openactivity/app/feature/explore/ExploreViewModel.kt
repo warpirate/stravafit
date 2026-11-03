@@ -18,6 +18,10 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import org.openactivity.app.data.PreferencesRepository
+import org.openactivity.app.feature.segments.SegmentRowUi
+import org.openactivity.app.feature.segments.SegmentsViewModel
+import org.openactivity.core.data.model.SegmentSummary
+import org.openactivity.core.data.repository.SegmentRepository
 import org.openactivity.core.location.LocationAvailability
 import org.openactivity.core.location.LocationSource
 import org.openactivity.core.map.MapLocation
@@ -59,6 +63,8 @@ data class ExploreUiState(
     val message: String? = null,
     /** The athlete's position while the tab is visible and location is allowed, else null. */
     val userLocation: MapLocation? = null,
+    /** Your segments (starred first) for the Segments layer. */
+    val segments: List<SegmentRowUi> = emptyList(),
 ) {
     /** The route highlighted on the map, if any. */
     val selectedRoute: RouteCardUi? get() = routes.firstOrNull { it.id == selectedRouteId } ?: routes.firstOrNull()
@@ -71,6 +77,7 @@ class ExploreViewModel @Inject constructor(
     preferencesRepository: PreferencesRepository,
     private val importer: RouteImporter,
     locationSource: LocationSource? = null,
+    private val segmentRepository: SegmentRepository? = null,
 ) : ViewModel() {
 
     private val local = MutableStateFlow(Local())
@@ -86,14 +93,18 @@ class ExploreViewModel @Inject constructor(
                 .catch { emit(null) }
         }
 
+    private val segments: Flow<List<SegmentSummary>> = segmentRepository?.observeSegments()?.catch { emit(emptyList()) } ?: flowOf(emptyList())
+
     val uiState: StateFlow<ExploreUiState> = combine(
         routeRepository.observeRoutes(),
         preferencesRepository.preferences,
         local,
         userLocation,
-    ) { routes, preferences, local, location ->
+        segments,
+    ) { routes, preferences, local, location, segments ->
         val formatter = UnitFormatter(preferences.unitSystem, Locale.getDefault())
         ExploreUiState(
+            segments = segments.map { SegmentsViewModel.rowOf(it, formatter) },
             isLoading = false,
             routes = routes.map { it.toCard(formatter) },
             selectedRouteId = local.selectedRouteId?.takeIf { id -> routes.any { it.id == id } } ?: routes.firstOrNull()?.id,
@@ -102,6 +113,12 @@ class ExploreViewModel @Inject constructor(
             userLocation = location,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), ExploreUiState())
+
+    /** Stars or unstars segment [id]. */
+    fun toggleSegmentStar(id: Long, starred: Boolean) {
+        val repository = segmentRepository ?: return
+        viewModelScope.launch { repository.setStarred(id, !starred) }
+    }
 
     /** Highlights route [id] on the map. */
     fun selectRoute(id: Long) = local.update { it.copy(selectedRouteId = id) }

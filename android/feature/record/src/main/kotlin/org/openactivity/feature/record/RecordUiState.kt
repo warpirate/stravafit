@@ -104,11 +104,34 @@ data class RouteFollowUi(
 )
 
 /**
+ * A starred segment near or under way while recording (live personal segments).
+ *
+ * @property toStart distance to its start while approaching ("180 m"), else null.
+ * @property time elapsed time on it ("2:05"), or the final time once [finished].
+ * @property versusPr "-0:12" ahead or "+0:08" behind your PR (at the same share of it), null without a PR.
+ * @property ahead true when ahead of (or level with) your PR.
+ * @property fraction share of the segment done, 0 to 1.
+ */
+@Immutable
+data class SegmentLiveUi(
+    val name: String,
+    val approaching: Boolean,
+    val finished: Boolean,
+    val toStart: String?,
+    val time: String,
+    val versusPr: String?,
+    val ahead: Boolean,
+    val fraction: Float,
+    val newPr: Boolean,
+)
+
+/**
  * The live recording, ready to draw.
  *
  * @property track accepted points of the live line.
  * @property gpsLost a GPS sport has no fresh fix: time still counts, distance does not (core-screens 3.7).
  * @property route progress along the followed route, null without one.
+ * @property segment the starred segment near or under way, null when none.
  */
 @Immutable
 data class RecordingUi(
@@ -121,6 +144,7 @@ data class RecordingUi(
     val recovered: Boolean,
     val mockLocation: Boolean,
     val route: RouteFollowUi? = null,
+    val segment: SegmentLiveUi? = null,
 ) {
     /** Paused by the athlete (only they can resume). */
     val isPaused: Boolean get() = status == RecordingStatus.PAUSED

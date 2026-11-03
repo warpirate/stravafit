@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.feature.record.ui
 
+import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material.icons.rounded.Timeline
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import org.openactivity.feature.record.SegmentLiveUi
 import org.openactivity.core.designsystem.component.LocalFrost
 import org.openactivity.core.designsystem.component.frostSource
 import androidx.compose.runtime.CompositionLocalProvider
@@ -128,6 +133,7 @@ internal fun SplitsPage(recording: RecordingUi) {
 @Composable
 internal fun RecordingNotices(recording: RecordingUi, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        recording.segment?.let { SegmentBanner(it, Modifier.fillMaxWidth()) }
         recording.route?.let { route ->
             when {
                 route.offRouteBy != null -> RecordBanner(
@@ -341,6 +347,65 @@ private val TOP_ROW_CLEARANCE = 72.dp
 
 /** How long the "recovered after the app was closed" notice stays. */
 internal const val RECOVERED_BANNER_MS = 8_000L
+
+/**
+ * A starred segment: "Segment ahead" with the distance to its start, then the running time against your
+ * PR with a progress bar, then the result. Green when ahead of the PR, orange when behind; the words say
+ * it too, so colour is never the only cue.
+ */
+@Composable
+internal fun SegmentBanner(segment: SegmentLiveUi, modifier: Modifier = Modifier) {
+    val good = RidgelineTheme.colors.success
+    val accent = RidgelineTheme.colors.accent
+    val title = when {
+        segment.approaching -> stringResource(R.string.record_segment_ahead, segment.toStart.orEmpty())
+        segment.finished && segment.newPr -> stringResource(R.string.record_segment_new_pr)
+        segment.finished -> stringResource(R.string.record_segment_finished)
+        else -> stringResource(R.string.record_segment_running)
+    }
+    val versus = segment.versusPr?.let {
+        stringResource(if (segment.ahead) R.string.record_segment_ahead_of_pr else R.string.record_segment_behind_pr, it)
+    }
+    Surface(
+        modifier.semantics(mergeDescendants = true) { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 2.dp,
+    ) {
+        Column(Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    if (segment.finished && segment.newPr) Icons.Rounded.EmojiEvents else Icons.Rounded.Timeline,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = if (segment.finished && segment.newPr) RidgelineTheme.colors.medalGold else accent,
+                )
+                Spacer(Modifier.width(Spacing.s))
+                Column(Modifier.weight(1f)) {
+                    Text(title, style = RidgelineTheme.text.caption, color = RidgelineTheme.colors.textSecondary)
+                    Text(segment.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                }
+                if (!segment.approaching) {
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(segment.time, style = RidgelineTheme.text.statS)
+                        versus?.let { Text(it, style = RidgelineTheme.text.caption, color = if (segment.ahead) good else accent) }
+                    }
+                }
+            }
+            if (!segment.approaching && !segment.finished) {
+                Spacer(Modifier.height(Spacing.xs))
+                LinearProgressIndicator(
+                    progress = { segment.fraction },
+                    modifier = Modifier.fillMaxWidth().height(4.dp),
+                    color = if (segment.ahead) good else accent,
+                    trackColor = RidgelineTheme.colors.hairline,
+                    strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    gapSize = 0.dp,
+                )
+            }
+        }
+    }
+}
 
 /** "3.20 km to go · about 18:20" with a progress bar, while following a route and on it. */
 @Composable

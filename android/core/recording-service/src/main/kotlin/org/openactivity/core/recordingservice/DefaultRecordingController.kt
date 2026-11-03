@@ -16,6 +16,7 @@ import kotlinx.coroutines.sync.withLock
 import org.openactivity.core.data.model.NewActivity
 import org.openactivity.core.data.repository.ActivityRepository
 import org.openactivity.core.data.repository.RouteRepository
+import org.openactivity.core.data.repository.SegmentRepository
 import org.openactivity.core.data.repository.SettingsRepository
 import org.openactivity.core.datastore.AppSettings
 import org.openactivity.core.location.GpsStatus
@@ -43,6 +44,8 @@ import org.openactivity.recording.route.RouteEta
 import org.openactivity.recording.route.RouteEvent
 import org.openactivity.recording.route.RouteFollower
 import org.openactivity.recording.route.RoutePath
+import org.openactivity.recording.segment.LiveSegmentEvent
+import org.openactivity.recording.segment.LiveSegmentTracker
 import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
@@ -57,6 +60,8 @@ import kotlin.coroutines.cancellation.CancellationException
  * With a route chosen, a [RouteFollower] tracks progress along it and raises off-route alerts (spoken, and a
  * buzz through [AlertHaptics] when [AppSettings.offRouteAlerts] is on). Its state is not journalled: after
  * a restore it is rebuilt by replaying the recorded track, which the follower handles deterministically.
+ * Starred segments of the sport's family are watched the same way by a [LiveSegmentTracker] (banner, live
+ * time against your PR and spoken cues); without [segments] there are none.
  *
  * The engine is not thread-safe, so every input goes through [engineLock]; journal writes are serialised by
  * [journalLock] and never run after the recording they belong to has ended.
@@ -74,6 +79,7 @@ class DefaultRecordingController @Inject constructor(
     private val speaker: CueSpeaker,
     private val haptics: AlertHaptics,
     @RecordingScope private val scope: CoroutineScope,
+    private val segments: SegmentRepository? = null,
 ) : RecordingController {
 
     private class Session(
@@ -87,6 +93,7 @@ class DefaultRecordingController @Inject constructor(
         val cues: AudioCuePlanner,
         val recovered: Boolean,
         val follower: RouteFollower?,
+        val liveSegments: LiveSegmentTracker?,
         val job: Job,
     ) {
         var availability: LocationAvailability = LocationAvailability.AVAILABLE
@@ -125,6 +132,7 @@ class DefaultRecordingController @Inject constructor(
         val appSettings = settings.settings.first()
         val units = appSettings.units
         val follower = routeId?.let { loadFollower(it) }
+        val liveSegments = loadLiveSegments(sport)
         engineLock.withLock {
             check(session == null) { "a recording is already in progress" }
             val engine = RecordingEngine(
@@ -140,6 +148,7 @@ class DefaultRecordingController @Inject constructor(
             val state = engine.process(EngineInput.UserAction(now, Action.START, wall))
             val s = newSession(
                 UUID.randomUUID().toString(), sport, routeId, wall, engine, appSettings, units, recovered = false, follower,
+                liveSegments,
             )
             s.cues.onState(state)
             session = s
@@ -220,6 +229,7 @@ class DefaultRecordingController @Inject constructor(
         }
         val appSettings = settings.settings.first()
         val follower = contents.routeId?.let { loadFollower(it) }?.also { replay(it, contents.snapshot.points) }
+        val liveSegments = loadLiveSegments(contents.sport)?.also { replay(it, contents.snapshot.points) }
         val engine = RecordingEngine.restore(
             contents.snapshot,
             Interruption(clock.elapsedRealtimeNanos(), clock.wallClockMillis()),
@@ -229,7 +239,7 @@ class DefaultRecordingController @Inject constructor(
             val units = contents.snapshot.config.unitSystem
             val s = newSession(
                 contents.recordingUuid, contents.sport, contents.routeId, contents.startedAtMillis, engine,
-                appSettings, units, recovered = true, follower,
+                appSettings, units, recovered = true, follower, liveSegments,
             )
             session = s
             s.track = contents.snapshot.points
@@ -262,6 +272,7 @@ class DefaultRecordingController @Inject constructor(
         units: UnitSystem,
         recovered: Boolean,
         follower: RouteFollower?,
+        liveSegments: LiveSegmentTracker?,
     ) = Session(
         uuid = uuid,
         sport = sport,
@@ -273,6 +284,7 @@ class DefaultRecordingController @Inject constructor(
         cues = AudioCuePlanner(appSettings.audioCues, units, sport, engine.state.takeIf { recovered }),
         recovered = recovered,
         follower = follower,
+        liveSegments = liveSegments,
         job = SupervisorJob(scope.coroutineContext[Job]),
     )
 
@@ -323,15 +335,21 @@ class DefaultRecordingController @Inject constructor(
     private fun processLocked(s: Session, input: EngineInput) {
         val state = s.engine.process(input)
         var routeEvents = emptyList<RouteEvent>()
+        var segmentEvents = emptyList<LiveSegmentEvent>()
         if (input is EngineInput.Location || input is EngineInput.UserAction) {
             val before = s.track.size
             s.track = s.engine.snapshot().points
+            val newFix = state.status == RecordingStatus.RECORDING && s.track.size > before
+            val p = s.track.lastOrNull()
             val follower = s.follower
-            if (follower != null && state.status == RecordingStatus.RECORDING && s.track.size > before) {
-                val p = s.track.last()
+            if (follower != null && newFix && p != null) {
                 routeEvents = follower.onFix(
                     LatLng(p.latitude, p.longitude), clock.elapsedRealtimeNanos(), p.distanceMeters, p.accuracyMeters,
                 ).events
+            }
+            val live = s.liveSegments
+            if (live != null && newFix && p != null) {
+                segmentEvents = live.onFix(LatLng(p.latitude, p.longitude), p.offsetNanos / NANOS_PER_MILLI, p.distanceMeters, p.accuracyMeters)
             }
         }
         publish(s, state)
@@ -341,6 +359,28 @@ class DefaultRecordingController @Inject constructor(
             if (alerts && routeEvents.any { it is RouteEvent.OffRoute }) haptics.offRoute()
             val spoken = if (alerts) routeEvents else routeEvents.filter { it is RouteEvent.Completed }
             for (cue in s.cues.onRoute(spoken)) speaker.speak(cue, s.units)
+        }
+        if (segmentEvents.isNotEmpty()) {
+            for (cue in s.cues.onSegments(segmentEvents)) speaker.speak(cue, s.units)
+        }
+    }
+
+    /** Starred segments to watch for [sport], or null when there are none (or they cannot be read). */
+    private suspend fun loadLiveSegments(sport: SportType): LiveSegmentTracker? {
+        val repository = segments ?: return null
+        val list = try {
+            repository.liveSegments(sport)
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            emptyList()
+        }
+        return LiveSegmentTracker(list).takeUnless { it.isEmpty }
+    }
+
+    /** Rebuilds live segments from a restored track, silently (its cues were spoken before the restart). */
+    private fun replay(tracker: LiveSegmentTracker, points: List<TrackPoint>) {
+        for (p in points) {
+            if (!p.paused) tracker.onFix(LatLng(p.latitude, p.longitude), p.offsetNanos / NANOS_PER_MILLI, p.distanceMeters, p.accuracyMeters)
         }
     }
 
@@ -384,6 +424,7 @@ class DefaultRecordingController @Inject constructor(
             track = s.track,
             recovered = s.recovered,
             route = s.follower?.let { routeSnapshot(it, state) },
+            segment = s.liveSegments?.status,
         )
     }
 
@@ -428,5 +469,7 @@ class DefaultRecordingController @Inject constructor(
 
         /** Delay before retrying location after it was unavailable or its stream ended. */
         const val LOCATION_RETRY_MILLIS: Long = 2_000L
+
+        private const val NANOS_PER_MILLI = 1_000_000L
     }
 }

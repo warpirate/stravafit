@@ -62,6 +62,7 @@ class SettingsDataSource(
         it[Keys.AUDIO_SPLITS] = cues.announceSplits
         it[Keys.AUDIO_LAPS] = cues.announceLaps
         it[Keys.AUDIO_ROUTE] = cues.announceRoute
+        it[Keys.AUDIO_SEGMENTS] = cues.announceSegments
         it[Keys.AUDIO_DISTANCE] = cues.distanceCues
         it[Keys.AUDIO_TIME_MINUTES] = cues.timeIntervalMinutes
     }
@@ -131,6 +132,7 @@ class SettingsDataSource(
                 announceSplits = prefs[Keys.AUDIO_SPLITS] ?: audioDefaults.announceSplits,
                 announceLaps = prefs[Keys.AUDIO_LAPS] ?: audioDefaults.announceLaps,
                 announceRoute = prefs[Keys.AUDIO_ROUTE] ?: audioDefaults.announceRoute,
+                announceSegments = prefs[Keys.AUDIO_SEGMENTS] ?: audioDefaults.announceSegments,
                 // Before per-cue toggles, a custom interval was the only cue; keep it on for those who set one.
                 distanceCues = prefs[Keys.AUDIO_DISTANCE]
                     ?: prefs[Keys.AUDIO_INTERVAL]?.let { it != audioDefaults.distanceInterval }
@@ -187,6 +189,7 @@ class SettingsDataSource(
         val AUDIO_SPLITS = booleanPreferencesKey("audio_cues_splits")
         val AUDIO_LAPS = booleanPreferencesKey("audio_cues_laps")
         val AUDIO_ROUTE = booleanPreferencesKey("audio_cues_route")
+        val AUDIO_SEGMENTS = booleanPreferencesKey("audio_cues_segments")
         val AUDIO_DISTANCE = booleanPreferencesKey("audio_cues_distance")
         val AUDIO_TIME_MINUTES = intPreferencesKey("audio_cues_time_minutes")
         val AUTO_LAP_METERS = doublePreferencesKey("auto_lap_m")

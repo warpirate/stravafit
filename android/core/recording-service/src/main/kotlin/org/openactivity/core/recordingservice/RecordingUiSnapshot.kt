@@ -11,6 +11,7 @@ import org.openactivity.recording.RecordingState
 import org.openactivity.recording.RecordingStatus
 import org.openactivity.recording.TrackPoint
 import org.openactivity.recording.route.RouteProgress
+import org.openactivity.recording.segment.LiveSegmentStatus
 import java.time.Instant
 import kotlin.time.Duration
 
@@ -57,6 +58,7 @@ data class RouteSnapshot(val progress: RouteProgress, val remainingTime: Duratio
  * @property isMockLocation a mock location was seen; the activity will be flagged.
  * @property recoveredAfterInterruption the recording was restored after the app process died.
  * @property route progress along the followed route, null without one (or when it could not be loaded).
+ * @property segment the starred segment ahead, running or just finished; null when none is near.
  */
 data class RecordingUiSnapshot(
     val status: RecordingStatus,
@@ -83,6 +85,7 @@ data class RecordingUiSnapshot(
     val recoveredAfterInterruption: Boolean,
     val timerTime: Duration = elapsed,
     val route: RouteSnapshot? = null,
+    val segment: LiveSegmentStatus? = null,
 ) {
     /** True while running or paused. */
     val isActive: Boolean get() = status.isActive
@@ -133,6 +136,7 @@ data class RecordingUiSnapshot(
             track: List<TrackPoint>,
             recovered: Boolean,
             route: RouteSnapshot? = null,
+            segment: LiveSegmentStatus? = null,
         ): RecordingUiSnapshot {
             val splitDistance = state.splits.sumOf { it.distance.meters }
             val splitMoving = state.splits.fold(Duration.ZERO) { acc, s -> acc + s.movingTime }
@@ -165,6 +169,7 @@ data class RecordingUiSnapshot(
                 recoveredAfterInterruption = recovered,
                 timerTime = state.timerTime,
                 route = route,
+                segment = segment,
             )
         }
     }
