@@ -45,3 +45,15 @@ typealias RecordRoute = org.openactivity.feature.record.navigation.RecordDestina
 
 /** Settings, Health Connect: write activities, read other apps' workouts. */
 @Serializable data object HealthConnectRoute
+
+/** The Privacy page: where data lives and who sees what (from Settings). */
+@Serializable data object PrivacyRoute
+
+/** The privacy zones list. */
+@Serializable data object PrivacyZonesRoute
+
+/** Add (`zoneId` 0) or edit a privacy zone. */
+@Serializable data class PrivacyZoneEditorRoute(val zoneId: Long = 0)
+
+/** Default audience for new activities, overall and per sport. */
+@Serializable data object VisibilityRoute

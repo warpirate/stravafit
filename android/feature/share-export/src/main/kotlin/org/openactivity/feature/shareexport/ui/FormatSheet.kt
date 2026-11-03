@@ -23,6 +23,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -46,6 +47,7 @@ internal fun FormatSheet(
     enabled: Boolean,
     hiddenStartMeters: Int = 0,
     hiddenEndMeters: Int = 0,
+    privacyZoneCount: Int = 0,
     onExport: (ExportFormat, FileDestination) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -58,7 +60,12 @@ internal fun FormatSheet(
             )
             Text(
                 if (privacyTrim) {
-                    stringResource(R.string.share_export_sheet_privacy_on, hiddenStartMeters, hiddenEndMeters)
+                    listOfNotNull(
+                        stringResource(R.string.share_export_sheet_privacy_on, hiddenStartMeters, hiddenEndMeters)
+                            .takeIf { hiddenStartMeters > 0 || hiddenEndMeters > 0 },
+                        pluralStringResource(R.plurals.share_export_sheet_privacy_zones, privacyZoneCount, privacyZoneCount)
+                            .takeIf { privacyZoneCount > 0 },
+                    ).joinToString(" ")
                 } else {
                     stringResource(R.string.share_export_sheet_privacy_off)
                 },

@@ -40,7 +40,9 @@ enum class NotificationCategory(val channelId: String) {
             NotificationType.PERSONAL_RECORD, NotificationType.BEST_EFFORT -> ACHIEVEMENTS
             NotificationType.GOAL_REACHED, NotificationType.GOAL_REMINDER -> GOALS
             NotificationType.WEEKLY_SUMMARY -> WEEKLY_SUMMARY
-            NotificationType.IMPORT_FINISHED, NotificationType.IMPORT_FAILED, NotificationType.RECORDING_RECOVERED -> null
+            NotificationType.IMPORT_FINISHED, NotificationType.IMPORT_FAILED, NotificationType.RECORDING_RECOVERED,
+            NotificationType.BACKUP_FAILED,
+            -> null
         }
     }
 }

@@ -41,6 +41,8 @@ sealed interface InboxDestination {
 
     data object Activities : InboxDestination
 
+    data object Settings : InboxDestination
+
     companion object {
         /** The destination of [entry]; an activity entry whose activity is gone falls back to Progress. */
         fun of(entry: InboxNotification): InboxDestination = when (entry.target) {
@@ -48,6 +50,7 @@ sealed interface InboxDestination {
             NotificationTarget.GOALS -> Goals
             NotificationTarget.PROGRESS -> Progress
             NotificationTarget.ACTIVITIES -> Activities
+            NotificationTarget.SETTINGS -> Settings
         }
     }
 }

@@ -97,7 +97,15 @@ internal fun ColumnScope.SaveEditForm(state: SaveEditUiState.Editing, actions: S
     PhotosRow(state.photos, state.addingPhotos, actions.onAddPhotos, actions.onRemovePhoto)
     ExertionSection(form.perceivedExertion, actions.onExertion)
     AudienceSection(form.visibility, actions.onVisibility)
-    PrivacyNote(state.facts.hideStartMeters, state.facts.hideEndMeters, state.facts.hasRoute)
+    if (state.facts.hasRoute) {
+        SwitchRow(
+            title = "Hide start and end",
+            body = "Leaves the first and last part of the route out of images, stickers and files you share.",
+            checked = form.hideStartEnd,
+            onChecked = actions.onHideStartEnd,
+        )
+        PrivacyNote(form.hideStartEnd, state.facts.hideStartMeters, state.facts.hideEndMeters)
+    }
     SwitchRow(
         title = "Mute from feeds",
         body = "Keeps it out of home and club feeds. It stays on your profile and still counts toward your totals and goals.",
@@ -258,12 +266,12 @@ private fun AudienceSection(visibility: Visibility, onChange: (Visibility) -> Un
 }
 
 @Composable
-private fun PrivacyNote(hideStart: Double, hideEnd: Double, hasRoute: Boolean) {
-    if (!hasRoute) return
-    val text = if (hideStart <= 0.0 && hideEnd <= 0.0) {
-        "Your whole route is shown to people who can see this activity. You can hide the start and end in Settings › Privacy."
+private fun PrivacyNote(hiding: Boolean, hideStart: Double, hideEnd: Double) {
+    val text = if (!hiding) {
+        "Anything you share shows the whole route, except a start or finish inside one of your privacy zones."
     } else {
-        "The first ${hideStart.roundToInt()} m and last ${hideEnd.roundToInt()} m of your route are hidden from other people. You always see the full route."
+        "The first ${hideStart.roundToInt()} m and last ${hideEnd.roundToInt()} m are left out of anything you share, " +
+            "and so is a start or finish inside a privacy zone. You always see the full route."
     }
     Row(
         Modifier

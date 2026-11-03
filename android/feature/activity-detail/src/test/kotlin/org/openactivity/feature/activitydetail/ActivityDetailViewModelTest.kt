@@ -42,7 +42,7 @@ class ActivityDetailViewModelTest : RepositoryBackedTest() {
         activities = activities,
         extras = extras,
         settings = settings,
-        fileExporter = ActivityFileExporter(RepositoryExportActivityProvider(activities, settings), testExporter(context), GallerySaver(context)),
+        fileExporter = ActivityFileExporter(RepositoryExportActivityProvider(activities, settings, zones), testExporter(context), GallerySaver(context)),
         clock = clock,
     )
 

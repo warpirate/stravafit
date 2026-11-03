@@ -99,6 +99,9 @@ data class ActivityDetail(
  * The fields the save and edit screens change.
  *
  * @property perceivedExertion RPE 1..10 or null to clear it.
+ * @property hideStartMeters track distance hidden from the start in anything shared ("Hide start and
+ *   end"); null leaves the stored value.
+ * @property hideEndMeters same, from the end; null leaves the stored value.
  */
 data class ActivityMetadataUpdate(
     val sport: SportType,
@@ -106,9 +109,12 @@ data class ActivityMetadataUpdate(
     val description: String,
     val visibility: Visibility,
     val perceivedExertion: Int?,
+    val hideStartMeters: Double? = null,
+    val hideEndMeters: Double? = null,
 ) {
     init {
         require(perceivedExertion == null || perceivedExertion in 1..10) { "RPE must be 1..10" }
+        require((hideStartMeters ?: 0.0) >= 0.0 && (hideEndMeters ?: 0.0) >= 0.0) { "hidden distances must not be negative" }
     }
 }
 

@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Insights
@@ -172,6 +173,7 @@ private fun icon(type: NotificationType): ImageVector = when (type) {
     NotificationType.WEEKLY_SUMMARY -> Icons.Rounded.Insights
     NotificationType.IMPORT_FINISHED -> Icons.Rounded.UploadFile
     NotificationType.IMPORT_FAILED -> Icons.Rounded.ErrorOutline
+    NotificationType.BACKUP_FAILED -> Icons.Rounded.CloudOff
     NotificationType.RECORDING_RECOVERED -> Icons.Rounded.Restore
 }
 
@@ -179,7 +181,7 @@ private fun icon(type: NotificationType): ImageVector = when (type) {
 private fun iconTint(type: NotificationType) = when (type) {
     NotificationType.PERSONAL_RECORD -> RidgelineTheme.colors.medalGold
     NotificationType.BEST_EFFORT -> RidgelineTheme.colors.medalSilver
-    NotificationType.IMPORT_FAILED -> MaterialTheme.colorScheme.error
+    NotificationType.IMPORT_FAILED, NotificationType.BACKUP_FAILED -> MaterialTheme.colorScheme.error
     NotificationType.GOAL_REACHED -> RidgelineTheme.colors.success
     else -> RidgelineTheme.colors.accent
 }

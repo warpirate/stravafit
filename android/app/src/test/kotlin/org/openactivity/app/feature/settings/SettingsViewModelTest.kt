@@ -22,7 +22,14 @@ import org.openactivity.app.data.export.ActivityArchiveExporter
 import org.openactivity.app.data.export.ArchiveSummary
 import org.openactivity.app.distribution.Distribution
 import org.openactivity.app.model.ThemeMode
+import org.openactivity.app.data.backup.AutoBackupConfig
+import org.openactivity.app.data.backup.AutoBackupFailure
+import org.openactivity.app.data.backup.AutoBackupFrequency
+import org.openactivity.app.data.backup.AutoBackupState
+import org.openactivity.app.data.backup.AutoBackupStatus
+import org.openactivity.app.testing.FakeAutoBackupSettings
 import org.openactivity.app.testing.FakePreferencesRepository
+import org.openactivity.app.testing.FakePrivacyZoneRepository
 import org.openactivity.app.testing.FakeSettingsRepository
 import org.openactivity.app.testing.FakeSuggestionSettings
 import org.openactivity.app.testing.MainDispatcherRule
@@ -32,6 +39,7 @@ import org.openactivity.model.UnitSystem
 import org.openactivity.model.Visibility
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
+import java.time.Instant
 import java.time.ZoneOffset
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -64,6 +72,11 @@ class SettingsViewModelTest {
             return manifest
         }
 
+        override suspend fun backUp(output: java.io.OutputStream): BackupManifest {
+            calls += "backUpStream"
+            return manifest
+        }
+
         override suspend fun stageRestore(source: Uri): BackupManifest {
             calls += "stage"
             return stageResult.getOrThrow()
@@ -78,6 +91,9 @@ class SettingsViewModelTest {
         }
     }
 
+    private val autoBackup = FakeAutoBackupSettings()
+    private val zones = FakePrivacyZoneRepository()
+
     private fun TestScope.viewModel(): SettingsViewModel {
         val vm = SettingsViewModel(
             settings,
@@ -86,7 +102,10 @@ class SettingsViewModelTest {
             distribution,
             FakeSuggestionSettings(),
             backup,
-        ) { recording }
+            { recording },
+            autoBackup,
+            zones,
+        )
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} }
         advanceUntilIdle()
         return vm
@@ -216,5 +235,102 @@ class SettingsViewModelTest {
         assertEquals(12, preview.activityCount)
         assertTrue(preview.createdOn, preview.createdOn.startsWith("3 "))
         assertEquals("an unknown date", SettingsViewModel.preview(manifest.copy(createdAt = "?")).createdOn)
+    }
+
+    @Test
+    fun `automatic backup settings reach the store and show in state`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        assertFalse(vm.uiState.value.autoBackup.enabled)
+        assertFalse(vm.uiState.value.autoBackup.hasFolder)
+        assertEquals(SettingsViewModel.NO_AUTO_BACKUP_YET, vm.uiState.value.autoBackup.status)
+
+        vm.chooseAutoBackupFolder(Uri.parse("content://tree/backups"), enable = true)
+        advanceUntilIdle()
+        val on = vm.uiState.value.autoBackup
+        assertTrue(on.enabled)
+        assertEquals("Backups", on.folderName)
+        assertEquals(AutoBackupFrequency.WEEKLY, on.frequency)
+
+        vm.setAutoBackupFrequency(AutoBackupFrequency.DAILY)
+        vm.setAutoBackupEnabled(false)
+        advanceUntilIdle()
+        assertEquals(AutoBackupFrequency.DAILY, vm.uiState.value.autoBackup.frequency)
+        assertFalse(vm.uiState.value.autoBackup.enabled)
+        // The folder stays chosen, so switching back on needs no picker.
+        assertTrue(vm.uiState.value.autoBackup.hasFolder)
+    }
+
+    @Test
+    fun `back up now needs a folder and refuses a second run`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.backUpNowToFolder()
+        advanceUntilIdle()
+        assertEquals("Choose a folder for automatic backups first", vm.uiState.value.message)
+        assertTrue(autoBackup.calls.none { it == "now" })
+        vm.messageShown()
+
+        autoBackup.store.configState.value = AutoBackupConfig(enabled = true, folderUri = "content://tree/x", folderName = "Drive")
+        advanceUntilIdle()
+        vm.backUpNowToFolder()
+        advanceUntilIdle()
+        assertEquals("Backing up to Drive", vm.uiState.value.message)
+        assertEquals(1, autoBackup.calls.count { it == "now" })
+        vm.messageShown()
+
+        autoBackup.running.value = true
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.autoBackup.running)
+        vm.backUpNowToFolder()
+        advanceUntilIdle()
+        assertEquals(SettingsViewModel.ALREADY_RUNNING, vm.uiState.value.message)
+        assertEquals(1, autoBackup.calls.count { it == "now" })
+    }
+
+    @Test
+    fun `automatic backup status says when it worked and what to do when it did not`() {
+        val utc = ZoneOffset.UTC
+        val folder = AutoBackupConfig(enabled = true, folderUri = "content://tree/x", folderName = "Backups")
+        val ok = SettingsViewModel.autoBackupUi(
+            AutoBackupState(folder, AutoBackupStatus(lastSuccessAt = Instant.parse("2026-11-03T08:12:00Z"), lastActivityCount = 12)),
+            utc,
+        )
+        assertFalse(ok.failed)
+        assertTrue(ok.status, ok.status.startsWith("Last backup 3 Nov"))
+        assertTrue(ok.status, ok.status.endsWith("12 activities"))
+
+        val failed = SettingsViewModel.autoBackupUi(
+            AutoBackupState(
+                folder,
+                AutoBackupStatus(
+                    lastSuccessAt = Instant.parse("2026-10-27T08:00:00Z"),
+                    lastFailureAt = Instant.parse("2026-11-03T08:00:00Z"),
+                    lastFailure = AutoBackupFailure.FOLDER_REVOKED,
+                ),
+            ),
+            utc,
+        )
+        assertTrue(failed.failed)
+        assertTrue(failed.status, failed.status.startsWith("Last backup failed on 3 Nov"))
+        assertTrue(failed.status, failed.status.endsWith(AutoBackupFailure.FOLDER_REVOKED.message))
+
+        val running = SettingsViewModel.autoBackupUi(AutoBackupState(folder, AutoBackupStatus(lastFailure = AutoBackupFailure.NO_SPACE), running = true), utc)
+        assertFalse(running.failed)
+        assertEquals("Backing up now…", running.status)
+
+        // A folder grant without a stored name still shows that a folder is chosen.
+        assertEquals("Chosen folder", SettingsViewModel.autoBackupUi(AutoBackupState(folder.copy(folderName = null)), utc).folderName)
+    }
+
+    @Test
+    fun `per-sport audience and the zone count show in state`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.setVisibilityOverride(SportType.RIDE, Visibility.ONLY_ME)
+        zones.add("Home", org.openactivity.model.LatLng(18.5, 73.8), 400)
+        advanceUntilIdle()
+        assertEquals(Visibility.ONLY_ME, vm.uiState.value.settings.defaultVisibility(SportType.RIDE))
+        assertEquals(1, vm.uiState.value.privacyZoneCount)
+        vm.setVisibilityOverride(SportType.RIDE, null)
+        advanceUntilIdle()
+        assertEquals(vm.uiState.value.settings.defaultVisibility, vm.uiState.value.settings.defaultVisibility(SportType.RIDE))
     }
 }

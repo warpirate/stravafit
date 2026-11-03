@@ -14,6 +14,8 @@ import org.openactivity.core.data.repository.GoalRepository
 import org.openactivity.core.data.repository.LocalGoalRepository
 import org.openactivity.core.data.repository.LocalNotificationRepository
 import org.openactivity.core.data.repository.NotificationRepository
+import org.openactivity.core.data.repository.LocalPrivacyZoneRepository
+import org.openactivity.core.data.repository.PrivacyZoneRepository
 import org.openactivity.core.data.repository.LocalActivityRepository
 import org.openactivity.core.data.repository.LocalRouteRepository
 import org.openactivity.core.data.repository.RouteRepository
@@ -47,6 +49,9 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun notificationRepository(impl: LocalNotificationRepository): NotificationRepository
+
+    @Binds
+    abstract fun privacyZoneRepository(impl: LocalPrivacyZoneRepository): PrivacyZoneRepository
 
     companion object {
         @Provides

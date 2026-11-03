@@ -54,6 +54,8 @@ class ThumbnailTest {
         assertEquals(request().cacheKey, request().cacheKey)
         assertEquals(64, request().cacheKey.length)
         assertNotEquals(request().cacheKey, request(w = 301).cacheKey)
+        // An outline without markers (a privacy zone) is a different picture.
+        assertNotEquals(request().cacheKey, request().copy(showEndpoints = false).cacheKey)
         assertNotEquals(request().cacheKey, request(style = MapStyleKind.Dark).cacheKey)
         assertNotEquals(request().cacheKey, request(points = route.reversed()).cacheKey)
         assertNotEquals(request().cacheKey, request().copy(palette = palette.copy(activityRoute = Color.RED)).cacheKey)

@@ -18,6 +18,10 @@ import org.openactivity.app.feature.notifications.InboxDestination
 import org.openactivity.app.feature.notifications.NotificationsScreen
 import org.openactivity.app.feature.groups.GroupsScreen
 import org.openactivity.app.feature.me.MeScreen
+import org.openactivity.app.feature.privacy.PrivacyScreen
+import org.openactivity.app.feature.privacy.PrivacyZoneEditorScreen
+import org.openactivity.app.feature.privacy.PrivacyZonesScreen
+import org.openactivity.app.feature.privacy.VisibilityScreen
 import org.openactivity.app.feature.profile.EditProfileScreen
 import org.openactivity.app.feature.route.RouteDetailScreen
 import org.openactivity.app.feature.route.SuggestedRouteScreen
@@ -47,8 +51,8 @@ import org.openactivity.feature.shareexport.shareExportScreen
 /**
  * The app navigation graph. Every destination is registered exactly once: the four tabs (feed,
  * explore, groups, me), record, settings, save/edit, activity detail, share & export, route detail,
- * suggested route, file import, the Strava import, Health Connect, edit profile, licences, the notifications
- * inbox and goals. First-run
+ * suggested route, file import, the Strava import, Health Connect, edit profile, licences, the
+ * notifications inbox, goals, and the privacy page with privacy zones and per-sport audiences. First-run
  * onboarding is shown by `MainActivity` before this graph exists. Activity, route and recorder
  * destinations also answer the [AppLinks].
  */
@@ -126,6 +130,9 @@ fun AppNavHost(navController: NavHostController, startTab: LaunchTab = LaunchTab
                 onImportActivities = dropUnlessResumed { navController.navigateToImportActivities() },
                 onImportFromStrava = dropUnlessResumed { navController.navigate(StravaImportRoute()) { launchSingleTop = true } },
                 onOpenHealthConnect = dropUnlessResumed { navController.navigate(HealthConnectRoute) { launchSingleTop = true } },
+                onOpenPrivacy = dropUnlessResumed { navController.navigate(PrivacyRoute) { launchSingleTop = true } },
+                onOpenPrivacyZones = dropUnlessResumed { navController.navigate(PrivacyZonesRoute) { launchSingleTop = true } },
+                onOpenVisibility = dropUnlessResumed { navController.navigate(VisibilityRoute) { launchSingleTop = true } },
             )
         }
         composable<StravaImportRoute> {
@@ -137,11 +144,30 @@ fun AppNavHost(navController: NavHostController, startTab: LaunchTab = LaunchTab
         composable<HealthConnectRoute> {
             HealthConnectScreen(
                 onNavigateUp = dropUnlessResumed { navController.popBackStack() },
-                // The privacy page lives in Settings until it has a screen of its own.
-                onOpenPrivacy = dropUnlessResumed {
-                    if (!navController.popBackStack<SettingsRoute>(inclusive = false)) navController.navigate(SettingsRoute) { launchSingleTop = true }
-                },
+                onOpenPrivacy = dropUnlessResumed { navController.navigate(PrivacyRoute) { launchSingleTop = true } },
             )
+        }
+        composable<PrivacyRoute> {
+            PrivacyScreen(
+                onNavigateUp = dropUnlessResumed { navController.popBackStack() },
+                onOpenZones = dropUnlessResumed { navController.navigate(PrivacyZonesRoute) { launchSingleTop = true } },
+                onOpenVisibility = dropUnlessResumed { navController.navigate(VisibilityRoute) { launchSingleTop = true } },
+                // Settings is below the Privacy page; going back there shows the hiding and backup rows.
+                onOpenSettings = dropUnlessResumed { navController.popBackStack() },
+            )
+        }
+        composable<PrivacyZonesRoute> {
+            PrivacyZonesScreen(
+                onNavigateUp = dropUnlessResumed { navController.popBackStack() },
+                onAddZone = dropUnlessResumed { navController.navigate(PrivacyZoneEditorRoute()) { launchSingleTop = true } },
+                onEditZone = { id -> navController.navigate(PrivacyZoneEditorRoute(id)) { launchSingleTop = true } },
+            )
+        }
+        composable<PrivacyZoneEditorRoute> {
+            PrivacyZoneEditorScreen(onDone = dropUnlessResumed { navController.popBackStack() })
+        }
+        composable<VisibilityRoute> {
+            VisibilityScreen(onNavigateUp = dropUnlessResumed { navController.popBackStack() })
         }
         composable<EditProfileRoute> {
             EditProfileScreen(onNavigateUp = dropUnlessResumed { navController.popBackStack() })
@@ -201,6 +227,7 @@ fun NavHostController.openInboxDestination(destination: InboxDestination) {
         is InboxDestination.Activity -> navigateToActivityDetail(destination.id)
         InboxDestination.Goals -> navigate(GoalsRoute()) { launchSingleTop = true }
         InboxDestination.Progress, InboxDestination.Activities -> switchTab(MeRoute)
+        InboxDestination.Settings -> navigate(SettingsRoute) { launchSingleTop = true }
     }
 }
 

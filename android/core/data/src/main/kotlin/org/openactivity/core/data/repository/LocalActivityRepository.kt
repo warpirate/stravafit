@@ -29,6 +29,7 @@ import org.openactivity.core.data.model.WeekTotals
 import org.openactivity.core.data.model.YearTotals
 import org.openactivity.core.database.dao.ActivityDao
 import org.openactivity.core.database.entity.ActivityMetadataEntity
+import org.openactivity.core.database.entity.ActivityPrivacyEntity
 import org.openactivity.model.SportType
 import org.openactivity.model.UnitSystem
 import org.openactivity.recording.FinishedActivity
@@ -84,7 +85,7 @@ class LocalActivityRepository @Inject constructor(
 
     override suspend fun findIdByUuid(uuid: String): Long? = dao.getByUuid(uuid)?.id
 
-    override suspend fun updateMetadata(id: Long, update: ActivityMetadataUpdate): Boolean = dao.updateMetadata(
+    override suspend fun updateMetadata(id: Long, update: ActivityMetadataUpdate): Boolean = dao.updateMetadataAndPrivacy(
         ActivityMetadataEntity(
             id = id,
             sport = update.sport.name,
@@ -94,6 +95,12 @@ class LocalActivityRepository @Inject constructor(
             perceivedExertion = update.perceivedExertion,
             updatedAtMillis = clock.millis(),
         ),
+        // Both or neither: a half-given pair would silently keep a stale value on the other end.
+        if (update.hideStartMeters != null && update.hideEndMeters != null) {
+            ActivityPrivacyEntity(id, update.hideStartMeters, update.hideEndMeters)
+        } else {
+            null
+        },
     ) > 0
 
     override suspend fun delete(id: Long): Boolean = dao.delete(id) > 0

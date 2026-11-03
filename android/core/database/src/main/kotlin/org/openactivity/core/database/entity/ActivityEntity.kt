@@ -80,6 +80,13 @@ data class ActivityMetadataEntity(
     @ColumnInfo(name = "updated_at_millis") val updatedAtMillis: Long,
 )
 
+/** The per-activity map privacy ("Hide start and end"), for partial updates through `@Update(entity = ...)`. */
+data class ActivityPrivacyEntity(
+    val id: Long,
+    @ColumnInfo(name = "privacy_hide_start_meters") val hideStartMeters: Double,
+    @ColumnInfo(name = "privacy_hide_end_meters") val hideEndMeters: Double,
+)
+
 /** The columns stats aggregation needs, without loading whole rows. */
 data class ActivityStatRow(
     val id: Long,
