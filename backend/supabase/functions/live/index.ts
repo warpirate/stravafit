@@ -1,0 +1,299 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// Live location page ("Beacon").
+//
+//   GET /functions/v1/live?t=<token>               HTML page with a live map
+//   GET /functions/v1/live?t=<token>&format=json   the session as JSON (the page polls this)
+//
+// The share token is the only key, so this function runs without JWT
+// verification and reads the session with the service role through
+// public.get_live_session_by_token, which nobody else may execute. The page
+// loads MapLibre GL from unpkg (pinned version) and OpenStreetMap raster
+// tiles; it has no analytics, cookies or other third parties.
+//
+// The supabase.co domain serves HTML as text/plain, so there a page request
+// is redirected to the static copy in web/live/ on GitHub Pages (LIVE_PAGE_URL
+// overrides the address); the JSON endpoint stays here. On a custom domain or a
+// self-hosted stack, set LIVE_PAGE_URL=self and this function serves the page.
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const TOKEN_RE = /^[A-Za-z0-9_-]{32}$/;
+const MAPLIBRE_VERSION = "4.7.1";
+
+function serviceKey(): string {
+  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (legacy) return legacy;
+  try {
+    const keys = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}");
+    return keys["default"] ?? Object.values(keys)[0] ?? "";
+  } catch {
+    return "";
+  }
+}
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+async function readSession(token: string): Promise<Record<string, unknown> | null> {
+  const key = serviceKey();
+  const headers: Record<string, string> = { "apikey": key, "Content-Type": "application/json" };
+  // Legacy service-role keys are JWTs and go in Authorization; new sb_secret_ keys do not.
+  if (key.split(".").length === 3) headers["Authorization"] = `Bearer ${key}`;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_live_session_by_token`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ p_token: token }),
+  });
+  if (!res.ok) throw new Error(`session lookup failed: ${res.status}`);
+  const body = await res.json();
+  if (!body) return null;
+  const athlete = (body.athlete ?? {}) as Record<string, unknown>;
+  const avatar = typeof athlete.avatar_path === "string" && athlete.avatar_path
+    ? `${SUPABASE_URL}/storage/v1/object/public/avatars/${athlete.avatar_path}`
+    : null;
+  return { ...body, athlete: { first_name: athlete.first_name ?? "", avatar_url: avatar } };
+}
+
+function json(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS, "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
+  });
+}
+
+function page(token: string, nonce: string): string {
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#FC5200">
+<title>Live location · StravaFit</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.css" crossorigin="anonymous">
+<style nonce="${nonce}">
+  :root { --orange: #FC5200; --ink: #242428; --muted: #6D6D78; --bg: #FFFFFF; --card: #FFFFFF;
+          --line: #E6E6EB; --live: #FC5200; --ended: #6D6D78; }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink: #F2F2F5; --muted: #A3A3AD; --bg: #121214; --card: #1C1C1F; --line: #2C2C31; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+               font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  #map { position: fixed; inset: 0; }
+  .bar { position: fixed; left: 0; right: 0; top: 0; padding: max(12px, env(safe-area-inset-top)) 16px 12px;
+         display: flex; align-items: center; gap: 10px; background: var(--orange); color: #fff; z-index: 2; }
+  .bar .logo { width: 28px; height: 28px; border-radius: 8px; background: rgba(255,255,255,.18);
+               display: grid; place-items: center; font-weight: 800; }
+  .bar .title { font-weight: 700; font-size: 16px; }
+  .card { position: fixed; left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom));
+          background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px;
+          box-shadow: 0 8px 24px rgba(0,0,0,.18); z-index: 2; max-width: 520px; margin: 0 auto; }
+  .row { display: flex; align-items: center; gap: 12px; }
+  .avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--line) center/cover no-repeat;
+            flex: none; display: grid; place-items: center; font-weight: 700; color: var(--muted); }
+  .name { font-weight: 700; font-size: 17px; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .chip { margin-left: auto; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700;
+          color: #fff; background: var(--live); display: inline-flex; align-items: center; gap: 6px; }
+  .chip.off { background: var(--ended); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #fff; animation: pulse 1.6s infinite; }
+  .chip.off .dot { display: none; }
+  @keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: .35 } }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+  .stat .v { font-weight: 700; font-size: 17px; }
+  .stat .k { color: var(--muted); font-size: 12px; }
+  .msg { margin-top: 10px; color: var(--muted); font-size: 13px; }
+  .maplibregl-ctrl-attrib { font-size: 11px; }
+  @media (prefers-reduced-motion: reduce) { .dot { animation: none; } }
+</style>
+</head>
+<body>
+<div id="map" role="region" aria-label="Map showing the shared live position"></div>
+<header class="bar"><div class="logo" aria-hidden="true">S</div><div class="title">Live location</div></header>
+<section class="card" aria-live="polite">
+  <div class="row">
+    <div class="avatar" id="avatar" aria-hidden="true"></div>
+    <div><div class="name" id="name">Loading…</div><div class="sub" id="sub"></div></div>
+    <span class="chip off" id="chip"><span class="dot"></span><span id="chipText">…</span></span>
+  </div>
+  <div class="stats" id="stats" hidden>
+    <div class="stat"><div class="v" id="speed">–</div><div class="k">Speed</div></div>
+    <div class="stat"><div class="v" id="battery">–</div><div class="k">Phone battery</div></div>
+    <div class="stat"><div class="v" id="accuracy">–</div><div class="k">GPS accuracy</div></div>
+  </div>
+  <div class="msg" id="msg"></div>
+</section>
+<script src="https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.js" crossorigin="anonymous" nonce="${nonce}"></script>
+<script nonce="${nonce}">
+(() => {
+  const TOKEN = ${JSON.stringify(token)};
+  const ENDPOINT = location.pathname + "?t=" + encodeURIComponent(TOKEN) + "&format=json";
+  const $ = (id) => document.getElementById(id);
+  let map = null, marker = null, lastAt = null, state = null, fitted = false, timer = null;
+
+  const SPORT = { Run: "Running", TrailRun: "Trail running", Walk: "Walking", Hike: "Hiking",
+    Ride: "Riding", MountainBikeRide: "Mountain biking", GravelRide: "Gravel riding",
+    EBikeRide: "E-bike riding", Swim: "Swimming", Rowing: "Rowing" };
+
+  function ago(iso) {
+    if (!iso) return "";
+    const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
+    if (s < 60) return s + " s ago";
+    if (s < 3600) return Math.round(s / 60) + " min ago";
+    return Math.round(s / 3600) + " h ago";
+  }
+
+  function initMap() {
+    if (map || typeof maplibregl === "undefined") return;
+    map = new maplibregl.Map({
+      container: "map",
+      style: { version: 8,
+        sources: { osm: { type: "raster", tileSize: 256, maxzoom: 19,
+          tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+          attribution: "© OpenStreetMap contributors" } },
+        layers: [{ id: "osm", type: "raster", source: "osm" }] },
+      center: [0, 20], zoom: 1.5, attributionControl: { compact: true } });
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    map.on("load", () => {
+      map.addSource("trail", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({ id: "trail-casing", type: "line", source: "trail",
+        paint: { "line-color": "#FFFFFF", "line-width": 7, "line-opacity": 0.9 },
+        layout: { "line-cap": "round", "line-join": "round" } });
+      map.addLayer({ id: "trail", type: "line", source: "trail",
+        paint: { "line-color": "#FC5200", "line-width": 4 },
+        layout: { "line-cap": "round", "line-join": "round" } });
+      refresh();
+    });
+  }
+
+  function render(d) {
+    state = d.state;
+    $("name").textContent = (d.athlete && d.athlete.first_name) || "An athlete";
+    const av = $("avatar");
+    if (d.athlete && d.athlete.avatar_url) { av.style.backgroundImage = "url(" + JSON.stringify(d.athlete.avatar_url) + ")"; av.textContent = ""; }
+    else { av.textContent = ($("name").textContent[0] || "?").toUpperCase(); }
+    const chip = $("chip");
+    chip.classList.toggle("off", d.state !== "live");
+    $("chipText").textContent = d.state === "live" ? "Live" : d.state === "ended" ? "Ended" : "Expired";
+    const sport = SPORT[d.sport] || d.sport || "";
+    const p = d.position;
+    lastAt = p ? p.at : null;
+    if (d.state === "live") {
+      $("sub").textContent = sport + (p ? " · updated " + ago(p.at) : " · waiting for the first position");
+      $("msg").textContent = "";
+    } else {
+      $("sub").textContent = sport;
+      $("msg").textContent = d.state === "ended"
+        ? "This live session has ended. The last position is no longer shared."
+        : "This link has expired. Ask for a new one if you still need it.";
+    }
+    $("stats").hidden = !p;
+    if (p) {
+      $("speed").textContent = p.speed_mps != null ? (p.speed_mps * 3.6).toFixed(1) + " km/h" : "–";
+      $("battery").textContent = p.battery_pct != null ? p.battery_pct + " %" : "–";
+      $("accuracy").textContent = p.accuracy_m != null ? "± " + Math.round(p.accuracy_m) + " m" : "–";
+    }
+    if (!map || !map.getSource("trail")) return;
+    const coords = (d.trail || []).map((t) => [t[1], t[0]]);
+    if (p) coords.push([p.lng, p.lat]);
+    map.getSource("trail").setData({ type: "Feature", properties: {},
+      geometry: { type: "LineString", coordinates: coords } });
+    if (p) {
+      if (!marker) {
+        const el = document.createElement("div");
+        el.setAttribute("aria-label", "Current position");
+        el.style.cssText = "width:22px;height:22px;border-radius:50%;background:#FC5200;border:4px solid #fff;box-shadow:0 0 0 6px rgba(252,82,0,.25)";
+        marker = new maplibregl.Marker({ element: el }).setLngLat([p.lng, p.lat]).addTo(map);
+      } else marker.setLngLat([p.lng, p.lat]);
+      if (!fitted) { map.jumpTo({ center: [p.lng, p.lat], zoom: 15 }); fitted = true; }
+    } else if (marker) { marker.remove(); marker = null; }
+  }
+
+  async function refresh() {
+    try {
+      const res = await fetch(ENDPOINT, { cache: "no-store" });
+      if (res.status === 404) { $("name").textContent = "Link not found"; $("chipText").textContent = "Unknown";
+        $("msg").textContent = "This live location link is not valid."; stop(); return; }
+      if (!res.ok) throw new Error(String(res.status));
+      render(await res.json());
+      if (state !== "live") stop();
+    } catch (e) {
+      $("msg").textContent = "Can't reach the server right now. Retrying…";
+    }
+  }
+  function stop() { if (timer) { clearInterval(timer); timer = null; } }
+
+  initMap();
+  if (!map) refresh();
+  timer = setInterval(refresh, 15000);
+  setInterval(() => { if (lastAt && state === "live") {
+    const s = $("sub").textContent.split(" · ")[0]; $("sub").textContent = s + " · updated " + ago(lastAt); } }, 1000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && state === "live") refresh(); });
+})();
+</script>
+</body>
+</html>`;
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+  if (req.method !== "GET") return json(405, { error: "method not allowed" });
+
+  const url = new URL(req.url);
+  const token = url.searchParams.get("t") ?? "";
+  const wantsJson = url.searchParams.get("format") === "json";
+  if (!TOKEN_RE.test(token)) return json(404, { error: "not found" });
+
+  if (wantsJson) {
+    try {
+      const session = await readSession(token);
+      return session ? json(200, session) : json(404, { error: "not found" });
+    } catch (e) {
+      console.error(e);
+      return json(502, { error: "temporarily unavailable" });
+    }
+  }
+
+  // Hosted supabase.co cannot serve HTML: default to the GitHub Pages copy there.
+  // Set LIVE_PAGE_URL=self (custom domain, self-hosting) to serve the page from here.
+  const configured = Deno.env.get("LIVE_PAGE_URL");
+  const pageUrl = configured === "self" ? null
+    : configured ?? (new URL(SUPABASE_URL).hostname.endsWith(".supabase.co")
+      ? "https://warpirate.github.io/stravafit/live/" : null);
+  if (pageUrl) {
+    return new Response(null, {
+      status: 302,
+      headers: { "Location": `${pageUrl}?t=${encodeURIComponent(token)}`, "Cache-Control": "no-store" },
+    });
+  }
+
+  const nonce = crypto.randomUUID().replaceAll("-", "");
+  const csp = [
+    "default-src 'none'",
+    `script-src 'nonce-${nonce}' https://unpkg.com`,
+    // MapLibre sets inline styles on its own elements, so styles cannot be nonce-only.
+    "style-src 'unsafe-inline' https://unpkg.com",
+    `img-src 'self' data: blob: https://tile.openstreetmap.org ${SUPABASE_URL}`,
+    "connect-src 'self' https://tile.openstreetmap.org",
+    "worker-src blob:",
+    "child-src blob:",
+    "base-uri 'none'",
+    "form-action 'none'",
+    "frame-ancestors 'none'",
+  ].join("; ");
+  return new Response(page(token, nonce), {
+    status: 200,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Content-Security-Policy": csp,
+      "X-Robots-Tag": "noindex, nofollow",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+});
