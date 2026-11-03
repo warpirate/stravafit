@@ -35,6 +35,7 @@ import androidx.compose.ui.semantics.semantics
 import org.openactivity.app.ui.common.label
 import androidx.compose.foundation.verticalScroll
 import org.openactivity.app.feature.suggest.IntroCard
+import org.openactivity.app.navigation.LocalBottomBarPadding
 import org.openactivity.app.feature.suggest.RefreshButton
 import org.openactivity.app.feature.suggest.RouteSuggestionsViewModel
 import org.openactivity.app.feature.suggest.SuggestionActions
@@ -95,6 +96,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -196,7 +198,7 @@ fun ExploreContent(
         val sheetMax = maxHeight * SHEET_MAX_FRACTION
         if (landscape) {
             Row(Modifier.fillMaxSize()) {
-                ExploreMap(state, onMap, onMapClick, actions, mapState, query, { query = it }, styleKind, { styleKind = it }, tilted, { tilted = !tilted }, sportFilter, { sportFilter = it }, dark, Modifier.weight(1f).fillMaxHeight())
+                ExploreMap(state, onMap, onMapClick, actions, mapState, query, { query = it }, styleKind, { styleKind = it }, tilted, { tilted = !tilted }, sportFilter, { sportFilter = it }, dark, Modifier.weight(1f).fillMaxHeight(), bottomInset = LocalBottomBarPadding.current)
                 RoutesSheet(routes, selected.takeIf { showSaved }, state, sheetActions, suggestions, suggestionActions, carousel, Modifier.width(SIDE_PANEL_WIDTH).fillMaxHeight(), side = true)
             }
         } else {
@@ -248,12 +250,14 @@ private fun ExploreMap(
     onSport: (SportType?) -> Unit,
     dark: Boolean,
     modifier: Modifier,
+    // Landscape only: the map runs down behind the floating bar there.
+    bottomInset: Dp = 0.dp,
 ) {
         Box(modifier) {
             val points = onMap.highlight
             // Frame the route clear of the search pill and chips above and the buttons on the right.
             val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-            val fitPadding = MapPadding(FIT_SIDE_DP, statusBar.value + FIT_TOP_DP, FIT_RIGHT_DP, FIT_BOTTOM_DP)
+            val fitPadding = MapPadding(FIT_SIDE_DP, statusBar.value + FIT_TOP_DP, FIT_RIGHT_DP, FIT_BOTTOM_DP + bottomInset.value)
             LaunchedEffect(onMap.key) { if (points.size >= 2) mapState.fitTo(points, fitPadding) }
             // Without a route to show, open on the athlete (once), as Record does.
             val location = state.userLocation
@@ -307,7 +311,7 @@ private fun ExploreMap(
                     modifier = Modifier.semantics { contentDescription = if (location != null) "Show my location" else "Show the route" },
                 ) { Icon(Icons.Rounded.NearMe, contentDescription = null) }
             }
-            CreateRoutePill(state.isImporting, actions, Modifier.align(Alignment.BottomEnd).padding(Spacing.gutter))
+            CreateRoutePill(state.isImporting, actions, Modifier.align(Alignment.BottomEnd).padding(bottom = bottomInset).padding(Spacing.gutter))
         }
 }
 
@@ -469,7 +473,7 @@ private fun RoutesSheet(
                 .fillMaxWidth()
                 .let { if (side) it.statusBarsPadding() else it }
                 .verticalScroll(rememberScrollState())
-                .padding(top = Spacing.s, bottom = Spacing.l),
+                .padding(top = Spacing.s, bottom = Spacing.l + LocalBottomBarPadding.current),
         ) {
             if (!side) {
                 Box(

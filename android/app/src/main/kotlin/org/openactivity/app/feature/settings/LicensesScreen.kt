@@ -32,6 +32,7 @@ val OpenSourceLicenses: List<LicenseEntry> = listOf(
     LicenseEntry("Dagger and Hilt", "Apache License 2.0"),
     LicenseEntry("Room and DataStore", "Apache License 2.0"),
     LicenseEntry("AndroidSVG", "Apache License 2.0"),
+    LicenseEntry("Haze (blur behind the bottom bar)", "Apache License 2.0"),
     LicenseEntry("Google Play services location (Play build only)", "Android Software Development Kit License"),
     LicenseEntry("Manrope and Barlow Semi Condensed fonts", "SIL Open Font License 1.1"),
     LicenseEntry("Route art, GPX/TCX, GeoJSON and FIT libraries (this project)", "Apache License 2.0"),

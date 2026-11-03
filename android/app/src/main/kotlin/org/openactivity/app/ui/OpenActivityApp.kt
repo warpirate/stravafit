@@ -36,6 +36,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.openactivity.app.navigation.ActiveRecordingBar
 import org.openactivity.app.navigation.AppBottomBar
+import org.openactivity.app.navigation.LocalBottomBarPadding
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
 import org.openactivity.app.feature.notifications.InboxLink
 import org.openactivity.app.feature.notifications.InboxLinkViewModel
 import org.openactivity.app.navigation.AppNavHost
@@ -143,6 +146,8 @@ fun OpenActivityApp(
     val athleteViewModel: AthleteViewModel = hiltViewModel()
     val athlete by athleteViewModel.athlete.collectAsStateWithLifecycle()
 
+    val hazeState = remember { HazeState() }
+
     CompositionLocalProvider(
         LocalMessenger provides messenger,
         org.openactivity.core.designsystem.component.LocalAthlete provides athlete,
@@ -163,12 +168,15 @@ fun OpenActivityApp(
                         active?.let { rec ->
                             ActiveRecordingBar(rec.time, rec.paused, rec.sport, onClick = { navController.navigateToRecord() })
                         }
-                        AppBottomBar(selected = currentTab, onSelect = { navController.navigateTo(it) })
+                        AppBottomBar(selected = currentTab, onSelect = { navController.navigateTo(it) }, hazeState = hazeState)
                     }
                 }
             },
         ) { padding ->
-            AppNavHost(navController, startTab, Modifier.padding(padding))
+            // The bar floats: screens draw behind it (frosted by the bar) and pad their scrolling content instead.
+            CompositionLocalProvider(LocalBottomBarPadding provides padding.calculateBottomPadding()) {
+                AppNavHost(navController, startTab, Modifier.padding(top = padding.calculateTopPadding()).hazeSource(hazeState))
+            }
         }
     }
 }

@@ -54,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.openactivity.app.navigation.LocalBottomBarPadding
 import org.openactivity.app.ui.LocalMessenger
 import org.openactivity.app.ui.RecordingStatusViewModel
 import org.openactivity.app.feature.suggest.RouteSuggestionsViewModel
@@ -185,7 +186,7 @@ fun FeedContent(
         ) {
             LazyColumn(
                 modifier = Modifier.widthIn(max = Spacing.feedMaxWidth).fillMaxWidth(),
-                contentPadding = PaddingValues(bottom = Spacing.l),
+                contentPadding = PaddingValues(bottom = Spacing.l + LocalBottomBarPadding.current),
                 verticalArrangement = Arrangement.spacedBy(Spacing.cardGap),
             ) {
                 if (state.sports.isNotEmpty()) {

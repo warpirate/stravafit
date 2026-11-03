@@ -19,6 +19,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.ui.semantics.Role
 import org.openactivity.app.feature.goals.GoalCardContent
+import org.openactivity.app.navigation.LocalBottomBarPadding
 import org.openactivity.app.feature.goals.StreakRow
 import org.openactivity.app.ui.common.ProfileAvatar
 import org.openactivity.core.designsystem.component.StatValue
@@ -164,7 +165,7 @@ fun MeContent(state: MeUiState, actions: MeActions, modifier: Modifier = Modifie
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
             LazyColumn(
                 Modifier.widthIn(max = Spacing.feedMaxWidth).fillMaxWidth(),
-                contentPadding = PaddingValues(bottom = Spacing.xxl),
+                contentPadding = PaddingValues(bottom = Spacing.xxl + LocalBottomBarPadding.current),
             ) {
                 val header = state.header
                 if (state.isLoading || header == null) {
