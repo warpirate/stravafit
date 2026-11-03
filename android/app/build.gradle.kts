@@ -115,6 +115,7 @@ dependencies {
     implementation(project(":shared:polyline")) // WP home
     implementation(project(":shared:geo")) // route suggestions
     implementation(project(":android:core:routing")) // route suggestions
+    implementation(project(":android:feature:widgets")) // home-screen widget
     implementation(project(":android:core:healthconnect")) // Health Connect read and write
 
     implementation(libs.androidx.core.ktx)

@@ -22,7 +22,7 @@ class FakeNotificationRepository : NotificationRepository {
     override suspend fun add(entry: NewNotification): Long? {
         if (!keys.add(entry.dedupeKey)) return null
         val id = (entries.value.maxOfOrNull { it.id } ?: 0L) + 1
-        val row = InboxNotification(id, entry.type, entry.title, entry.body, entry.target, entry.activityId, Instant.EPOCH, isRead = false)
+        val row = InboxNotification(id, entry.type, entry.title, entry.body, entry.target, entry.activityId, Instant.EPOCH, isRead = false, dedupeKey = entry.dedupeKey)
         entries.update { listOf(row) + it }
         return id
     }

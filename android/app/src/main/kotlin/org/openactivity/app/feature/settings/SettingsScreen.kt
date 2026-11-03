@@ -129,6 +129,7 @@ fun SettingsScreen(
             onReduceMotion = viewModel::setReduceMotion,
             onLaunchTab = viewModel::setLaunchTab,
             onRouteSuggestions = viewModel::setRouteSuggestions,
+            onWeeklyRecap = viewModel::setWeeklyRecap,
             onDefaultSport = viewModel::setDefaultSport,
             onAutoPause = viewModel::setAutoPause,
             onAudioCues = viewModel::setAudioCuesEnabled,
@@ -201,6 +202,7 @@ data class SettingsActions(
     val onReduceMotion: (Boolean) -> Unit = {},
     val onLaunchTab: (LaunchTab) -> Unit = {},
     val onRouteSuggestions: (Boolean) -> Unit = {},
+    val onWeeklyRecap: (Boolean) -> Unit = {},
     val onDefaultSport: (SportType) -> Unit = {},
     val onAutoPause: (SportType, Boolean) -> Unit = { _, _ -> },
     val onAudioCues: (Boolean) -> Unit = {},
@@ -298,6 +300,16 @@ fun SettingsContent(state: SettingsUiState, actions: SettingsActions, modifier: 
                             "routing service (routing.openstreetmap.de) and to Open-Meteo for elevation.",
                         state.routeSuggestions,
                         actions.onRouteSuggestions,
+                    )
+                }
+
+                OverlineHeader("Notifications")
+                SettingsGroup {
+                    SwitchRow(
+                        "Weekly recap",
+                        "On the first morning of each week: last week against the week before, your longest activity and your goals",
+                        settings.notifications.weeklySummary,
+                        actions.onWeeklyRecap,
                     )
                 }
 

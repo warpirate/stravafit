@@ -23,6 +23,8 @@ import org.openactivity.app.feature.privacy.PrivacyZoneEditorScreen
 import org.openactivity.app.feature.privacy.PrivacyZonesScreen
 import org.openactivity.app.feature.privacy.VisibilityScreen
 import org.openactivity.app.feature.profile.EditProfileScreen
+import org.openactivity.app.feature.recap.MonthCardScreen
+import org.openactivity.app.feature.recap.RecapScreen
 import org.openactivity.app.feature.route.RouteDetailScreen
 import org.openactivity.app.feature.route.SuggestedRouteScreen
 import org.openactivity.app.feature.settings.LicensesScreen
@@ -92,14 +94,24 @@ fun AppNavHost(navController: NavHostController, startTab: LaunchTab = LaunchTab
         composable<GroupsRoute> {
             GroupsScreen(onShowYourActivities = { navController.switchTab(FeedRoute) })
         }
-        composable<MeRoute> {
+        composable<MeRoute>(deepLinks = AppLinks.you()) {
             MeScreen(
                 onOpenSettings = { navController.navigate(SettingsRoute) { launchSingleTop = true } },
                 onEditProfile = { navController.navigate(EditProfileRoute) { launchSingleTop = true } },
                 onOpenActivity = openActivity,
                 onRecord = { navController.openRecorder() },
                 onOpenGoals = { newGoal -> navController.navigate(GoalsRoute(newGoal)) { launchSingleTop = true } },
+                onShareMonth = { month -> navController.navigate(MonthCardRoute(month.year, month.monthValue)) { launchSingleTop = true } },
             )
+        }
+        composable<RecapRoute> {
+            RecapScreen(
+                onNavigateUp = dropUnlessResumed { navController.popBackStack() },
+                onOpenActivity = openActivity,
+            )
+        }
+        composable<MonthCardRoute> {
+            MonthCardScreen(onNavigateUp = dropUnlessResumed { navController.popBackStack() })
         }
         composable<NotificationsRoute> {
             NotificationsScreen(
@@ -227,6 +239,7 @@ fun NavHostController.openInboxDestination(destination: InboxDestination) {
         is InboxDestination.Activity -> navigateToActivityDetail(destination.id)
         InboxDestination.Goals -> navigate(GoalsRoute()) { launchSingleTop = true }
         InboxDestination.Progress, InboxDestination.Activities -> switchTab(MeRoute)
+        is InboxDestination.Recap -> navigate(RecapRoute(destination.weekStart.toString())) { launchSingleTop = true }
         InboxDestination.Settings -> navigate(SettingsRoute) { launchSingleTop = true }
     }
 }

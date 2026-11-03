@@ -25,7 +25,7 @@ val OpenSourceLicenses: List<LicenseEntry> = listOf(
     LicenseEntry("OpenStreetMap data", "© OpenStreetMap contributors, Open Database License (ODbL) 1.0"),
     LicenseEntry("OpenFreeMap tiles and styles", "Free map hosting; styles based on OpenMapTiles (BSD-3-Clause, CC-BY 4.0)"),
     LicenseEntry("MapLibre Native for Android", "BSD 2-Clause License"),
-    LicenseEntry("AndroidX, Jetpack Compose, Material 3", "Apache License 2.0"),
+    LicenseEntry("AndroidX, Jetpack Compose, Material 3, Glance (home-screen widgets), WorkManager", "Apache License 2.0"),
     LicenseEntry("Material Symbols icons", "Apache License 2.0"),
     LicenseEntry("Kotlin, kotlinx.coroutines, kotlinx.serialization", "Apache License 2.0"),
     LicenseEntry("Dagger and Hilt", "Apache License 2.0"),

@@ -41,6 +41,8 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import org.openactivity.app.feature.notifications.InboxLink
 import org.openactivity.app.feature.notifications.InboxLinkViewModel
+import org.openactivity.app.feature.notifications.InboxDestination
+import org.openactivity.app.navigation.AppLinks
 import org.openactivity.app.navigation.AppNavHost
 import org.openactivity.app.navigation.NotificationsRoute
 import org.openactivity.app.navigation.openInboxDestination
@@ -90,7 +92,8 @@ fun OpenActivityApp(
             is LaunchRequest.OpenActivity -> navController.navigateToActivityDetail(launchRequest.id)
             // Copied into the app first: the sharing app's grant may be gone by the time the user answers.
             is LaunchRequest.ImportFiles -> sharedFilesViewModel.stage(launchRequest.uris)
-            is LaunchRequest.DeepLink -> try {
+            // The You tab's link (the "This week" widget) switches tabs rather than stacking a second You.
+            is LaunchRequest.DeepLink -> if (AppLinks.isYou(launchRequest.uri)) navController.openInboxDestination(InboxDestination.Progress) else try {
                 // A link or shortcut to the screen already on top (Record, say) does not stack a second copy.
                 navController.navigate(launchRequest.uri, navOptions { launchSingleTop = true })
             } catch (e: IllegalArgumentException) {

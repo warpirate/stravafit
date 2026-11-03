@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- The recording clock. A Chronometer ticks by itself, so the widget is not redrawn every second
+     (widgets-spec.md, H1). Tabular figures keep the digits from shifting as they change. -->
+<Chronometer xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_clock"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:fontFamily="sans-serif"
+    android:fontFeatureSettings="tnum"
+    android:includeFontPadding="false"
+    android:letterSpacing="-0.02"
+    android:maxLines="1"
+    android:textStyle="bold" />
