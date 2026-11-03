@@ -4,61 +4,80 @@ package org.openactivity.app.data.backup
 import android.util.Log
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 /**
- * Swaps a staged backup into place. Runs at process start, before anything opens the database or the
- * settings files, so no live handle ever sees half-replaced data.
+ * Swaps a staged backup into place. Runs at process start, before content providers (WorkManager) and
+ * anything else can open the database or the settings files, so no live handle sees half-replaced data.
  *
- * The data it replaces is moved to [AppDataLocations.previousDir] (kept until the next restore) and put
- * back if the swap fails part way.
+ * The swap is a two-step journal in [AppDataLocations.pendingMarker]: [STEP_PENDING] moves the live data
+ * aside into [AppDataLocations.previousDir], [STEP_ASIDE] moves the staged backup in. Every move is a
+ * rename on one filesystem and each step skips what is already done, so a process killed part way
+ * finishes the same swap on the next start. If a step fails, the data set aside is put back.
  */
 class RestoreApplier(private val locations: AppDataLocations) {
 
-    /** Applies a pending restore, if one was confirmed; returns true when data was replaced. */
+    /** Applies a confirmed restore, if one is pending; returns true when data was replaced. Never throws. */
     fun applyPending(): Boolean {
-        if (!locations.pendingMarker.isFile) return false
-        val staging = locations.stagingDir
-        if (!File(staging, BackupLayout.DATABASE).isFile) {
-            clear()
-            return false
-        }
-        val previous = locations.previousDir.apply { deleteRecursively(); mkdirs() }
-        val moved = mutableListOf<Pair<File, File>>()
+        val marker = locations.pendingMarker
+        if (!marker.isFile) return false
         return try {
-            for (file in databaseFiles()) {
-                if (file.exists()) moved += move(file, File(previous, "database/${file.name}"))
+            if (marker.readText().trim() != STEP_ASIDE) {
+                if (!File(locations.stagingDir, BackupLayout.DATABASE).isFile) {
+                    clear()
+                    return false
+                }
+                for ((live, aside) in items()) {
+                    if (live.exists() && !aside.exists()) move(live, aside)
+                }
+                writeStep(STEP_ASIDE)
             }
-            for (name in AppDataLocations.FILE_DIRS) {
-                val dir = File(locations.filesDir, name)
-                if (dir.exists()) moved += move(dir, File(previous, "files/$name"))
-            }
-            move(File(staging, BackupLayout.DATABASE), locations.databaseFile)
-            for (name in AppDataLocations.FILE_DIRS) {
-                val dir = File(staging, BackupLayout.FILES_PREFIX + name)
-                if (dir.exists()) move(dir, File(locations.filesDir, name))
+            for ((live, staged) in stagedItems()) {
+                if (staged.exists()) move(staged, live)
             }
             clear()
             true
-        } catch (e: IOException) {
+        } catch (e: Exception) {
             Log.e(TAG, "Restore failed; putting the previous data back", e)
-            rollBack(moved)
+            rollBack()
             clear()
             false
         }
     }
 
-    private fun rollBack(moved: List<Pair<File, File>>) {
-        for (file in databaseFiles()) file.delete()
-        for (name in AppDataLocations.FILE_DIRS) File(locations.filesDir, name).deleteRecursively()
-        for ((original, saved) in moved.asReversed()) {
-            if (!saved.renameTo(original)) Log.e(TAG, "Could not put back ${original.name}")
+    /** Puts every item set aside back in place, dropping whatever the failed swap moved in. */
+    private fun rollBack() {
+        for ((live, aside) in items()) {
+            if (!aside.exists()) continue
+            live.deleteRecursively()
+            if (!aside.renameTo(live)) Log.e(TAG, "Could not put back ${live.name}")
         }
     }
 
-    /** The pending marker goes first so a crash below never retries the swap in a loop. */
     private fun clear() {
         locations.pendingMarker.delete()
         locations.stagingDir.deleteRecursively()
+    }
+
+    private fun writeStep(step: String) {
+        val tmp = File(locations.workDir, "pending.tmp")
+        tmp.writeText(step)
+        Files.move(tmp.toPath(), locations.pendingMarker.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+    }
+
+    /** Each live item paired with its place in [AppDataLocations.previousDir]. */
+    private fun items(): List<Pair<File, File>> {
+        val previous = locations.previousDir
+        return databaseFiles().map { it to File(previous, "database/${it.name}") } +
+            AppDataLocations.FILE_DIRS.map { File(locations.filesDir, it) to File(previous, "files/$it") }
+    }
+
+    /** Each live item paired with its replacement in the staging folder; the database has no WAL there. */
+    private fun stagedItems(): List<Pair<File, File>> {
+        val staging = locations.stagingDir
+        return listOf(locations.databaseFile to File(staging, BackupLayout.DATABASE)) +
+            AppDataLocations.FILE_DIRS.map { File(locations.filesDir, it) to File(staging, BackupLayout.FILES_PREFIX + it) }
     }
 
     private fun databaseFiles(): List<File> {
@@ -66,14 +85,19 @@ class RestoreApplier(private val locations: AppDataLocations) {
         return listOf(db) + listOf("-wal", "-shm", "-journal").map { File(db.path + it) }
     }
 
-    private fun move(from: File, to: File): Pair<File, File> {
+    private fun move(from: File, to: File) {
         to.parentFile?.mkdirs()
         if (to.exists() && !to.deleteRecursively()) throw IOException("Cannot replace ${to.name}")
         if (!from.renameTo(to)) throw IOException("Cannot move ${from.name}")
-        return from to to
     }
 
-    private companion object {
-        const val TAG = "RestoreApplier"
+    companion object {
+        private const val TAG = "RestoreApplier"
+
+        /** Marker contents: the user confirmed; nothing has moved yet (or only part of the live data). */
+        const val STEP_PENDING: String = "pending"
+
+        /** Marker contents: all live data is aside; the backup is moving in. */
+        const val STEP_ASIDE: String = "aside"
     }
 }

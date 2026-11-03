@@ -18,7 +18,8 @@ import java.util.zip.ZipOutputStream
  *
  * @property format layout version of the archive; readers refuse a newer one.
  * @property databaseVersion Room schema version of the bundled database; older ones are migrated on open.
- * @property filesDir absolute `files/` path of the app that wrote it, used to relocate stored paths.
+ * @property filesDir absolute `files/` path of the app that wrote it (debug and release builds differ),
+ *   kept for diagnosing a restore.
  */
 @Serializable
 data class BackupManifest(

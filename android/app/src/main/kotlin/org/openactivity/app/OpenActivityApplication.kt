@@ -2,6 +2,7 @@
 package org.openactivity.app
 
 import android.app.Application
+import android.content.Context
 import dagger.hilt.android.HiltAndroidApp
 import org.openactivity.app.data.backup.LocalDataBackup
 import org.openactivity.app.data.backup.RestoreApplier
@@ -16,8 +17,13 @@ import javax.inject.Inject
 class OpenActivityApplication : Application() {
     @Inject lateinit var inboxStartup: InboxStartup
 
-    override fun onCreate() {
+    /** Runs before content providers, so WorkManager's startup cannot reach the database mid-restore. */
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(base)
         RestoreApplier(LocalDataBackup.appDataLocations(this)).applyPending()
+    }
+
+    override fun onCreate() {
         super.onCreate()
         inboxStartup.start()
     }

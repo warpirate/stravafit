@@ -67,15 +67,27 @@ class LocalDataBackup @Inject constructor(
     }
 
     override suspend fun discardRestore() = withContext(Dispatchers.IO) {
+        locations.pendingMarker.delete()
         BackupReader(locations, OpenActivityDatabase.VERSION).discard()
     }
 
     override suspend fun restoreAndRestart() {
         withContext(Dispatchers.IO) {
             if (!File(locations.stagingDir, BackupLayout.DATABASE).isFile) throw BackupException("Choose the backup again")
-            locations.pendingMarker.writeText(BuildConfig.VERSION_NAME)
+            // The data set aside by an earlier restore goes now, never during a swap that might need it.
+            locations.previousDir.deleteRecursively()
+            locations.pendingMarker.writeText(RestoreApplier.STEP_PENDING)
         }
-        restarter.restart()
+        val restarted = try {
+            restarter.restart()
+        } catch (e: RuntimeException) {
+            false
+        }
+        // Still running: never leave a restore armed to fire at some later cold start.
+        if (!restarted) {
+            discardRestore()
+            throw BackupException("StravaFit could not restart. Nothing was changed.")
+        }
     }
 
     /** Copies the database and its WAL while holding the write lock, so the pair is consistent. */
@@ -99,16 +111,18 @@ class LocalDataBackup @Inject constructor(
 }
 
 /** Restarts the app process so a confirmed restore is applied at the next start. */
-interface AppRestarter {
-    fun restart()
+fun interface AppRestarter {
+    /** Ends this process after scheduling a fresh start; returns false when the app cannot be relaunched. */
+    fun restart(): Boolean
 }
 
 /** [AppRestarter] that relaunches the launcher activity in a fresh task and ends this process. */
 class ProcessAppRestarter @Inject constructor(@ApplicationContext private val context: Context) : AppRestarter {
-    override fun restart() {
-        val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)?.component ?: return
+    override fun restart(): Boolean {
+        val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)?.component ?: return false
         context.startActivity(Intent.makeRestartActivityTask(launch))
         Runtime.getRuntime().exit(0)
+        return true
     }
 }
 

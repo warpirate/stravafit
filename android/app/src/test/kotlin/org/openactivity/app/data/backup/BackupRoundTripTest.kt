@@ -2,6 +2,7 @@
 package org.openactivity.app.data.backup
 
 import android.content.Context
+import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -89,6 +90,49 @@ class BackupRoundTripTest {
         assertFalse(locations.pendingMarker.exists())
         assertFalse(locations.stagingDir.exists())
         assertTrue("the replaced data is kept aside", File(locations.previousDir, "files/activity-extras/2/photo-b.jpg").isFile)
+    }
+
+    @Test
+    fun `a swap killed part way finishes on the next start`() = runTest {
+        database.goalDao().insert(goal(target = 7.0))
+        write("profile/avatar-1.jpg", "backed up avatar")
+        val archive = ByteArrayOutputStream().also { out -> withContext(Dispatchers.IO) { writer().write(out) } }
+        database.goalDao().insert(goal(target = 8.0))
+        write("profile/avatar-1.jpg", "newer avatar")
+        reader().stage(ByteArrayInputStream(archive.toByteArray()))
+        database.close()
+
+        // Killed after the live data went aside and the database moved in, before the folders did.
+        val previous = locations.previousDir
+        File(previous, "database").mkdirs()
+        File(previous, "files").mkdirs()
+        locations.databaseFile.renameTo(File(previous, "database/${locations.databaseFile.name}"))
+        File(locations.databaseFile.path + "-wal").let { if (it.exists()) it.renameTo(File(previous, "database/${it.name}")) }
+        File(locations.databaseFile.path + "-shm").let { if (it.exists()) it.renameTo(File(previous, "database/${it.name}")) }
+        File(context.filesDir, "profile").renameTo(File(previous, "files/profile"))
+        File(locations.stagingDir, BackupLayout.DATABASE).renameTo(locations.databaseFile)
+        locations.pendingMarker.writeText(RestoreApplier.STEP_ASIDE)
+
+        assertTrue(RestoreApplier(locations).applyPending())
+        database = OpenActivityDatabase.build(context)
+        assertEquals(listOf(7.0), database.goalDao().observeAll().first().map { it.target })
+        assertEquals("backed up avatar", read("profile/avatar-1.jpg"))
+        assertEquals("newer avatar", File(previous, "files/profile/avatar-1.jpg").readText())
+        assertFalse(locations.pendingMarker.exists())
+    }
+
+    @Test
+    fun `a restart that cannot happen leaves nothing armed`() = runTest {
+        database.goalDao().insert(goal(target = 7.0))
+        val file = File(context.cacheDir, "backup.zip")
+        val backup = LocalDataBackup(context, database) { false }
+        backup.backUp(Uri.fromFile(file))
+        backup.stageRestore(Uri.fromFile(file))
+        val error = runCatching { backup.restoreAndRestart() }.exceptionOrNull()
+        assertTrue(error is BackupException)
+        assertFalse(locations.pendingMarker.exists())
+        assertFalse(locations.stagingDir.exists())
+        file.delete()
     }
 
     @Test
