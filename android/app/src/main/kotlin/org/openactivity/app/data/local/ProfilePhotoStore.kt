@@ -29,6 +29,12 @@ interface ProfilePhotoStore {
     /** Deletes a photo previously returned by [save]; unknown paths are ignored. */
     suspend fun delete(path: String)
 
+    /**
+     * The file a stored [path] refers to now. A path saved by another install (a restored backup from the
+     * debug or release build) points into that app's folder, so the photo is looked up by name in ours.
+     */
+    fun locate(path: String): String = path
+
     companion object {
         const val MAX_SIZE_PX: Int = 512
     }
@@ -63,6 +69,13 @@ class FileProfilePhotoStore @Inject constructor(@ApplicationContext private val 
         square.recycle()
         if (!decoded.isRecycled) decoded.recycle()
         file.absolutePath
+    }
+
+    override fun locate(path: String): String {
+        val stored = File(path)
+        if (stored.isFile) return path
+        val moved = File(directory, stored.name)
+        return if (moved.isFile) moved.absolutePath else path
     }
 
     override suspend fun delete(path: String) {

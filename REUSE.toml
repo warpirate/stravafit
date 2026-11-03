@@ -64,3 +64,18 @@ path = ["docs/design-directions/strava/compose/res/font/**", "docs/design-direct
 precedence = "override"
 SPDX-FileCopyrightText = "2022 The Figtree Project Authors"
 SPDX-License-Identifier = "OFL-1.1"
+
+# E2E replay tracks: real roads from OpenStreetMap (routed by FOSSGIS OSRM) with elevation from Open-Meteo,
+# so the data stays under the OSM database licence. The scripts next to them are AGPL like the rest.
+[[annotations]]
+path = ["testdata/e2e-routes/*.gpx", "testdata/e2e-routes/*.csv"]
+precedence = "override"
+SPDX-FileCopyrightText = "OpenStreetMap contributors <https://www.openstreetmap.org/copyright>; elevation: Open-Meteo.com (CC-BY-4.0)"
+SPDX-License-Identifier = "ODbL-1.0"
+
+# Recorded routing and Overpass responses: OpenStreetMap data, ODbL-1.0.
+[[annotations]]
+path = ["android/core/routing/src/test/resources/**"]
+precedence = "override"
+SPDX-FileCopyrightText = "OpenStreetMap contributors <https://www.openstreetmap.org/copyright>"
+SPDX-License-Identifier = "ODbL-1.0"

@@ -22,6 +22,12 @@ import org.openactivity.app.data.OnboardingRepository
 import org.openactivity.app.data.PreferencesRepository
 import org.openactivity.app.data.ProfileRepository
 import org.openactivity.app.data.SettingsBackedPreferencesRepository
+import org.openactivity.app.data.backup.AppRestarter
+import org.openactivity.app.data.backup.ControllerUnsavedRecordingCheck
+import org.openactivity.app.data.backup.DataBackup
+import org.openactivity.app.data.backup.LocalDataBackup
+import org.openactivity.app.data.backup.ProcessAppRestarter
+import org.openactivity.app.data.backup.UnsavedRecordingCheck
 import org.openactivity.app.data.export.ActivityArchiveExporter
 import org.openactivity.app.data.export.GpxZipArchiveExporter
 import org.openactivity.app.data.local.FileProfilePhotoStore
@@ -57,6 +63,12 @@ abstract class DataModule {
     @Binds abstract fun routeExporter(impl: GpxRouteExporter): RouteExporter
 
     @Binds abstract fun archiveExporter(impl: GpxZipArchiveExporter): ActivityArchiveExporter
+
+    @Binds abstract fun dataBackup(impl: LocalDataBackup): DataBackup
+
+    @Binds abstract fun appRestarter(impl: ProcessAppRestarter): AppRestarter
+
+    @Binds abstract fun unsavedRecordingCheck(impl: ControllerUnsavedRecordingCheck): UnsavedRecordingCheck
 
     @Binds abstract fun feedSeenRepository(impl: LocalFeedSeenRepository): FeedSeenRepository
     @Binds abstract fun suggestionSettings(impl: LocalSuggestionSettings): org.openactivity.app.data.SuggestionSettings

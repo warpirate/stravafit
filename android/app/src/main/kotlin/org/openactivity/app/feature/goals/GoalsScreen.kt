@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.feature.goals
 
+import org.openactivity.core.designsystem.component.FrostedScaffold
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,7 +36,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -116,19 +116,18 @@ data class GoalsActions(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GoalsContent(state: GoalsUiState, actions: GoalsActions, modifier: Modifier = Modifier) {
-    Scaffold(
+    FrostedScaffold(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = WindowInsets(0),
         topBar = {
             RidgelineTopAppBar(title = "Goals", onNavigateUp = actions.onNavigateUp) {
                 if (!state.isLoading) TopBarAction(Icons.Rounded.Add, "Add goal", actions.onAddGoal)
             }
         },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             if (state.isLoading) {
-                ActivityCardSkeleton(Modifier.padding(Spacing.gutter))
+                ActivityCardSkeleton(Modifier.padding(padding).padding(Spacing.gutter))
                 return@Box
             }
             LazyColumn(
@@ -136,7 +135,7 @@ fun GoalsContent(state: GoalsUiState, actions: GoalsActions, modifier: Modifier 
                     .widthIn(max = Spacing.feedMaxWidth)
                     .fillMaxWidth()
                     .windowInsetsPadding(WindowInsets.navigationBars),
-                contentPadding = PaddingValues(horizontal = Spacing.gutter, vertical = Spacing.s),
+                contentPadding = PaddingValues(start = Spacing.gutter, top = Spacing.s + padding.calculateTopPadding(), end = Spacing.gutter, bottom = Spacing.s),
                 verticalArrangement = Arrangement.spacedBy(Spacing.cardGap),
             ) {
                 state.streak?.let { streak ->

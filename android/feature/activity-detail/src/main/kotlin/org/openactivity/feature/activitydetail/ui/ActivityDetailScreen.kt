@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.feature.activitydetail.ui
 
+import org.openactivity.core.designsystem.component.FrostedSurface
+import org.openactivity.core.designsystem.component.LocalFrost
+import org.openactivity.core.designsystem.component.rememberFrost
+import org.openactivity.core.designsystem.component.frostSource
+import androidx.compose.runtime.CompositionLocalProvider
+import org.openactivity.core.designsystem.component.frosted
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -144,6 +152,7 @@ fun ActivityDetailContent(
             content?.activity?.hasRoute != true || listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > heroPx
         }
     }
+    val frost = rememberFrost()
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         contentWindowInsets = WindowInsets(0),
@@ -162,13 +171,14 @@ fun ActivityDetailContent(
                     modifier = Modifier.align(Alignment.Center),
                 )
                 is ActivityDetailUiState.Content -> {
-                    DetailBody(state.activity, listState)
+                    Box(Modifier.fillMaxSize().frostSource(frost)) { DetailBody(state.activity, listState) }
                     if (state.dialogs.confirmDelete) DeleteActivityDialog(actions.onConfirmDelete, actions.onDismissDelete)
                     state.dialogs.exportFormats?.let { options ->
                         ExportFileSheet(options, state.dialogs.exporting, actions.onExport, actions.onDismissExport)
                     }
                 }
             }
+            CompositionLocalProvider(LocalFrost provides frost.takeIf { content != null }) {
             if (collapsed && content != null) {
                 CollapsedBar(content.activity.title, actions)
             } else {
@@ -181,6 +191,7 @@ fun ActivityDetailContent(
                     if (content != null) DetailMenu(actions)
                 }
             }
+            }
         }
     }
 }
@@ -188,7 +199,8 @@ fun ActivityDetailContent(
 /** The solid top bar once the hero map has scrolled away: back, the title, share and more. */
 @Composable
 private fun CollapsedBar(title: String, actions: DetailActions) {
-    Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
+    // Frosted like the other top bars: the activity scrolls on underneath it.
+    Surface(Modifier.frosted(RectangleShape), color = Color.Transparent) {
         Row(
             Modifier.fillMaxWidth().statusBarsPadding().height(56.dp).padding(horizontal = Spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
@@ -222,13 +234,10 @@ private val COLLAPSE_BEFORE = 120.dp
 /** 44 dp round button floating over the hero map. */
 @Composable
 private fun FloatingRound(icon: androidx.compose.ui.graphics.vector.ImageVector, description: String, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
+    FrostedSurface(
         shape = CircleShape,
-        color = RidgelineTheme.colors.float,
-        contentColor = RidgelineTheme.colors.onFloat,
-        shadowElevation = 3.dp,
         modifier = Modifier.size(44.dp).semantics { contentDescription = description },
+        onClick = onClick,
     ) {
         Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = null) }
     }

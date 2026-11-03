@@ -39,6 +39,30 @@ object GeoJson {
         return sb.toString()
     }
 
+    /** A FeatureCollection with one LineString per entry of [lines]; lines of fewer than two points are left out. */
+    fun lineStrings(lines: List<List<LatLng>>): String {
+        val drawn = lines.filter { it.size >= 2 }
+        if (drawn.isEmpty()) return EMPTY
+        val sb = StringBuilder(drawn.sumOf { it.size } * 24 + drawn.size * 96)
+        sb.append("""{"type":"FeatureCollection","features":[""")
+        drawn.forEachIndexed { n, points ->
+            if (n > 0) sb.append(',')
+            val lons = unwrapLongitudes(points)
+            sb.append("""{"type":"Feature","properties":{},"geometry":{"type":"LineString","coordinates":[""")
+            for (i in points.indices) {
+                if (i > 0) sb.append(',')
+                sb.append('[')
+                appendFixed6(sb, lons[i])
+                sb.append(',')
+                appendFixed6(sb, points[i].latitude)
+                sb.append(']')
+            }
+            sb.append("]}}")
+        }
+        sb.append("]}")
+        return sb.toString()
+    }
+
     /** A FeatureCollection of Points, each with a single string property `role`. */
     fun rolePoints(points: List<Pair<LatLng, String>>): String {
         if (points.isEmpty()) return EMPTY

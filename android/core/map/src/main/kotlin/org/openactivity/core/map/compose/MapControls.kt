@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.core.map.compose
 
+import org.openactivity.core.designsystem.component.FrostedSurface
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -71,7 +72,7 @@ fun RecenterButton(state: MapState, modifier: Modifier = Modifier) {
     }
 }
 
-/** A 48 dp round button floating over a map (strava `float` colour with the float shadow). */
+/** A 48 dp round button floating over a map: frosted where the map provides [LocalFrost], else the strava `float` colour with the float shadow. */
 @Composable
 fun MapRoundButton(
     onClick: () -> Unit,
@@ -79,14 +80,7 @@ fun MapRoundButton(
     tint: Color = RidgelineTheme.colors.onFloat,
     content: @Composable () -> Unit,
 ) {
-    Surface(
-        onClick = onClick,
-        modifier = modifier.size(48.dp),
-        shape = CircleShape,
-        color = RidgelineTheme.colors.float,
-        contentColor = tint,
-        shadowElevation = Elevation.float,
-    ) {
+    FrostedSurface(shape = CircleShape, modifier = modifier.size(48.dp), onClick = onClick, contentColor = tint) {
         Box(contentAlignment = Alignment.Center) { content() }
     }
 }

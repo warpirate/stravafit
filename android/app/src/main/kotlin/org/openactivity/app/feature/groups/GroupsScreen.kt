@@ -15,6 +15,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import org.openactivity.app.navigation.LocalBottomBarPadding
 import org.openactivity.core.designsystem.component.EmptyState
 import org.openactivity.core.designsystem.component.RidgelineTopAppBar
 
@@ -35,7 +36,8 @@ fun GroupsScreen(onShowYourActivities: () -> Unit, modifier: Modifier = Modifier
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = LocalBottomBarPadding.current),
             contentAlignment = Alignment.TopCenter,
         ) {
             EmptyState(

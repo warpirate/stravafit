@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.feature.route
 
+import org.openactivity.core.designsystem.component.FrostedScaffold
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -31,7 +32,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -42,6 +42,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -112,10 +113,9 @@ data class RouteDetailActions(
 @Composable
 fun RouteDetailContent(state: RouteDetailUiState, actions: RouteDetailActions, modifier: Modifier = Modifier) {
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
-    Scaffold(
+    FrostedScaffold(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = WindowInsets(0),
         topBar = {
             RidgelineTopAppBar(title = state.name.ifEmpty { "Route" }, onNavigateUp = actions.onNavigateUp) {
                 if (!state.isLoading && !state.notFound && !state.isSuggestion) {
@@ -124,17 +124,18 @@ fun RouteDetailContent(state: RouteDetailUiState, actions: RouteDetailActions, m
             }
         },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             when {
-                state.isLoading -> ActivityCardSkeleton(Modifier.padding(Spacing.gutter))
+                state.isLoading -> ActivityCardSkeleton(Modifier.padding(padding).padding(Spacing.gutter))
                 state.notFound -> EmptyState(
+                    modifier = Modifier.padding(padding),
                     icon = Icons.Rounded.SearchOff,
                     title = if (state.isSuggestion) "Suggestion not available" else "Route not found",
                     body = if (state.isSuggestion) "Suggestions are kept for a few days. Pull to refresh on Home for new ones." else "It may have been deleted.",
                     primaryActionLabel = "Back",
                     onPrimaryAction = actions.onNavigateUp,
                 )
-                else -> RouteBody(state, actions)
+                else -> RouteBody(state, actions, top = padding.calculateTopPadding())
             }
         }
     }
@@ -155,12 +156,13 @@ fun RouteDetailContent(state: RouteDetailUiState, actions: RouteDetailActions, m
 }
 
 @Composable
-private fun RouteBody(state: RouteDetailUiState, actions: RouteDetailActions) {
+private fun RouteBody(state: RouteDetailUiState, actions: RouteDetailActions, top: Dp) {
     Column(
         Modifier
             .widthIn(max = Spacing.feedMaxWidth)
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
+            .padding(top = top)
             .windowInsetsPadding(WindowInsets.navigationBars)
             .padding(horizontal = Spacing.gutter, vertical = Spacing.s),
         verticalArrangement = Arrangement.spacedBy(Spacing.m),

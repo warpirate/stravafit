@@ -36,6 +36,9 @@ fun rememberSuggestionActions(viewModel: RouteSuggestionsViewModel, onOpen: (Str
         onDismissIntro = viewModel::dismissIntro,
         onSetEnabled = viewModel::setEnabled,
         onSelectSport = viewModel::selectSport,
-        onSelectDistance = viewModel::selectDistance,
+        onSetLength = viewModel::setLength,
+        onSetElevation = viewModel::setElevation,
+        onSetSurface = viewModel::setSurface,
+        onClearFilters = viewModel::clearFilters,
     )
 }

@@ -17,6 +17,7 @@ import org.openactivity.core.routing.SuggestionProgress
 import org.openactivity.core.routing.SuggestionRequest
 import org.openactivity.core.routing.SuggestionSport
 import org.openactivity.model.LatLng
+import org.openactivity.core.routing.SurfaceMix
 import org.openactivity.polyline.PolylineCodec
 
 class FakeSuggestionSettings(initial: SuggestionSettingsState = SuggestionSettingsState()) : SuggestionSettings {
@@ -73,6 +74,7 @@ fun testSuggestion(
     target: Double = 5_000.0,
     name: String = "Bund Garden Rd loop",
     gain: Double? = 38.0,
+    surface: SurfaceMix? = null,
     points: List<LatLng> = listOf(
         PUNE, LatLng(18.5350, 73.8470), LatLng(18.5390, 73.8530), LatLng(18.5360, 73.8600),
         LatLng(18.5300, 73.8570), LatLng(18.5280, 73.8500), PUNE,
@@ -90,4 +92,5 @@ fun testSuggestion(
     startLatitude = PUNE.latitude,
     startLongitude = PUNE.longitude,
     bearingDegrees = 45.0,
+    surface = surface,
 )

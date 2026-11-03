@@ -26,6 +26,7 @@ androidx-test-core = "1.6.1" # WP data-service
 maplibre = "11.13.5" # WP maps
 androidsvg = "1.4" # WP export
 glance = "1.1.1" # home-screen widget
+haze = "1.5.4" # last release on Compose 1.7
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -84,6 +85,7 @@ androidx-test-core = { module = "androidx.test:core", version.ref = "androidx-te
 maplibre-android-sdk = { module = "org.maplibre.gl:android-sdk", version.ref = "maplibre" } # WP maps
 androidsvg = { module = "com.caverock:androidsvg-aar", version.ref = "androidsvg" } # WP export
 androidx-activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "androidx-activity" } # WP export
+haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<title>E2E Loop Run</title>
+<defs>
+<filter id="glow1" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="13.5"/></filter>
+</defs>
+<g fill="none" stroke-linecap="round" stroke-linejoin="round">
+<g filter="url(#glow1)" opacity="0.75">
+<path d="M129.6 763.9 C265.22 763.9 806.92 764.18 943.3 763.9" stroke="#2ED0CC" stroke-width="19.8"/>
+<path d="M943.3 763.9 C1079.68 763.63 946.75 763.23 947.86 762.25" stroke="#34C3EA" stroke-width="19.8"/>
+<path d="M947.86 762.25 C948.97 761.27 949.54 759.74 949.96 758" stroke="#61AAF8" stroke-width="19.8"/>
+<path d="M949.96 758 C950.38 756.27 950.76 757.8 950.4 751.85" stroke="#888BF8" stroke-width="19.8"/>
+<path d="M950.4 751.85 C950.04 745.89 948.37 730.46 947.83 722.28" stroke="#EB79E6" stroke-width="19.8"/>
+<path d="M947.83 722.28 C947.28 714.1 947.22 770.45 947.13 702.76" stroke="#FB7188" stroke-width="19.8"/>
+<path d="M947.13 702.76 C947.04 635.06 947.25 380.54 947.27 316.1" stroke="#FB7185" stroke-width="19.8"/>
+</g>
+<path d="M129.6 763.9 C265.22 763.9 806.92 764.18 943.3 763.9" stroke="#2ED0CC" stroke-width="9"/>
+<path d="M943.3 763.9 C1079.68 763.63 946.75 763.23 947.86 762.25" stroke="#34C3EA" stroke-width="9"/>
+<path d="M947.86 762.25 C948.97 761.27 949.54 759.74 949.96 758" stroke="#61AAF8" stroke-width="9"/>
+<path d="M949.96 758 C950.38 756.27 950.76 757.8 950.4 751.85" stroke="#888BF8" stroke-width="9"/>
+<path d="M950.4 751.85 C950.04 745.89 948.37 730.46 947.83 722.28" stroke="#EB79E6" stroke-width="9"/>
+<path d="M947.83 722.28 C947.28 714.1 947.22 770.45 947.13 702.76" stroke="#FB7188" stroke-width="9"/>
+<path d="M947.13 702.76 C947.04 635.06 947.25 380.54 947.27 316.1" stroke="#FB7185" stroke-width="9"/>
+</g>
+<circle cx="947.27" cy="316.1" r="19.8" fill="none" stroke="#FB7185" stroke-width="2.7" opacity="0.45"/>
+<circle cx="947.27" cy="316.1" r="9.9" fill="#FB7185"/>
+<circle cx="129.6" cy="763.9" r="10.8" fill="none" stroke="#2DD4BF" stroke-width="4.95"/>
+</svg>

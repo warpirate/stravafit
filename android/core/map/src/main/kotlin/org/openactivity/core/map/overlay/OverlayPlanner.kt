@@ -7,6 +7,9 @@ import org.openactivity.core.map.overlay.OverlayIds.ACTIVITY_GRADIENT_LINE
 import org.openactivity.core.map.overlay.OverlayIds.ACTIVITY_GRADIENT_SOURCE
 import org.openactivity.core.map.overlay.OverlayIds.ACTIVITY_LINE
 import org.openactivity.core.map.overlay.OverlayIds.ACTIVITY_SOURCE
+import org.openactivity.core.map.overlay.OverlayIds.ALTERNATE_CASING
+import org.openactivity.core.map.overlay.OverlayIds.ALTERNATE_LINE
+import org.openactivity.core.map.overlay.OverlayIds.ALTERNATE_SOURCE
 import org.openactivity.core.map.overlay.OverlayIds.FINISH_MARKER
 import org.openactivity.core.map.overlay.OverlayIds.LIVE_CASING
 import org.openactivity.core.map.overlay.OverlayIds.LIVE_LINE
@@ -21,8 +24,8 @@ import org.openactivity.core.map.overlay.OverlayIds.START_MARKER
  * Turns [MapOverlays] into an [OverlayPlan]. Pure: no MapLibre calls, so it can run off the main
  * thread and be unit tested.
  *
- * Draw order, bottom to top: planned route, finished activity, live track, then start and finish
- * markers. Each line sits on a wider casing so it stays legible on any base map.
+ * Draw order, bottom to top: alternate routes, planned route, finished activity, live track, then
+ * start and finish markers. Each line sits on a wider casing so it stays legible on any base map.
  */
 object OverlayPlanner {
     /** Line widths in dp. */
@@ -52,6 +55,7 @@ object OverlayPlanner {
             ?: emptyList()
 
         val sources = listOf(
+            SourceSpec(ALTERNATE_SOURCE, GeoJson.lineStrings(overlays.alternateRoutes)),
             SourceSpec(PLANNED_SOURCE, GeoJson.lineString(overlays.plannedRoute)),
             SourceSpec(ACTIVITY_SOURCE, if (gradient == null) activityJson else GeoJson.EMPTY),
             SourceSpec(ACTIVITY_GRADIENT_SOURCE, if (gradient != null) activityJson else GeoJson.EMPTY, lineMetrics = true),
@@ -61,6 +65,8 @@ object OverlayPlanner {
 
         val casingWidth = LINE_WIDTH + CASING_EXTRA
         val layers = listOf(
+            LineLayerSpec(ALTERNATE_CASING, ALTERNATE_SOURCE, palette.casing, LINE_WIDTH + CASING_EXTRA, opacity = 0.8f),
+            LineLayerSpec(ALTERNATE_LINE, ALTERNATE_SOURCE, palette.alternateRoute, LINE_WIDTH, opacity = 0.85f),
             LineLayerSpec(PLANNED_CASING, PLANNED_SOURCE, palette.casing, PLANNED_WIDTH + CASING_EXTRA, opacity = 0.9f),
             LineLayerSpec(PLANNED_LINE, PLANNED_SOURCE, palette.plannedRoute, PLANNED_WIDTH, opacity = 0.9f),
             LineLayerSpec(ACTIVITY_CASING, ACTIVITY_SOURCE, palette.casing, casingWidth),

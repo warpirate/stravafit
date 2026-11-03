@@ -68,3 +68,7 @@ tmp/
 
 # Local Claude Code notes (personal, not shared)
 CLAUDE.local.md
+
+# E2E round screenshots are large; the BUGS.md of each round is kept, the PNGs stay local.
+docs/e2e/**/*.png
+docs/e2e/**/logcat*.txt

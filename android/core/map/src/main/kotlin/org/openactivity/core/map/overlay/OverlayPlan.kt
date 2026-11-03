@@ -69,12 +69,15 @@ data class OverlayPlan(val sources: List<SourceSpec>, val layers: List<LayerSpec
 /** Stable ids for overlay sources and layers. */
 object OverlayIds {
     private const val PREFIX = "oa-"
+    const val ALTERNATE_SOURCE: String = PREFIX + "alternates"
     const val PLANNED_SOURCE: String = PREFIX + "planned"
     const val ACTIVITY_SOURCE: String = PREFIX + "activity"
     const val ACTIVITY_GRADIENT_SOURCE: String = PREFIX + "activity-gradient"
     const val LIVE_SOURCE: String = PREFIX + "live"
     const val MARKER_SOURCE: String = PREFIX + "markers"
 
+    const val ALTERNATE_CASING: String = PREFIX + "alternates-casing"
+    const val ALTERNATE_LINE: String = PREFIX + "alternates-line"
     const val PLANNED_CASING: String = PREFIX + "planned-casing"
     const val PLANNED_LINE: String = PREFIX + "planned-line"
     const val ACTIVITY_CASING: String = PREFIX + "activity-casing"

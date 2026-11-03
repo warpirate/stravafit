@@ -26,6 +26,7 @@ import org.openactivity.app.testing.testSuggestion
 import org.openactivity.core.location.CurrentLocationResult
 import org.openactivity.core.location.LocationAvailability
 import org.openactivity.core.routing.SuggestionSport
+import org.openactivity.core.routing.SurfaceMix
 import org.robolectric.RobolectricTestRunner
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -172,14 +173,14 @@ class RouteSuggestionsViewModelTest {
     }
 
     @Test
-    fun `sport and distance chips and refresh change the request`() = runTest(main.dispatcher) {
+    fun `sport, length and refresh change the request`() = runTest(main.dispatcher) {
         val vm = viewModel()
         collect(vm)
         vm.selectSport(SuggestionSport.WALK)
         advanceUntilIdle()
         assertEquals(SuggestionSport.WALK, suggestions.requests.last().first.sport)
         assertEquals(2, vm.uiState.value.cards.size)
-        vm.selectDistance(4_000.0)
+        vm.setLength(4_000.0..4_000.0)
         advanceUntilIdle()
         assertEquals(listOf(4_000.0), suggestions.requests.last().first.distancesMeters)
         assertEquals(1, vm.uiState.value.cards.size)
@@ -207,10 +208,79 @@ class RouteSuggestionsViewModelTest {
         collect(vm)
         vm.refresh()
         advanceUntilIdle()
-        vm.selectDistance(4_000.0)
+        vm.setLength(4_000.0..4_000.0)
         advanceUntilIdle()
         vm.retry()
         advanceUntilIdle()
         assertEquals(listOf(false, true, false, false), suggestions.bypassed)
+    }
+
+    @Test
+    fun `elevation and surface filter what was found without routing again`() = runTest(main.dispatcher) {
+        suggestions.routes = { r, d ->
+            listOf(
+                testSuggestion("flat-$d", r.sport, d, gain = 10.0, surface = SurfaceMix(5_000.0, 0.0, 0.0)),
+                testSuggestion("hilly-$d", r.sport, d, gain = 200.0, surface = SurfaceMix(1_000.0, 4_000.0, 0.0)),
+            )
+        }
+        val vm = viewModel()
+        collect(vm)
+        val requests = suggestions.requests.size
+        assertEquals(6, vm.uiState.value.cards.size)
+
+        vm.setElevation(ElevationFilter.HILLY)
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.cards.all { it.id.startsWith("hilly") })
+        assertEquals(3, vm.uiState.value.hiddenByFilters)
+
+        vm.setSurface(SurfaceFilter.PAVED)
+        advanceUntilIdle()
+        assertEquals(SuggestionsStatus.NoneFound, vm.uiState.value.status)
+        assertEquals(6, vm.uiState.value.hiddenByFilters)
+
+        vm.clearFilters()
+        advanceUntilIdle()
+        assertEquals(6, vm.uiState.value.cards.size)
+        assertEquals("filters alone never route again", requests, suggestions.requests.size)
+    }
+
+    @Test
+    fun `a loop with no surface yet waits for it, then shows only once known`() {
+        val pending = testSuggestion("a")
+        val paved = testSuggestion("b", surface = SurfaceMix(4_900.0, 0.0, 100.0))
+        val filters = SuggestionFilters(surface = SurfaceFilter.PAVED)
+        assertFalse(RouteSuggestionsViewModel.matches(pending, filters))
+        assertTrue(RouteSuggestionsViewModel.matches(paved, filters))
+        assertTrue(RouteSuggestionsViewModel.matches(pending, SuggestionFilters()))
+        val formatter = org.openactivity.app.format.UnitFormatter(org.openactivity.model.UnitSystem.METRIC, java.util.Locale.UK)
+        assertEquals("Checking surface…", RouteSuggestionsViewModel.card(pending, formatter, surfacePending = true).surface)
+        assertEquals(null, RouteSuggestionsViewModel.card(pending, formatter, surfacePending = false).surface)
+        assertEquals("Paved 98%", RouteSuggestionsViewModel.card(paved, formatter).surface)
+    }
+
+    @Test
+    fun `length range becomes target lengths and a tolerance`() {
+        assertEquals(listOf(2_000.0, 5_000.0, 8_000.0), RouteSuggestionsViewModel.targets(2_000.0..8_000.0))
+        assertEquals(listOf(5_000.0), RouteSuggestionsViewModel.targets(5_000.0..5_000.0))
+        assertEquals(listOf(5_000.0, 5_500.0), RouteSuggestionsViewModel.targets(5_000.0..5_600.0).distinct())
+        val within = SuggestionFilters(lengthMeters = 4_000.0..4_000.0)
+        assertTrue(RouteSuggestionsViewModel.matches(testSuggestion("a", target = 4_400.0 / 1.04), within))
+        assertFalse(RouteSuggestionsViewModel.matches(testSuggestion("b", target = 5_000.0), within))
+    }
+
+    @Test
+    fun `surface labels`() {
+        assertEquals("Paved 90%", RouteSuggestionsViewModel.surfaceLabel(SurfaceMix(900.0, 50.0, 50.0)))
+        assertEquals("Mixed · 30% dirt", RouteSuggestionsViewModel.surfaceLabel(SurfaceMix(600.0, 300.0, 100.0)))
+        assertEquals("Mostly dirt · 80%", RouteSuggestionsViewModel.surfaceLabel(SurfaceMix(200.0, 800.0, 0.0)))
+        assertEquals("Paved 50% · rest unknown", RouteSuggestionsViewModel.surfaceLabel(SurfaceMix(500.0, 0.0, 500.0)))
+    }
+
+    @Test
+    fun `lengths read in the athlete's units`() {
+        assertEquals("5 km", RouteSuggestionsViewModel.formatLength(5_000.0, org.openactivity.model.UnitSystem.METRIC))
+        assertEquals("3.1 mi", RouteSuggestionsViewModel.formatLength(5_000.0, org.openactivity.model.UnitSystem.IMPERIAL))
+        assertEquals("1.9–6.2 mi", lengthLabel(3_000.0..10_000.0, org.openactivity.model.UnitSystem.IMPERIAL))
+        assertEquals("3–10 km", lengthLabel(3_000.0..10_000.0, org.openactivity.model.UnitSystem.METRIC))
     }
 }

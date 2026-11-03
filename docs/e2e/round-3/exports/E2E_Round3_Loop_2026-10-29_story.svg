@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
+<title>E2E Round3 Loop</title>
+<defs>
+<filter id="shadow1" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="6" flood-color="#000000" flood-opacity="0.45"/></filter>
+<filter id="glow2" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="16.5"/></filter>
+</defs>
+<text x="90" y="200" font-family="Inter, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="56" font-weight="700" fill="#FFFFFF" text-anchor="start" letter-spacing="-1" filter="url(#shadow1)" style="font-variant-numeric: tabular-nums">E2E Round3 Loop</text>
+<text x="90" y="256" font-family="Inter, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="24" font-weight="600" fill="#FFFFFF" text-anchor="start" letter-spacing="4" opacity="0.85" filter="url(#shadow1)" style="font-variant-numeric: tabular-nums">THU 29 OCT 2026  ·  RUN</text>
+<g fill="none" stroke-linecap="round" stroke-linejoin="round">
+<g filter="url(#glow2)" opacity="0.75">
+<path d="M329.51 1240 C392.22 1240 647.26 1248.06 705.77 1240" stroke="#5FABF8" stroke-width="24.2"/>
+<path d="M705.77 1240 C764.28 1231.94 866.76 1165.97 866.76 1165.97" stroke="#2DD4BF" stroke-width="24.2"/>
+<path d="M866.76 1165.97 C866.76 1165.97 866.77 351.33 866.76 348.99" stroke="#2ED1C8" stroke-width="24.2"/>
+<path d="M866.76 348.99 C866.75 346.64 864.77 344.15 863.4 342.8" stroke="#2ED0CB" stroke-width="24.2"/>
+<path d="M863.4 342.8 C862.04 341.44 860.01 340.91 858.15 340.44" stroke="#2DD3C2" stroke-width="24.2"/>
+<path d="M858.15 340.44 C856.28 339.98 854.19 339.92 852.2 340" stroke="#2ED1C7" stroke-width="24.2"/>
+<path d="M852.2 340 C850.21 340.08 829.74 342.08 818.48 342.11" stroke="#62A9F8" stroke-width="24.2"/>
+<path d="M818.48 342.11 C807.22 342.15 314.11 342.06 213.24 342.05" stroke="#7897F8" stroke-width="24.2"/>
+</g>
+<path d="M329.51 1240 C392.22 1240 647.26 1248.06 705.77 1240" stroke="#5FABF8" stroke-width="11"/>
+<path d="M705.77 1240 C764.28 1231.94 866.76 1165.97 866.76 1165.97" stroke="#2DD4BF" stroke-width="11"/>
+<path d="M866.76 1165.97 C866.76 1165.97 866.77 351.33 866.76 348.99" stroke="#2ED1C8" stroke-width="11"/>
+<path d="M866.76 348.99 C866.75 346.64 864.77 344.15 863.4 342.8" stroke="#2ED0CB" stroke-width="11"/>
+<path d="M863.4 342.8 C862.04 341.44 860.01 340.91 858.15 340.44" stroke="#2DD3C2" stroke-width="11"/>
+<path d="M858.15 340.44 C856.28 339.98 854.19 339.92 852.2 340" stroke="#2ED1C7" stroke-width="11"/>
+<path d="M852.2 340 C850.21 340.08 829.74 342.08 818.48 342.11" stroke="#62A9F8" stroke-width="11"/>
+<path d="M818.48 342.11 C807.22 342.15 314.11 342.06 213.24 342.05" stroke="#7897F8" stroke-width="11"/>
+</g>
+<circle cx="213.24" cy="342.05" r="24.2" fill="none" stroke="#3ABCF8" stroke-width="3.3" opacity="0.45"/>
+<circle cx="213.24" cy="342.05" r="12.1" fill="#3ABCF8"/>
+<circle cx="329.51" cy="1240" r="13.2" fill="none" stroke="#D080F9" stroke-width="6.05"/>
+<text x="90" y="1400" font-family="Inter, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="26" font-weight="600" fill="#FFFFFF" text-anchor="start" letter-spacing="4" opacity="0.85" filter="url(#shadow1)" style="font-variant-numeric: tabular-nums">DISTANCE</text>
+<text x="90" y="1496" font-family="Inter, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="92" font-weight="700" fill="#FFFFFF" letter-spacing="-1" style="font-variant-numeric: tabular-nums" filter="url(#shadow1)">1.34<tspan font-size="36.8" font-weight="500" fill="#FFFFFF" dx="9.2">km</tspan></text>
+<text x="570" y="1400" font-family="Inter, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="26" font-weight="600" fill="#FFFFFF" text-anchor="start" letter-spacing="4" opacity="0.85" filter="url(#shadow1)" style="font-variant-numeric: tabular-nums">TIME</text>
+<text x="570" y="1496" font-family="Inter, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="92" font-weight="700" fill="#FFFFFF" letter-spacing="-1" style="font-variant-numeric: tabular-nums" filter="url(#shadow1)">7:57</text>
+<text x="90" y="1600" font-family="Inter, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="26" font-weight="600" fill="#FFFFFF" text-anchor="start" letter-spacing="4" opacity="0.85" filter="url(#shadow1)" style="font-variant-numeric: tabular-nums">PACE</text>
+<text x="90" y="1696" font-family="Inter, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="92" font-weight="700" fill="#FFFFFF" letter-spacing="-1" style="font-variant-numeric: tabular-nums" filter="url(#shadow1)">5:57<tspan font-size="36.8" font-weight="500" fill="#FFFFFF" dx="9.2">/km</tspan></text>
+<text x="570" y="1600" font-family="Inter, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="26" font-weight="600" fill="#FFFFFF" text-anchor="start" letter-spacing="4" opacity="0.85" filter="url(#shadow1)" style="font-variant-numeric: tabular-nums">ELEV GAIN</text>
+<text x="570" y="1696" font-family="Inter, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="92" font-weight="700" fill="#FFFFFF" letter-spacing="-1" style="font-variant-numeric: tabular-nums" filter="url(#shadow1)">0<tspan font-size="36.8" font-weight="500" fill="#FFFFFF" dx="9.2">m</tspan></text>
+</svg>

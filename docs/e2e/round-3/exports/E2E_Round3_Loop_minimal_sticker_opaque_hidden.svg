@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<rect width="1080" height="1080" fill="#0B0F14"/>
+<svg x="0" y="0" width="1080" height="1080" viewBox="0 0 1080 1080">
+<title>E2E Round3 Loop</title>
+<g fill="none" stroke-linecap="round" stroke-linejoin="round">
+<path d="M348.03 950.4 C405.22 950.4 637.82 957.75 691.18 950.4 C744.54 943.05 838 882.89 838 882.89 C838 882.89 838.01 139.94 838 137.8 C838 135.66 836.19 133.38 834.94 132.15 C833.7 130.92 831.85 130.43 830.15 130 C828.45 129.58 826.54 129.52 824.73 129.6 C822.92 129.68 804.25 131.49 793.98 131.53 C783.71 131.56 333.99 131.48 242 131.47" stroke="#7DD3FC" stroke-width="12"/>
+</g>
+<circle cx="242" cy="131.47" r="26.4" fill="none" stroke="#7DD3FC" stroke-width="3.6" opacity="0.45"/>
+<circle cx="242" cy="131.47" r="13.2" fill="#7DD3FC"/>
+<circle cx="348.03" cy="950.4" r="14.4" fill="none" stroke="#7DD3FC" stroke-width="6.6"/>
+</svg>
+</svg>

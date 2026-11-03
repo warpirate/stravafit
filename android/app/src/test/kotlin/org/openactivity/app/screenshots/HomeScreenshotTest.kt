@@ -61,6 +61,9 @@ import org.openactivity.app.feature.settings.SettingsContent
 import org.openactivity.app.feature.settings.SettingsUiState
 import org.openactivity.app.model.UserProfile
 import org.openactivity.app.navigation.AppBottomBar
+import org.openactivity.app.navigation.LocalBottomBarPadding
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
 import org.openactivity.app.navigation.TopLevelDestination
 import org.openactivity.app.testing.FakeActivityRepository
 import org.openactivity.app.testing.FakeNotificationRepository
@@ -242,12 +245,16 @@ private fun sampleGoals(): FakeGoalRepository {
 
 @Composable
 private fun Tab(selected: TopLevelDestination, content: @Composable () -> Unit) {
+    // As OpenActivityApp: the content runs behind the floating bar, which frosts it.
+    val haze = remember { HazeState() }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0),
-        bottomBar = { AppBottomBar(selected = selected, onSelect = {}) },
+        bottomBar = { AppBottomBar(selected = selected, onSelect = {}, hazeState = haze) },
     ) { padding ->
-        Box(Modifier.padding(padding)) { content() }
+        CompositionLocalProvider(LocalBottomBarPadding provides padding.calculateBottomPadding()) {
+            Box(Modifier.hazeSource(haze)) { content() }
+        }
     }
 }
 

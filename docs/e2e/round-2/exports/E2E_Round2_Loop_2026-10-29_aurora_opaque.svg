@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<title>E2E Round2 Loop</title>
+<defs>
+<radialGradient id="vignette1" cx="50%" cy="42%" r="78%"><stop offset="0" stop-color="#18212C"/><stop offset="1" stop-color="#0B0F14"/></radialGradient>
+<filter id="glow2" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="13.5"/></filter>
+</defs>
+<rect width="1080" height="1080" fill="url(#vignette1)"/>
+<g fill="none" stroke-linecap="round" stroke-linejoin="round">
+<g filter="url(#glow2)" opacity="0.75">
+<path d="M129.6 950.39 C265.67 950.39 809.36 950.87 946.01 950.39" stroke="#38BDF8" stroke-width="19.8"/>
+<path d="M946.01 950.39 C947.52 950.38 948.79 948.78 949.52 947.5" stroke="#8E8BF8" stroke-width="19.8"/>
+<path d="M949.52 947.5 C950.25 946.23 950.49 944.35 950.4 942.74" stroke="#9D89F8" stroke-width="19.8"/>
+<path d="M950.4 942.74 C950.12 937.69 948.27 923.54 947.81 917.19" stroke="#A488F8" stroke-width="19.8"/>
+<path d="M947.81 917.19 C947.51 913.01 947.65 908.81 947.65 904.63" stroke="#A289F8" stroke-width="19.8"/>
+<path d="M947.65 904.63 C947.65 773.96 948.18 262.21 947.77 133.19" stroke="#DD7CF9" stroke-width="19.8"/>
+<path d="M947.77 133.19 C947.77 131.93 946.3 131.03 945.18 130.47" stroke="#F377B8" stroke-width="19.8"/>
+<path d="M945.18 130.47 C943.97 129.87 942.12 129.52 940.56 129.61" stroke="#F476AF" stroke-width="19.8"/>
+<path d="M940.56 129.61 C936.39 129.87 926.67 131.51 920.18 132" stroke="#F178BF" stroke-width="19.8"/>
+<path d="M920.18 132 C914.02 132.47 907.83 132.57 901.64 132.57" stroke="#EB79E6" stroke-width="19.8"/>
+<path d="M901.64 132.57 C816.72 132.65 492.5 132.47 410.67 132.45" stroke="#EB79E8" stroke-width="19.8"/>
+</g>
+<path d="M129.6 950.39 C265.67 950.39 809.36 950.87 946.01 950.39" stroke="#38BDF8" stroke-width="9"/>
+<path d="M946.01 950.39 C947.52 950.38 948.79 948.78 949.52 947.5" stroke="#8E8BF8" stroke-width="9"/>
+<path d="M949.52 947.5 C950.25 946.23 950.49 944.35 950.4 942.74" stroke="#9D89F8" stroke-width="9"/>
+<path d="M950.4 942.74 C950.12 937.69 948.27 923.54 947.81 917.19" stroke="#A488F8" stroke-width="9"/>
+<path d="M947.81 917.19 C947.51 913.01 947.65 908.81 947.65 904.63" stroke="#A289F8" stroke-width="9"/>
+<path d="M947.65 904.63 C947.65 773.96 948.18 262.21 947.77 133.19" stroke="#DD7CF9" stroke-width="9"/>
+<path d="M947.77 133.19 C947.77 131.93 946.3 131.03 945.18 130.47" stroke="#F377B8" stroke-width="9"/>
+<path d="M945.18 130.47 C943.97 129.87 942.12 129.52 940.56 129.61" stroke="#F476AF" stroke-width="9"/>
+<path d="M940.56 129.61 C936.39 129.87 926.67 131.51 920.18 132" stroke="#F178BF" stroke-width="9"/>
+<path d="M920.18 132 C914.02 132.47 907.83 132.57 901.64 132.57" stroke="#EB79E6" stroke-width="9"/>
+<path d="M901.64 132.57 C816.72 132.65 492.5 132.47 410.67 132.45" stroke="#EB79E8" stroke-width="9"/>
+</g>
+<circle cx="410.67" cy="132.45" r="19.8" fill="none" stroke="#EE79D6" stroke-width="2.7" opacity="0.45"/>
+<circle cx="410.67" cy="132.45" r="9.9" fill="#EE79D6"/>
+<circle cx="129.6" cy="950.39" r="10.8" fill="#0B0F14" stroke="#2DD4BF" stroke-width="4.95"/>
+</svg>

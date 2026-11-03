@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.feature.me
 
+import org.openactivity.core.designsystem.component.FrostedScaffold
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.ColumnScope
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.ui.semantics.Role
 import org.openactivity.app.feature.goals.GoalCardContent
+import org.openactivity.app.navigation.LocalBottomBarPadding
 import org.openactivity.app.feature.goals.StreakRow
 import org.openactivity.app.ui.common.ProfileAvatar
 import org.openactivity.core.designsystem.component.StatValue
@@ -30,7 +32,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -54,7 +55,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
@@ -139,10 +139,9 @@ data class MeActions(
 @Composable
 fun MeContent(state: MeUiState, actions: MeActions, modifier: Modifier = Modifier) {
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
-    Scaffold(
+    FrostedScaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = RidgelineTheme.colors.gap,
-        contentWindowInsets = WindowInsets(0),
         topBar = {
             RidgelineTopAppBar(
                 title = "You",
@@ -161,10 +160,10 @@ fun MeContent(state: MeUiState, actions: MeActions, modifier: Modifier = Modifie
             }
         },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             LazyColumn(
                 Modifier.widthIn(max = Spacing.feedMaxWidth).fillMaxWidth(),
-                contentPadding = PaddingValues(bottom = Spacing.xxl),
+                contentPadding = PaddingValues(top = padding.calculateTopPadding(), bottom = Spacing.xxl + LocalBottomBarPadding.current),
             ) {
                 val header = state.header
                 if (state.isLoading || header == null) {

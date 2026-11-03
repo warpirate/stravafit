@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.rounded.CloudOff
+import androidx.compose.material.icons.rounded.FilterListOff
 import androidx.compose.material.icons.rounded.LocationOff
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Route
@@ -58,7 +59,10 @@ data class SuggestionActions(
     val onDismissIntro: () -> Unit = {},
     val onSetEnabled: (Boolean) -> Unit = {},
     val onSelectSport: (org.openactivity.core.routing.SuggestionSport) -> Unit = {},
-    val onSelectDistance: (Double?) -> Unit = {},
+    val onSetLength: (ClosedFloatingPointRange<Double>?) -> Unit = {},
+    val onSetElevation: (ElevationFilter) -> Unit = {},
+    val onSetSurface: (SurfaceFilter) -> Unit = {},
+    val onClearFilters: () -> Unit = {},
 )
 
 /**
@@ -83,11 +87,14 @@ fun SuggestedRoutesSection(state: SuggestionsUiState, actions: SuggestionActions
     }
 }
 
-/** "Run · 3–10 km loops from here". */
+/** "Run · 3–10 km loops from where you are", plus the elevation and surface filters when set. */
 fun subtitle(state: SuggestionsUiState): String {
-    val km = state.distanceFilter?.let { RouteSuggestionsViewModel.formatKm(it) }
-        ?: state.distanceOptions.let { "${RouteSuggestionsViewModel.formatKm(it.first())}–${RouteSuggestionsViewModel.formatKm(it.last())}" }
-    return "${state.sport.label} · $km km loops from where you are"
+    val parts = listOf(state.sport.label, "${lengthLabel(state.lengthRange, state.units)} loops from where you are") +
+        listOfNotNull(
+            state.filters.elevation.takeIf { it != ElevationFilter.ANY }?.label,
+            state.filters.surface.takeIf { it != SurfaceFilter.ANY }?.label,
+        )
+    return parts.joinToString(" · ")
 }
 
 /** The refresh icon, a spinner while routing. */
@@ -104,9 +111,14 @@ fun RefreshButton(state: SuggestionsUiState, onRefresh: () -> Unit) {
     }
 }
 
-/** Cards, or one quiet line explaining why there are none. Shared by Home and the Maps sheet. */
+/**
+ * Cards, or one quiet line explaining why there are none. Shared by Home and the Maps sheet; Maps passes
+ * its own [carousel] (synced with the map) in place of the scrolling row.
+ */
 @Composable
-fun SuggestionsBody(state: SuggestionsUiState, actions: SuggestionActions) {
+fun SuggestionsBody(state: SuggestionsUiState, actions: SuggestionActions, carousel: (@Composable () -> Unit)? = null) {
+    @Composable
+    fun Cards() = if (carousel != null) carousel() else Cards(state, actions)
     when (val status = state.status) {
         SuggestionsStatus.Disabled -> Notice(
             Icons.Rounded.Route,
@@ -120,8 +132,13 @@ fun SuggestionsBody(state: SuggestionsUiState, actions: SuggestionActions) {
             LocationAvailability.DISABLED -> Notice(Icons.Rounded.LocationOff, "Turn on location to see loops that start where you are.", "Settings", actions.onLocationSettings)
             else -> Notice(Icons.Rounded.LocationOff, "Couldn't find your position. Try again outdoors.", "Retry", actions.onRetry)
         }
-        SuggestionsStatus.Loading -> if (state.cards.isEmpty()) LoadingCards() else Cards(state, actions)
-        SuggestionsStatus.NoneFound -> Notice(Icons.Rounded.Route, "No good loops found around here. Try another distance or new suggestions.", "Retry", actions.onRefresh)
+        SuggestionsStatus.Loading -> if (state.cards.isEmpty()) LoadingCards(state) else Cards()
+        SuggestionsStatus.NoneFound -> if (state.hiddenByFilters > 0) {
+            val loops = if (state.hiddenByFilters == 1) "the loop found" else "the ${state.hiddenByFilters} loops found"
+            Notice(Icons.Rounded.FilterListOff, "None of $loops match your filters.", "Clear filters", actions.onClearFilters)
+        } else {
+            Notice(Icons.Rounded.Route, "No good loops found around here. Try another length or new suggestions.", "Retry", actions.onRefresh)
+        }
         SuggestionsStatus.Offline -> if (state.cards.isEmpty()) {
             Notice(Icons.Rounded.CloudOff, "Can't reach the route service right now.", "Retry", actions.onRetry)
         } else {
@@ -132,10 +149,10 @@ fun SuggestionsBody(state: SuggestionsUiState, actions: SuggestionActions) {
                     color = RidgelineTheme.colors.textMuted,
                     modifier = Modifier.padding(horizontal = Spacing.gutter, vertical = Spacing.xs),
                 )
-                Cards(state, actions)
+                Cards()
             }
         }
-        SuggestionsStatus.Ready -> Cards(state, actions)
+        SuggestionsStatus.Ready -> Cards()
     }
 }
 
@@ -151,13 +168,25 @@ private fun Cards(state: SuggestionsUiState, actions: SuggestionActions) {
 }
 
 @Composable
-private fun LoadingCards() {
-    Row(
-        Modifier.padding(horizontal = Spacing.gutter, vertical = Spacing.m).semantics { contentDescription = "Finding loops near you" },
-        horizontalArrangement = Arrangement.spacedBy(Spacing.m),
-    ) {
-        CardSkeleton()
-        CardSkeleton()
+private fun LoadingCards(state: SuggestionsUiState) {
+    // With a surface filter, loops are found first and held back until their surface is known.
+    val checking = state.filters.surface != SurfaceFilter.ANY && state.hiddenByFilters > 0
+    Column {
+        if (checking) {
+            Text(
+                "Checking road surfaces…",
+                style = MaterialTheme.typography.bodySmall,
+                color = RidgelineTheme.colors.textMuted,
+                modifier = Modifier.padding(horizontal = Spacing.gutter, vertical = Spacing.xs),
+            )
+        }
+        Row(
+            Modifier.padding(horizontal = Spacing.gutter, vertical = Spacing.m).semantics { contentDescription = "Finding loops near you" },
+            horizontalArrangement = Arrangement.spacedBy(Spacing.m),
+        ) {
+            CardSkeleton()
+            CardSkeleton()
+        }
     }
 }
 
@@ -175,18 +204,24 @@ private fun CardSkeleton() {
     }
 }
 
-/** A loop card: route map, name, sport line and Distance / Elev Gain / Est. Time. */
+/**
+ * A loop card: route map, name, sport line, Distance / Elev Gain / Est. Time and the surface. [wide] fills
+ * the given width (the Maps carousel) and leaves the map out, since the loop is drawn on the big map.
+ */
 @Composable
-fun SuggestionCard(card: SuggestionCardUi, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun SuggestionCard(card: SuggestionCardUi, onClick: () -> Unit, modifier: Modifier = Modifier, wide: Boolean = false) {
     Surface(
         onClick = onClick,
         shape = ThumbnailShape,
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, RidgelineTheme.colors.hairline),
-        modifier = modifier.width(CARD_WIDTH).semantics { contentDescription = "${card.name}, ${card.subtitle}" },
+        modifier = (if (wide) modifier else modifier.width(CARD_WIDTH))
+            .semantics { contentDescription = listOfNotNull(card.name, card.subtitle, card.surface).joinToString(", ") },
     ) {
         Column {
-            RouteMapThumbnail(card.points, contentDescription = "Route shape of ${card.name}", aspectRatio = CARD_WIDTH / MAP_HEIGHT, shape = RectangleShape)
+            if (!wide) {
+                RouteMapThumbnail(card.points, contentDescription = "Route shape of ${card.name}", aspectRatio = CARD_WIDTH / MAP_HEIGHT, shape = RectangleShape)
+            }
             Column(Modifier.padding(Spacing.m)) {
                 Text(card.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -197,6 +232,10 @@ fun SuggestionCard(card: SuggestionCardUi, onClick: () -> Unit, modifier: Modifi
                 Spacer(Modifier.height(Spacing.s))
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.l)) {
                     card.stats.forEach { StatValue(it, valueStyle = RidgelineTheme.text.statS) }
+                }
+                card.surface?.let {
+                    Spacer(Modifier.height(Spacing.xs))
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = RidgelineTheme.colors.textMuted, maxLines = 1)
                 }
             }
         }

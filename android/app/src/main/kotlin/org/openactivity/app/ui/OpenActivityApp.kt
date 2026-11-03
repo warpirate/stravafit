@@ -36,6 +36,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.openactivity.app.navigation.ActiveRecordingBar
 import org.openactivity.app.navigation.AppBottomBar
+import org.openactivity.app.navigation.LocalBottomBarPadding
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
 import org.openactivity.app.feature.notifications.InboxLink
 import org.openactivity.app.feature.notifications.InboxLinkViewModel
 import org.openactivity.app.navigation.AppNavHost
@@ -91,6 +94,7 @@ fun OpenActivityApp(
             } catch (e: IllegalArgumentException) {
                 messenger.show("That link does not lead anywhere in the app.")
             }
+            LaunchRequest.OpenInbox -> navController.navigate(NotificationsRoute) { launchSingleTop = true }
             is LaunchRequest.OpenInboxEntry -> when (val link = inboxLinks.open(launchRequest.id)) {
                 InboxLink.Inbox -> navController.navigate(NotificationsRoute) { launchSingleTop = true }
                 is InboxLink.To -> navController.openInboxDestination(link.destination)
@@ -103,8 +107,10 @@ fun OpenActivityApp(
             when {
                 staged.files.isNotEmpty() -> {
                     sharedFiles = staged.files.map { it.toString() }
-                    if (staged.rejected > 0) messenger.show("Skipped ${staged.rejected} file(s) that are not GPX, TCX or FIT.")
+                    val skipped = staged.rejected + staged.unreadable
+                    if (skipped > 0) messenger.show("Skipped $skipped file(s) that could not be read or are not GPX, TCX or FIT.")
                 }
+                staged.unreadable > 0 -> messenger.show("Couldn't read the shared file. Share it again from the app it is in.")
                 else -> messenger.show("That is not a GPX, TCX or FIT file, so there is nothing to import.")
             }
         }
@@ -140,6 +146,8 @@ fun OpenActivityApp(
     val athleteViewModel: AthleteViewModel = hiltViewModel()
     val athlete by athleteViewModel.athlete.collectAsStateWithLifecycle()
 
+    val hazeState = remember { HazeState() }
+
     CompositionLocalProvider(
         LocalMessenger provides messenger,
         org.openactivity.core.designsystem.component.LocalAthlete provides athlete,
@@ -160,12 +168,15 @@ fun OpenActivityApp(
                         active?.let { rec ->
                             ActiveRecordingBar(rec.time, rec.paused, rec.sport, onClick = { navController.navigateToRecord() })
                         }
-                        AppBottomBar(selected = currentTab, onSelect = { navController.navigateTo(it) })
+                        AppBottomBar(selected = currentTab, onSelect = { navController.navigateTo(it) }, hazeState = hazeState)
                     }
                 }
             },
         ) { padding ->
-            AppNavHost(navController, startTab, Modifier.padding(padding))
+            // The bar floats: screens draw behind it (frosted by the bar) and pad their scrolling content instead.
+            CompositionLocalProvider(LocalBottomBarPadding provides padding.calculateBottomPadding()) {
+                AppNavHost(navController, startTab, Modifier.padding(top = padding.calculateTopPadding()).hazeSource(hazeState))
+            }
         }
     }
 }

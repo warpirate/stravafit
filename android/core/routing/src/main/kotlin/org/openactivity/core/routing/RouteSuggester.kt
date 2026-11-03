@@ -45,6 +45,7 @@ class RouteSuggester(
     private val elevation: ElevationClient,
     private val cache: SuggestionCache,
     private val config: Config = Config(),
+    private val surfaces: SurfaceClient? = null,
 ) : RouteSuggestions {
 
     /**
@@ -76,6 +77,7 @@ class RouteSuggester(
 
     override fun suggest(request: SuggestionRequest, refresh: Int, bypassCache: Boolean): Flow<SuggestionProgress> = flow {
         val routes = mutableListOf<RouteSuggestion>()
+        val keys = mutableMapOf<String, String>()
         var failed = false
         val start = request.start
         for (distance in request.distancesMeters) {
@@ -100,11 +102,31 @@ class RouteSuggester(
                     cache.get(key, allowExpired = true, near = start).orEmpty()
                 }
             }
-            found.forEach { recent[it.id] = it }
+            found.forEach { recent[it.id] = it; keys[it.id] = key }
             routes += found
             emit(SuggestionProgress(routes.toList(), done = false, failed = failed))
         }
+        // Surfaces last: the loops are already on screen, and a busy Overpass server only delays this line.
+        if (!failed) addSurfaces(routes, keys)
         emit(SuggestionProgress(routes.toList(), done = true, failed = failed))
+    }
+
+    /** Looks up the surfaces of [routes] that lack one, updating them in place and in the cache. */
+    private suspend fun addSurfaces(routes: MutableList<RouteSuggestion>, keys: Map<String, String>) {
+        val client = surfaces ?: return
+        val missing = routes.filter { it.surface == null }
+        if (missing.isEmpty()) return
+        val found = try {
+            client.surfaces(missing.associate { it.id to it.points })
+        } catch (e: IOException) {
+            return
+        }
+        if (found.isEmpty()) return
+        routes.replaceAll { route -> found[route.id]?.let { route.copy(surface = it) } ?: route }
+        routes.forEach { recent[it.id] = it }
+        for ((key, ids) in routes.groupBy { keys[it.id] }) {
+            if (key != null && ids.any { it.id in found }) cache.put(key, ids)
+        }
     }
 
     override suspend fun find(id: String): RouteSuggestion? = recent[id] ?: cache.find(id)?.also { recent[id] = it }

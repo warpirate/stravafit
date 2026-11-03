@@ -83,11 +83,25 @@ class AndroidSystemNotifier @Inject constructor(
             .setContentText(entry.body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(entry.body))
             .setContentIntent(openEntry(inboxId))
+            .setColor(ACCENT)
+            .setGroup(GROUP)
             .setAutoCancel(true)
             .setCategory(if (category == NotificationCategory.WEEKLY_SUMMARY) NotificationCompat.CATEGORY_RECOMMENDATION else NotificationCompat.CATEGORY_STATUS)
             .build()
+        // Our own group summary: with two or more notifications Android collapses them under a summary, and
+        // the one it makes up itself only launches the app. Ours opens the inbox.
+        val summary = NotificationCompat.Builder(context, category.channelId)
+            .setSmallIcon(R.drawable.ic_stat_inbox)
+            .setContentTitle(entry.title)
+            .setColor(ACCENT)
+            .setGroup(GROUP)
+            .setGroupSummary(true)
+            .setContentIntent(openInbox())
+            .setAutoCancel(true)
+            .build()
         try {
             manager.notify(category.channelId, inboxId.toInt(), notification)
+            manager.notify(SUMMARY_TAG, SUMMARY_ID, summary)
         } catch (e: SecurityException) {
             // The permission went away between the check and the post; the inbox still has the entry.
         }
@@ -115,8 +129,27 @@ class AndroidSystemNotifier @Inject constructor(
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
+    private fun openInbox(): PendingIntent = PendingIntent.getActivity(
+        context,
+        SUMMARY_ID,
+        Intent(context, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            .putExtra(EXTRA_OPEN_INBOX, true),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
+
     companion object {
         /** Launch extra: the inbox entry whose notification was tapped. */
         const val EXTRA_INBOX_ID: String = "org.openactivity.app.extra.INBOX_ID"
+
+        /** Launch extra: the group summary was tapped; open the inbox. */
+        const val EXTRA_OPEN_INBOX: String = "org.openactivity.app.extra.OPEN_INBOX"
+
+        private const val GROUP = "org.openactivity.app.INBOX"
+        private const val SUMMARY_TAG = "inbox-summary"
+        private const val SUMMARY_ID = 0
+
+        /** StravaFit orange (#FC5200) for the small icon and the app name. */
+        private const val ACCENT = 0xFFFC5200.toInt()
     }
 }

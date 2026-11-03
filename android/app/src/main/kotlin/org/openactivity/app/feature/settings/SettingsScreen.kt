@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.feature.settings
 
+import org.openactivity.core.designsystem.component.FrostedScaffold
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
@@ -16,14 +17,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Archive
+import androidx.compose.material.icons.rounded.Backup
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.SettingsBackupRestore
 import androidx.compose.material.icons.rounded.UploadFile
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -69,6 +73,12 @@ fun SettingsScreen(
     val createZip = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         uri?.let(viewModel::exportAll)
     }
+    val createBackup = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        uri?.let(viewModel::backUp)
+    }
+    val openBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let(viewModel::chooseRestore)
+    }
     LaunchedEffect(state.message) {
         state.message?.let {
             messenger.show(it)
@@ -102,10 +112,38 @@ fun SettingsScreen(
             onHideStart = viewModel::setHideStart,
             onHideEnd = viewModel::setHideEnd,
             onExportAll = { createZip.launchOrElse(state.exportFileName) { messenger.show(NO_FILE_PICKER_MESSAGE) } },
+            onBackUp = { createBackup.launchOrElse(state.backupFileName) { messenger.show(NO_FILE_PICKER_MESSAGE) } },
+            onRestore = { openBackup.launchOrElse(BACKUP_MIME_TYPES) { messenger.show(NO_FILE_PICKER_MESSAGE) } },
             onOpenLicenses = onOpenLicenses,
             onImportActivities = onImportActivities,
             onOpenUrl = { runCatching { uriHandler.openUri(it) } },
         ),
+    )
+    state.restorePreview?.let { preview ->
+        RestoreBackupDialog(preview, onConfirm = viewModel::confirmRestore, onDismiss = viewModel::cancelRestore)
+    }
+}
+
+/** Confirmation before a restore: it replaces everything on the phone, so it says what will be lost. */
+@Composable
+fun RestoreBackupDialog(preview: RestorePreview, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val activities = when (preview.activityCount) {
+        0 -> "no activities"
+        1 -> "1 activity"
+        else -> "${preview.activityCount} activities"
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Restore this backup?") },
+        text = {
+            Text(
+                "The backup from ${preview.createdOn} has $activities. It replaces everything on this phone: " +
+                    "activities, photos, routes, goals, profile and settings. Anything recorded after the backup " +
+                    "is lost. StravaFit restarts to finish.",
+            )
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("Restore") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }
 
@@ -135,6 +173,8 @@ data class SettingsActions(
     val onHideStart: (Double) -> Unit = {},
     val onHideEnd: (Double) -> Unit = {},
     val onExportAll: () -> Unit = {},
+    val onBackUp: () -> Unit = {},
+    val onRestore: () -> Unit = {},
     val onOpenLicenses: () -> Unit = {},
     val onImportActivities: () -> Unit = {},
     val onOpenUrl: (String) -> Unit = {},
@@ -146,18 +186,18 @@ data class SettingsActions(
 fun SettingsContent(state: SettingsUiState, actions: SettingsActions, modifier: Modifier = Modifier) {
     val settings = state.settings
     val formatter = UnitFormatter(settings.units, Locale.getDefault())
-    Scaffold(
+    FrostedScaffold(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = WindowInsets(0),
         topBar = { RidgelineTopAppBar(title = "Settings", onNavigateUp = actions.onNavigateUp) },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             Column(
                 Modifier
                     .widthIn(max = Spacing.feedMaxWidth)
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
+                    .padding(top = padding.calculateTopPadding())
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(horizontal = Spacing.gutter, vertical = Spacing.s),
             ) {
@@ -210,6 +250,22 @@ fun SettingsContent(state: SettingsUiState, actions: SettingsActions, modifier: 
                 OverlineHeader("Your data")
                 SettingsGroup {
                     ActionRow(
+                        "Back up everything",
+                        "One file with all activities, photos, routes, goals, profile and settings. Keep it somewhere " +
+                            "safe, like Google Drive. Your data lives only on this phone until you sign in.",
+                        actions.onBackUp,
+                        Icons.Rounded.Backup,
+                        busy = state.isBackupBusy,
+                    )
+                    RowDivider()
+                    ActionRow(
+                        "Restore from backup",
+                        "Replaces the data on this phone with a backup file",
+                        actions.onRestore,
+                        Icons.Rounded.SettingsBackupRestore,
+                    )
+                    RowDivider()
+                    ActionRow(
                         "Import activity file",
                         "GPX, TCX or FIT from a watch, bike computer or another app",
                         actions.onImportActivities,
@@ -217,8 +273,8 @@ fun SettingsContent(state: SettingsUiState, actions: SettingsActions, modifier: 
                     )
                     RowDivider()
                     ActionRow(
-                        "Export all activities",
-                        "A ZIP with one GPX file per activity, written straight to a folder you choose",
+                        "Export GPX files",
+                        "A ZIP with one GPX file per activity, for other apps. Indoor activities and photos are not included.",
                         actions.onExportAll,
                         Icons.Rounded.Archive,
                         busy = state.isExporting,
@@ -378,6 +434,9 @@ fun visibilityLabel(visibility: Visibility): String = when (visibility) {
 }
 
 private const val OSM_COPYRIGHT_URL = "https://www.openstreetmap.org/copyright"
+
+/** Backup ZIPs as file pickers and Drive label them. */
+private val BACKUP_MIME_TYPES = arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream")
 
 /** The tab names as the bottom bar shows them. */
 internal fun launchTabLabel(tab: LaunchTab): String = when (tab) {
