@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package org.openactivity.app.feature.settings
 
+import android.database.sqlite.SQLiteException
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -17,6 +18,10 @@ import kotlinx.coroutines.launch
 import org.openactivity.app.BuildConfig
 import org.openactivity.app.data.PreferencesRepository
 import org.openactivity.app.data.SuggestionSettings
+import org.openactivity.app.data.backup.BackupException
+import org.openactivity.app.data.backup.BackupManifest
+import org.openactivity.app.data.backup.DataBackup
+import org.openactivity.app.data.backup.UnsavedRecordingCheck
 import org.openactivity.app.data.export.ActivityArchiveExporter
 import org.openactivity.app.data.export.ArchiveSummary
 import org.openactivity.app.distribution.Distribution
@@ -34,7 +39,12 @@ import org.openactivity.model.SportType
 import org.openactivity.model.UnitSystem
 import org.openactivity.model.Visibility
 import java.io.IOException
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
+import java.util.Locale
 import javax.inject.Inject
 
 /**
@@ -51,10 +61,17 @@ data class SettingsUiState(
     val distribution: Distribution,
     val versionName: String,
     val isExporting: Boolean = false,
+    /** A backup is being written or a chosen backup is being read. */
+    val isBackupBusy: Boolean = false,
+    /** A checked backup waiting for the user to confirm the restore. */
+    val restorePreview: RestorePreview? = null,
     val message: String? = null,
 ) {
     /** Suggested name for the data export archive. */
     val exportFileName: String get() = "activities-${LocalDate.now()}.zip"
+
+    /** Suggested name for a full backup. */
+    val backupFileName: String get() = "stravafit-backup-${LocalDate.now()}.zip"
 
     companion object {
         /** Sports offered as the default sport, the same set the Record sport picker offers. */
@@ -77,7 +94,14 @@ data class SettingsUiState(
     }
 }
 
-/** Settings over the `:core:data` [SettingsRepository], plus reduced motion and the data export. */
+/**
+ * What the restore confirmation shows about a chosen backup.
+ *
+ * @property createdOn local date the backup was made, e.g. "3 Nov 2026".
+ */
+data class RestorePreview(val createdOn: String, val activityCount: Int)
+
+/** Settings over the `:core:data` [SettingsRepository], plus reduced motion, the data export and backups. */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
@@ -85,6 +109,8 @@ class SettingsViewModel @Inject constructor(
     private val archiveExporter: ActivityArchiveExporter,
     distribution: Distribution,
     private val suggestionSettings: SuggestionSettings,
+    private val backup: DataBackup,
+    private val unsavedRecording: UnsavedRecordingCheck,
 ) : ViewModel() {
 
     private val local = MutableStateFlow(Local())
@@ -101,6 +127,8 @@ class SettingsViewModel @Inject constructor(
             reduceMotion = preferences.reduceMotion,
             routeSuggestions = suggestions.enabled,
             isExporting = local.exporting,
+            isBackupBusy = local.backupBusy,
+            restorePreview = local.restorePreview,
             message = local.message,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), initial)
@@ -166,7 +194,72 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /** Writes a full backup (activities, photos, goals, profile, settings) to [destination]. */
+    fun backUp(destination: Uri) = runBackupTask {
+        try {
+            backupMessage(backup.backUp(destination))
+        } catch (e: IOException) {
+            "Backup failed: ${e.message ?: "the file could not be written"}"
+        } catch (e: SQLiteException) {
+            "Backup failed: the activity database could not be read"
+        } catch (e: RuntimeException) {
+            // SecurityException / IllegalArgumentException from a revoked or invalid document.
+            "Backup failed: the chosen file could not be written"
+        }
+    }
+
+    /** Reads and checks the backup at [source], then asks for confirmation through [SettingsUiState.restorePreview]. */
+    fun chooseRestore(source: Uri) {
+        if (unsavedRecording.hasUnsavedRecording()) {
+            local.update { it.copy(message = RECORDING_BLOCKS_RESTORE) }
+            return
+        }
+        runBackupTask {
+            try {
+                val manifest = backup.stageRestore(source)
+                local.update { it.copy(restorePreview = preview(manifest)) }
+                null
+            } catch (e: BackupException) {
+                e.message
+            }
+        }
+    }
+
+    /** Replaces everything on this phone with the confirmed backup; the app restarts. */
+    fun confirmRestore() {
+        if (local.value.restorePreview == null) return
+        if (unsavedRecording.hasUnsavedRecording()) {
+            local.update { it.copy(restorePreview = null, message = RECORDING_BLOCKS_RESTORE) }
+            viewModelScope.launch { backup.discardRestore() }
+            return
+        }
+        local.update { it.copy(restorePreview = null) }
+        runBackupTask {
+            try {
+                backup.restoreAndRestart()
+                null
+            } catch (e: IOException) {
+                "Restore failed: ${e.message ?: "the backup could not be applied"}"
+            }
+        }
+    }
+
+    fun cancelRestore() {
+        local.update { it.copy(restorePreview = null) }
+        viewModelScope.launch { backup.discardRestore() }
+    }
+
     fun messageShown() = local.update { it.copy(message = null) }
+
+    /** Runs one backup or restore step at a time; [block] returns the snackbar text, if any. */
+    private fun runBackupTask(block: suspend () -> String?) {
+        if (local.value.backupBusy) return
+        local.update { it.copy(backupBusy = true) }
+        viewModelScope.launch {
+            val message = block()
+            local.update { it.copy(backupBusy = false, message = message ?: it.message) }
+        }
+    }
 
     private fun updateCues(change: (AudioCueSettings) -> AudioCueSettings) =
         launch { settingsRepository.setAudioCues(change(settingsRepository.settings.first().audioCues)) }
@@ -178,10 +271,35 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { block() }
     }
 
-    private data class Local(val exporting: Boolean = false, val message: String? = null)
+    private data class Local(
+        val exporting: Boolean = false,
+        val backupBusy: Boolean = false,
+        val restorePreview: RestorePreview? = null,
+        val message: String? = null,
+    )
 
     internal companion object {
         private const val STOP_TIMEOUT_MS = 5_000L
+
+        const val RECORDING_BLOCKS_RESTORE = "Finish or discard the current recording before restoring a backup"
+
+        private val BACKUP_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault())
+
+        /** "Backed up 12 activities with photos, goals and settings". */
+        fun backupMessage(manifest: BackupManifest): String = when (manifest.activityCount) {
+            0 -> "Backed up your profile and settings"
+            1 -> "Backed up 1 activity with photos, goals and settings"
+            else -> "Backed up ${manifest.activityCount} activities with photos, goals and settings"
+        }
+
+        fun preview(manifest: BackupManifest, zone: ZoneId = ZoneId.systemDefault()): RestorePreview {
+            val date = try {
+                BACKUP_DATE.format(Instant.parse(manifest.createdAt).atZone(zone))
+            } catch (e: DateTimeParseException) {
+                "an unknown date"
+            }
+            return RestorePreview(date, manifest.activityCount)
+        }
 
         /** "Exported 12 activities", noting indoor ones that GPX cannot hold. */
         fun exportMessage(summary: ArchiveSummary): String {

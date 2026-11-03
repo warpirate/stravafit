@@ -4,6 +4,7 @@ package org.openactivity.app.data
 import android.net.Uri
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import org.openactivity.app.data.local.LocalPreferences
 import org.openactivity.app.data.local.ProfilePhotoStore
 import org.openactivity.app.model.UserProfile
@@ -37,19 +38,19 @@ class LocalProfileRepository @Inject constructor(
     private val photos: ProfilePhotoStore,
 ) : ProfileRepository {
 
-    override val profile: Flow<UserProfile> = local.profile
+    override val profile: Flow<UserProfile> = local.profile.map { it.copy(photoPath = it.photoPath?.let(photos::locate)) }
 
     override suspend fun updateDetails(name: String, location: String) = local.setProfileDetails(name, location)
 
     override suspend fun setPhoto(source: Uri) {
-        val previous = local.profile.first().photoPath
+        val previous = profile.first().photoPath
         val path = photos.save(source)
         local.setPhotoPath(path)
         if (previous != null && previous != path) photos.delete(previous)
     }
 
     override suspend fun removePhoto() {
-        val previous = local.profile.first().photoPath ?: return
+        val previous = profile.first().photoPath ?: return
         local.setPhotoPath(null)
         photos.delete(previous)
     }
