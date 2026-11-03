@@ -39,3 +39,9 @@ typealias RecordRoute = org.openactivity.feature.record.navigation.RecordDestina
  * Goals: the list with progress, plus the editor. [newGoal] opens the editor for a new goal straight away.
  */
 @Serializable data class GoalsRoute(val newGoal: Boolean = false)
+
+/** Settings, "Import from Strava": the whole Strava archive. [sharedUri] is a ZIP shared to the app. */
+@Serializable data class StravaImportRoute(val sharedUri: String? = null)
+
+/** Settings, Health Connect: write activities, read other apps' workouts. */
+@Serializable data object HealthConnectRoute

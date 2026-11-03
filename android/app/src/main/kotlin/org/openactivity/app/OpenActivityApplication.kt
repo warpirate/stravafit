@@ -6,16 +6,19 @@ import android.content.Context
 import dagger.hilt.android.HiltAndroidApp
 import org.openactivity.app.data.backup.LocalDataBackup
 import org.openactivity.app.data.backup.RestoreApplier
+import org.openactivity.app.feature.healthconnect.HealthConnectStartup
 import org.openactivity.app.notifications.InboxStartup
 import javax.inject.Inject
 
 /**
  * Application entry point and Hilt root. Applies a confirmed backup restore before anything opens the
- * database, then starts the on-device notification sources.
+ * database, then starts the on-device notification sources and the Health Connect sync.
  */
 @HiltAndroidApp
 class OpenActivityApplication : Application() {
     @Inject lateinit var inboxStartup: InboxStartup
+
+    @Inject lateinit var healthConnectStartup: HealthConnectStartup
 
     /** Runs before content providers, so WorkManager's startup cannot reach the database mid-restore. */
     override fun attachBaseContext(base: Context) {
@@ -26,5 +29,6 @@ class OpenActivityApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         inboxStartup.start()
+        healthConnectStartup.start()
     }
 }

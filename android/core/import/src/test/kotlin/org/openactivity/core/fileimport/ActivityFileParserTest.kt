@@ -3,6 +3,7 @@ package org.openactivity.core.fileimport
 
 import app.stravafit.lib.fit.FitActivity
 import app.stravafit.lib.fit.FitActivityEncoder
+import app.stravafit.lib.fit.FitActivitySummary
 import app.stravafit.lib.fit.FitFileId
 import app.stravafit.lib.fit.FitRecord
 import app.stravafit.lib.fit.FitSession
@@ -182,5 +183,25 @@ class ActivityFileParserTest {
         val activity = parse("gpx/gpx10-route-no-times.gpx").first()
         assertNull(activity.startTime)
         assertTrue(activity.dedupeKey.startsWith("content:"))
+    }
+
+    @Test
+    fun `fit files carry the utc offset where they were recorded`() {
+        val start = Instant.parse("2026-10-03T01:15:00Z")
+        val records = List(10) { i -> FitRecord(timestamp = start.plusSeconds(i.toLong()), latitude = 18.53 + i * 1e-4, longitude = 73.87) }
+        fun fit(local: java.time.LocalDateTime?) = FitActivityEncoder().encode(
+            FitActivity(
+                fileId = FitFileId(timeCreated = start),
+                records = records,
+                sessions = listOf(FitSession(timestamp = start.plusSeconds(9), startTime = start, sport = FitSport.RUNNING, totalElapsedTime = 9.0, totalTimerTime = 9.0)),
+                activity = FitActivitySummary(timestamp = start.plusSeconds(9), totalTimerTime = 9.0, numSessions = 1, localTimestamp = local),
+            ),
+        )
+        // Pune is UTC+5:30.
+        val pune = parseBytes("run.fit", fit(java.time.LocalDateTime.of(2026, 10, 3, 6, 45, 9))).single()
+        assertEquals(5 * 3600 + 30 * 60, pune.utcOffsetSeconds)
+        assertNull(parseBytes("run.fit", fit(null)).single().utcOffsetSeconds)
+        // A watch clock a few seconds off is not an offset.
+        assertNull(parseBytes("run.fit", fit(java.time.LocalDateTime.of(2026, 10, 3, 6, 45, 14))).single().utcOffsetSeconds)
     }
 }

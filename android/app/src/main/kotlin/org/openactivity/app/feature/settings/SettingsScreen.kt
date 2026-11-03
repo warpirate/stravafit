@@ -18,8 +18,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.Backup
+import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.MonitorHeart
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.SettingsBackupRestore
 import androidx.compose.material.icons.rounded.UploadFile
@@ -65,6 +67,8 @@ fun SettingsScreen(
     onEditProfile: () -> Unit,
     onOpenLicenses: () -> Unit,
     onImportActivities: () -> Unit = {},
+    onImportFromStrava: () -> Unit = {},
+    onOpenHealthConnect: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -116,6 +120,8 @@ fun SettingsScreen(
             onRestore = { openBackup.launchOrElse(BACKUP_MIME_TYPES) { messenger.show(NO_FILE_PICKER_MESSAGE) } },
             onOpenLicenses = onOpenLicenses,
             onImportActivities = onImportActivities,
+            onImportFromStrava = onImportFromStrava,
+            onOpenHealthConnect = onOpenHealthConnect,
             onOpenUrl = { runCatching { uriHandler.openUri(it) } },
         ),
     )
@@ -177,6 +183,8 @@ data class SettingsActions(
     val onRestore: () -> Unit = {},
     val onOpenLicenses: () -> Unit = {},
     val onImportActivities: () -> Unit = {},
+    val onImportFromStrava: () -> Unit = {},
+    val onOpenHealthConnect: () -> Unit = {},
     val onOpenUrl: (String) -> Unit = {},
 )
 
@@ -270,6 +278,20 @@ fun SettingsContent(state: SettingsUiState, actions: SettingsActions, modifier: 
                         "GPX, TCX or FIT from a watch, bike computer or another app",
                         actions.onImportActivities,
                         Icons.Rounded.UploadFile,
+                    )
+                    RowDivider()
+                    ActionRow(
+                        "Import from Strava (full export)",
+                        "Your whole Strava archive: every activity with its map, name, description and photos",
+                        actions.onImportFromStrava,
+                        Icons.Rounded.CloudDownload,
+                    )
+                    RowDivider()
+                    ActionRow(
+                        "Health Connect",
+                        "Write your activities to Health Connect and import workouts from Garmin, Samsung Health and others",
+                        actions.onOpenHealthConnect,
+                        Icons.Rounded.MonitorHeart,
                     )
                     RowDivider()
                     ActionRow(

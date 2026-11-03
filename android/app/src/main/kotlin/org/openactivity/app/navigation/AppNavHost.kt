@@ -23,6 +23,8 @@ import org.openactivity.app.feature.route.RouteDetailScreen
 import org.openactivity.app.feature.route.SuggestedRouteScreen
 import org.openactivity.app.feature.settings.LicensesScreen
 import org.openactivity.app.feature.settings.SettingsScreen
+import org.openactivity.app.feature.healthconnect.HealthConnectScreen
+import org.openactivity.app.feature.stravaimport.StravaImportScreen
 import org.openactivity.core.datastore.LaunchTab
 import org.openactivity.core.designsystem.theme.RidgelineTheme
 import org.openactivity.feature.activitydetail.ActivityDetailNavigation
@@ -45,7 +47,8 @@ import org.openactivity.feature.shareexport.shareExportScreen
 /**
  * The app navigation graph. Every destination is registered exactly once: the four tabs (feed,
  * explore, groups, me), record, settings, save/edit, activity detail, share & export, route detail,
- * suggested route, file import, edit profile, licences, the notifications inbox and goals. First-run
+ * suggested route, file import, the Strava import, Health Connect, edit profile, licences, the notifications
+ * inbox and goals. First-run
  * onboarding is shown by `MainActivity` before this graph exists. Activity, route and recorder
  * destinations also answer the [AppLinks].
  */
@@ -121,6 +124,23 @@ fun AppNavHost(navController: NavHostController, startTab: LaunchTab = LaunchTab
                 onEditProfile = { navController.navigate(EditProfileRoute) { launchSingleTop = true } },
                 onOpenLicenses = { navController.navigate(LicensesRoute) { launchSingleTop = true } },
                 onImportActivities = dropUnlessResumed { navController.navigateToImportActivities() },
+                onImportFromStrava = dropUnlessResumed { navController.navigate(StravaImportRoute()) { launchSingleTop = true } },
+                onOpenHealthConnect = dropUnlessResumed { navController.navigate(HealthConnectRoute) { launchSingleTop = true } },
+            )
+        }
+        composable<StravaImportRoute> {
+            StravaImportScreen(
+                onNavigateUp = dropUnlessResumed { navController.popBackStack() },
+                onOpenActivities = { navController.switchTab(MeRoute) },
+            )
+        }
+        composable<HealthConnectRoute> {
+            HealthConnectScreen(
+                onNavigateUp = dropUnlessResumed { navController.popBackStack() },
+                // The privacy page lives in Settings until it has a screen of its own.
+                onOpenPrivacy = dropUnlessResumed {
+                    if (!navController.popBackStack<SettingsRoute>(inclusive = false)) navController.navigate(SettingsRoute) { launchSingleTop = true }
+                },
             )
         }
         composable<EditProfileRoute> {

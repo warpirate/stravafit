@@ -28,4 +28,11 @@ class SharedFileStagerTest {
         assertEquals(".._.._etc_passwd.fit", SharedFileStager.safeName("../../etc/passwd.fit"))
         assertEquals("file", SharedFileStager.safeName(""))
     }
+
+    @Test
+    fun `a zip is recognised by its signature`() {
+        assertTrue(SharedFileStager.looksLikeZip(byteArrayOf(0x50, 0x4B, 0x03, 0x04, 0x14)))
+        assertFalse(SharedFileStager.looksLikeZip("<gpx".toByteArray()))
+        assertFalse(SharedFileStager.looksLikeZip(byteArrayOf(0x50, 0x4B)))
+    }
 }

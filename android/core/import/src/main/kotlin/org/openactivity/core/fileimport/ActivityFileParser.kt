@@ -16,8 +16,10 @@ import java.io.InputStream
 import java.security.MessageDigest
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneOffset
 import java.util.Locale
 import java.util.zip.GZIPInputStream
+import kotlin.math.abs
 import javax.inject.Inject
 
 /**
@@ -105,7 +107,14 @@ public class ActivityFileParser @Inject constructor() {
         val (sport, declared) = Sports.fromFit(session?.sport ?: fit.laps.firstNotNullOfOrNull { it.sport })
         val start = session?.startTime ?: points.firstNotNullOfOrNull { it.time } ?: fit.fileId.timeCreated
         val distance = fit.sessions.mapNotNull { it.totalDistance }.takeIf { it.isNotEmpty() }?.sum()
-        return listOf(build(fileName, ImportFormat.FIT, null, sport, declared, start, points, fit.fileId.productName, hash, false, distance))
+        // The activity message's wall-clock time minus its UTC time is the offset where it was recorded.
+        val offset = fit.activity?.let { a ->
+            a.localTimestamp?.let { local -> Duration.between(a.timestamp, local.toInstant(ZoneOffset.UTC)).seconds }
+        }?.takeIf { abs(it) <= MAX_UTC_OFFSET_SECONDS && it % QUARTER_HOUR_SECONDS == 0L }?.toInt()
+        return listOf(
+            build(fileName, ImportFormat.FIT, null, sport, declared, start, points, fit.fileId.productName, hash, false, distance)
+                .copy(utcOffsetSeconds = offset),
+        )
     }
 
     @Suppress("LongParameterList")
@@ -151,6 +160,10 @@ public class ActivityFileParser @Inject constructor() {
         public const val MAX_FILE_BYTES: Int = 64 * 1024 * 1024
 
         private const val MAX_TITLE = 120
+
+        /** Real UTC offsets lie within ±18 h and are whole quarter hours; anything else is a clock error. */
+        private const val MAX_UTC_OFFSET_SECONDS = 18L * 3600
+        private const val QUARTER_HOUR_SECONDS = 15L * 60
 
         /**
          * Key shared by every file of one recording: the time and place of the first sample that has both,
@@ -217,7 +230,8 @@ public class ActivityFileParser @Inject constructor() {
             return out.toByteArray()
         }
 
-        internal fun sha256(bytes: ByteArray): String =
+        /** Lower-case hex SHA-256 of [bytes]. */
+        public fun sha256(bytes: ByteArray): String =
             MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 
         private fun measuredDistance(points: List<ImportedPoint>): Double {
